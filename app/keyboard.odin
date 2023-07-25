@@ -1,37 +1,21 @@
 package app
 
-@(private)
 key_down_enum :: proc "contextless" (key: Keyboard_Key) -> bool {
     return ctx.keyboard_keys[key]
 }
 
-@(private)
-key_down_rune :: proc "contextless" (key: rune) -> bool {
-    key := key >= 'a' && key <= 'z' ? key - ('a' - 'A') : key
-    return ctx.keyboard_keys[Keyboard_Key(key)]
-}
+key_down :: proc{key_down_enum}
 
-key_down :: proc{key_down_enum, key_down_rune}
-
-@(private)
 key_pressed_enum :: proc "contextless" (key: Keyboard_Key) -> bool {
     return ctx.keyboard_keys_pressed[key]
 }
 
-@(private)
-key_pressed_rune :: proc "contextless" (key: rune) -> bool {
-    key := key >= 'a' && key <= 'z' ? key - ('a' - 'A') : key
-    return ctx.keyboard_keys_pressed[Keyboard_Key(key)]
-}
+key_pressed :: proc{key_pressed_enum}
 
-key_pressed :: proc{key_pressed_enum, key_pressed_rune}
-
-@(private)
 key_released_enum :: proc "contextless" (key: Keyboard_Key) -> bool {
     return ctx.keyboard_keys_released[key]
 }
 
-@(private)
 key_released_rune :: proc "contextless" (key: rune) -> bool {
     key := key >= 'a' && key <= 'z' ? key - ('a' - 'A') : key
     return ctx.keyboard_keys_released[Keyboard_Key(key)]

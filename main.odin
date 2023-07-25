@@ -1,8 +1,3 @@
-# jo
-
-A stupidly easy to use library for the Odin programming language.
-
-```odin
 package example
 
 import "app"
@@ -58,4 +53,3 @@ draw_image :: proc(bitmap: []u32, img: ^png.Image, x, y: int) {
 		}
 	}
 }
-```
