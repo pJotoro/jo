@@ -1,27 +1,16 @@
 package app
 
-key_down_enum :: proc "contextless" (key: Keyboard_Key) -> bool {
+key_down :: proc "contextless" (key: Keyboard_Key) -> bool {
     return ctx.keyboard_keys[key]
 }
 
-key_down :: proc{key_down_enum}
-
-key_pressed_enum :: proc "contextless" (key: Keyboard_Key) -> bool {
+key_pressed :: proc "contextless" (key: Keyboard_Key) -> bool {
     return ctx.keyboard_keys_pressed[key]
 }
 
-key_pressed :: proc{key_pressed_enum}
-
-key_released_enum :: proc "contextless" (key: Keyboard_Key) -> bool {
+key_released :: proc "contextless" (key: Keyboard_Key) -> bool {
     return ctx.keyboard_keys_released[key]
 }
-
-key_released_rune :: proc "contextless" (key: rune) -> bool {
-    key := key >= 'a' && key <= 'z' ? key - ('a' - 'A') : key
-    return ctx.keyboard_keys_released[Keyboard_Key(key)]
-}
-
-key_released :: proc{key_released_enum, key_released_rune}
 
 Keyboard_Key :: enum rune {
     Left_Mouse = 0x01,
@@ -61,6 +50,44 @@ Keyboard_Key :: enum rune {
     Insert,
     Delete,
     Help,
+
+    Zero = '0',
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine,
+
+    A = 'A',
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
 
     Left_Logo_Key = 0x5B,
     Right_Logo_Key,

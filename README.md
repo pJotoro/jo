@@ -5,7 +5,7 @@ A stupidly easy to use library for the Odin programming language.
 ```odin
 package example
 
-import "app"
+import "jo/app"
 import "core:image/png"
 import "core:slice"
 import "core:mem"
@@ -64,6 +64,26 @@ draw_image :: proc(bitmap: []u32, img: ^png.Image, pos: [2]f32) {
 			pixel := image_pixel(img, image_x, image_y)
 			draw_pixel(bitmap, x + image_x, y + image_y, pixel)
 		}
+	}
+}
+```
+
+You can also create an OpenGL context with just one procedure call:
+
+```odin
+package gl_example
+
+import "jo/app"
+import gl "vendor:OpenGL"
+
+main :: proc() {
+	app.init()
+	app.gl_init(4, 6)
+
+	for !app.should_close() {
+		gl.ClearColor(0.123, 0.456, 0.789, 1)
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		app.gl_swap_buffers()
 	}
 }
 ```
