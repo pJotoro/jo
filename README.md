@@ -8,7 +8,6 @@ package example
 import "jo/app"
 import "core:image/png"
 import "core:slice"
-import "core:mem"
 
 main :: proc() {
 	app.init()
@@ -39,7 +38,6 @@ main :: proc() {
 		draw_image(bitmap, awesomeface, pos)
 
 		app.render(bitmap)
-		mem.free_all(context.temp_allocator)
 	}
 }
 
@@ -87,3 +85,19 @@ main :: proc() {
 	}
 }
 ```
+
+## Why another library?
+
+Libraries like SDL, GLFW, Raylib, Sokol, and others aren't good enough for me. 
+
+So far, these are the principles I've been running with when developing jo:
+
+1. Libraries should only attempt to be useful for 99% of programs.
+2. Flexibility isn't always good. Most programs don't need multiple windows, for example. Strategic *inflexibility* can make a library much nicer to use in 99% of cases.
+3. Reduce the number of *necessary* API calls as much as possible.
+4. Avoid returning results. Most errors in platform specific code are just that: *errors*. If they happen, it means there's something wrong with the *library*. Where this isn't the case, such as with `app.gl_init`, a boolean result is acceptable. If it fails, it simply means that version of OpenGL isn't present on the user's machine.
+5. NEVER EVER make a procedure like app.get_last_error. If the library is being used in a blatantly incorrect way, it should panic with a useful error message. Forcing the user to get an error and print it out themsevles is completely pointless.
+
+## IMPORTANT:
+
+jo is still early in development. For now, it is Windows only.
