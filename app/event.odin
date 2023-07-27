@@ -17,4 +17,4 @@ Event :: union {
     Event_Key_Up,
 }
 
-Event_Callback :: #type proc(event: Event)
+Event_Callback :: #type proc(event: Event, user_data: rawptr)

@@ -7,6 +7,8 @@ import "core:runtime"
 import "xinput"
 
 Context :: struct {
+    user_data: rawptr,
+
     should_close: bool,
     visible: bool,
     window: win32.HWND,
@@ -49,7 +51,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
                     oem_scan_code = u8(oem_scan_code),
                     already_down = bool(already_down),
                 }
-                ctx.event_callback(event)
+                ctx.event_callback(event, ctx.user_data)
             }
 
         case win32.WM_KEYUP, win32.WM_SYSKEYUP:
@@ -63,7 +65,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
                     key = key,
                     oem_scan_code = u8(oem_scan_code),
                 }
-                ctx.event_callback(event)
+                ctx.event_callback(event, ctx.user_data)
             }
 
         case win32.WM_CLOSE, win32.WM_DESTROY, win32.WM_QUIT:
@@ -159,7 +161,7 @@ init_fullscreen :: proc(fps := 0, loc := #caller_location) {
     ctx.height = int(rect.bottom - rect.top)
 }
 
-_init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Event_Callback = nil, loc := #caller_location) {
+_init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, loc := #caller_location) {
     when MODE == 0 {
         when ODIN_DEBUG do init_windowed(title, width, height, fps, loc)
         else do init_fullscreen(fps, loc)
@@ -170,6 +172,7 @@ _init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Ev
     } else do #assert(false)
 
     ctx.event_callback = event_callback
+    ctx.user_data = user_data
 
     ctx.xinput_enabled = xinput.init()
     ctx.next_gamepad_id = 4

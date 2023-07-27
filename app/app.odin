@@ -2,8 +2,8 @@ package app
 
 MODE :: #config(APP_MODE, 0) // 0 is automatic, 1 is windowed, and 2 is fullscreen.
 
-init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Event_Callback = nil, loc := #caller_location) {
-    _init(title, width, height, fps, event_callback, loc)
+init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, loc := #caller_location) {
+    _init(title, width, height, fps, event_callback, user_data, loc)
 }
 
 should_close :: proc() -> bool {
