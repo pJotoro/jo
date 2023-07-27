@@ -154,7 +154,7 @@ main :: proc() {
 
 ## Why wrap over OpenGL? Why not just use it directly?
 
-OpenGL 4.6 is great; unfortunately, there isn't a 500 page book on how to use it, and isn't at all clear which procedures it deprecates and which procedures it keeps. jo/ngl bans the "deprecated" procedures by simply not providing wrappers over them. This way, you have no choice but to use the procedures you actually want.
+OpenGL 4.6 is great; unfortunately, there isn't a 500 page book on how to use it, and it isn't at all clear which procedures it deprecates and which procedures it keeps. jo/ngl bans the "deprecated" procedures by simply not providing wrappers over them. This way, you have no choice but to use the procedures you actually want.
 
 # IMPORTANT:
 
