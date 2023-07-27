@@ -13,10 +13,10 @@ main :: proc() {
 	program := gl.create_program(vertex_shader, fragment_shader)
 
 	vertices := [?]f32{
-        -0.5, -0.5, 0.0, // left  
-        0.5, -0.5, 0.0, // right 
-        0.0,  0.5, 0.0, // top   
-    }
+		-0.5, -0.5, 0.0, // left  
+		0.5, -0.5, 0.0, // right 
+		0.0,  0.5, 0.0, // top   
+	}
 
 	vertex_buffer := gl.create_buffer()
 	gl.buffer_data(vertex_buffer, slice.to_bytes(vertices[:]), .Static_Draw)
