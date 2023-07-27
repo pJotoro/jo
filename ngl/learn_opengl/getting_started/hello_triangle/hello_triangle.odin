@@ -1,4 +1,4 @@
-package example
+package hello_triangle
 
 import "app"
 import gl "ngl"
