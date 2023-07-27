@@ -1,7 +1,7 @@
 package hello_triangle
 
-import "app"
-import gl "ngl"
+import "jo/app"
+import gl "jo/ngl"
 import "core:slice"
 
 main :: proc() {

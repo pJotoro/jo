@@ -108,8 +108,8 @@ A stupidly easy to use wrapper over OpenGL 4.6.
 ```odin
 package example
 
-import "app"
-import gl "ngl"
+import "jo/app"
+import gl "jo/ngl"
 import "core:slice"
 
 main :: proc() {
