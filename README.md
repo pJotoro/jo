@@ -66,6 +66,8 @@ draw_image :: proc(bitmap: []u32, img: ^png.Image, pos: [2]f32) {
 }
 ```
 
+![Screenshot](screenshots/app_example_0.png)
+
 You can also create an OpenGL context with just one procedure call:
 
 ```odin
@@ -85,6 +87,8 @@ main :: proc() {
 	}
 }
 ```
+
+![Screenshot](screenshots/app_example_1.png)
 
 ## Why another library?
 
@@ -145,6 +149,8 @@ main :: proc() {
 	}
 }
 ```
+
+![Screenshot](screenshots/ngl_example_0.png)
 
 ## Why wrap over OpenGL? Why not just use it directly?
 
