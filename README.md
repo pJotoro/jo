@@ -7,7 +7,7 @@ package example
 
 import "jo/app"
 import "core:image/png"
-import "core:slice"
+import "core:mem"
 
 main :: proc() {
 	app.init()
@@ -22,7 +22,7 @@ main :: proc() {
 	pos.y = f32((app.height() - awesomeface.height) / 2)
 	
 	for !app.should_close() {
-		slice.fill(bitmap, 0)
+		mem.zero_slice(bitmap)
 
 		if gamepad != app.INVALID_GAMEPAD {
 			pos += app.gamepad_left_stick(gamepad)
