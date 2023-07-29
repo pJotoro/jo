@@ -48,6 +48,50 @@ buffer_data :: proc "contextless" (buffer: Buffer, data: []byte, usage: Buffer_U
 	gl.NamedBufferData(u32(buffer), len(data), raw_data(data), u32(usage))
 }
 
+Buffer_Storage_Flag :: enum u32 {
+	Map_Read = 0,
+	Map_Write = 1,
+	Map_Persistent = 6,
+	Map_Coherent = 7,
+	Dynamic = 8,
+	Client = 9,
+}
+
+Buffer_Storage_Flags :: distinct bit_set[Buffer_Storage_Flag; u32]
+
+buffer_storage :: proc "contextless" (buffer: Buffer, data: []byte, flags: Buffer_Storage_Flags) {
+	gl.NamedBufferStorage(u32(buffer), len(data), raw_data(data), transmute(u32)flags)
+}
+
+buffer_sub_data :: proc "contextless" (buffer: Buffer, offset: int, data: []byte) {
+	gl.NamedBufferSubData(u32(buffer), offset, len(data), raw_data(data))
+}
+
+copy_buffer_sub_data :: proc "contextless" (read_buffer, write_buffer: Buffer, read_offset, write_offset, size: int) {
+	gl.CopyNamedBufferSubData(u32(read_buffer), u32(write_buffer), read_offset, write_offset, size)
+}
+
+Buffer_Access_Flag :: enum u32 {
+	Read,
+	Write,
+	Invalidate_Range,
+	Invalidate_Buffer,
+	Flush_Explicit,
+	Unsynchronized,
+	Persistent,
+	Coherent,
+}
+
+Buffer_Access_Flags :: distinct bit_set[Buffer_Access_Flag; u32]
+
+map_buffer_range :: proc "contextless" (buffer: Buffer, offset, length: int, access: Buffer_Access_Flags) -> []byte {
+	return ([^]byte)(gl.MapNamedBufferRange(u32(buffer), offset, length, transmute(u32)access))[:length]
+}
+
+unmap_buffer :: proc "contextless" (buffer: Buffer) {
+	gl.UnmapNamedBuffer(u32(buffer))
+}
+
 Shader :: distinct u32
 
 Shader_Type :: enum u32 {
@@ -107,6 +151,39 @@ create_program :: proc(shaders: ..Shader, loc := #caller_location) -> (Program, 
 
 use_program :: proc "contextless" (program: Program) {
 	gl.UseProgram(u32(program))
+}
+
+Pipeline :: distinct u32
+
+create_pipeline :: proc "contextless" () -> Pipeline {
+	pipeline: u32 = ---
+	gl.CreateProgramPipelines(1, &pipeline)
+	return Pipeline(pipeline)
+}
+
+create_pipelines :: proc(n: i32, allocator := context.allocator, loc := #caller_location) -> []Pipeline {
+	pipelines := make([]u32, n, allocator, loc)
+	gl.CreateProgramPipelines(n, raw_data(pipelines))
+	return transmute([]Pipeline)pipelines
+}
+
+Stage_Flag :: enum u32 {
+	Vertex,
+	Fragment,
+	Geometry,
+	Tess_Control,
+	Tess_Evaluation,
+	Compute,
+}
+
+Stage_Flags :: distinct bit_set[Stage_Flag; u32]
+
+use_stages :: proc "contextless" (pipeline: Pipeline, stages: Stage_Flags, program: Program) {
+	gl.UseProgramStages(u32(pipeline), transmute(u32)stages, u32(program))
+}
+
+bind_pipeline :: proc "contextless" (pipeline: Pipeline) {
+	gl.BindProgramPipeline(u32(pipeline))
 }
 
 Vertex_Array :: distinct u32
@@ -245,4 +322,373 @@ program_uniform :: proc{
 	program_uniform_2ui,
 	program_uniform_3ui,
 	program_uniform_4ui,
+}
+
+Texture :: distinct u32
+
+Texture_Target :: enum u32 {
+	D1 = 0x0DE0,
+	D2 = 0x0DE1,
+	D3 = 0x806F,
+	Rectangle = 0x84F5,
+	Cube_Map = 0x8513,
+	D1_Array = 0x8C18,
+	D2_Array = 0x8C1A,
+	Cube_Map_Array = 0x9009,
+	D2_Multisample = 0x9100,
+	D2_Multisample_Array = 0x9102,
+}
+
+create_texture :: proc "contextless" (target: Texture_Target) -> Texture {
+	texture: u32 = ---
+	gl.CreateTextures(u32(target), 1, &texture)
+	return Texture(texture)
+}
+
+create_textures :: proc(target: Texture_Target, n: i32, allocator := context.allocator, loc := #caller_location) -> []Texture {
+	textures := make([]u32, n, allocator, loc = loc)
+	gl.CreateTextures(u32(target), n, raw_data(textures))
+	return transmute([]Texture)textures
+}
+
+Depth_Stencil_Mode :: enum i32 {
+	Stencil_Index = 0x1901,
+	Depth_Component = 0x1902,
+}
+
+texture_depth_stencil_mode :: proc "contextless" (texture: Texture, mode: Depth_Stencil_Mode) {
+	gl.TextureParameteri(u32(texture), gl.DEPTH_STENCIL_TEXTURE_MODE, i32(mode))
+}
+
+texture_base_level :: proc "contextless" (texture: Texture, index: i32) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_BASE_LEVEL, index)
+}
+
+texture_border_color_f :: proc "contextless" (texture: Texture, r, g, b, a: f32) {
+	params := [4]f32{r, g, b, a}
+	gl.TextureParameterfv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
+}
+
+texture_border_color_i :: proc "contextless" (texture: Texture, r, g, b, a: i32) {
+	params := [4]i32{r, g, b, a}
+	gl.TextureParameterIiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
+}
+texture_border_color_ui :: proc "contextless" (texture: Texture, r, g, b, a: u32) {
+	params := [4]u32{r, g, b, a}
+	gl.TextureParameterIuiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
+}
+
+texture_border_color :: proc{texture_border_color_f, texture_border_color_i, texture_border_color_ui}
+
+Compare_Func :: enum i32 {
+	Never = 0x0200,
+	Less,
+	Equal,
+	Less_Equal,
+	Greater,
+	Not_Equal,
+	Greater_Equal,
+	Always,
+}
+
+texture_compare_func :: proc "contextless" (texture: Texture, compare_func: Compare_Func) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_COMPARE_FUNC, i32(compare_func))
+}
+
+Compare_Mode :: enum i32 {
+	None = 0,
+	Ref_To_Texture = 0x884E,
+}
+
+texture_compare_mode :: proc "contextless" (texture: Texture, compare_mode: Compare_Mode) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_COMPARE_MODE, i32(compare_mode))
+}
+
+texture_lod_bias :: proc "contextless" (texture: Texture, lod_bias: f32) {
+	gl.TextureParameterf(u32(texture), gl.TEXTURE_LOD_BIAS, lod_bias)
+}
+
+Min_Filter :: enum i32 {
+	Nearest = 0x2600,
+	Linear = 0x2601,
+	Nearest_Mipmap_Nearest = 0x2700,
+	Linear_Mipmap_Nearest = 0x2701,
+	Nearest_Mipmap_Linear = 0x2702,
+	Linear_Mipmap_Linear = 0x2703,
+}
+
+texture_min_filter :: proc "contextless" (texture: Texture, min_filter: Min_Filter) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_MIN_FILTER, i32(min_filter))
+}
+
+Mag_Filter :: enum i32 {
+	Nearest = 0x2600,
+	Linear = 0x2601,
+}
+
+texture_mag_filter :: proc "contextless" (texture: Texture, mag_filter: Mag_Filter) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_MAG_FILTER, i32(mag_filter))
+}
+
+texture_min_lod :: proc "contextless" (texture: Texture, min_lod: f32) {
+	gl.TextureParameterf(u32(texture), gl.TEXTURE_MIN_LOD, min_lod)
+}
+
+texture_max_lod :: proc "contextless" (texture: Texture, max_lod: f32) {
+	gl.TextureParameterf(u32(texture), gl.TEXTURE_MAX_LOD, max_lod)
+}
+
+texture_max_level :: proc "contextless" (texture: Texture, max_level: i32) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_MAX_LEVEL, max_level)
+}
+
+Swizzle :: enum i32 {
+	Zero = 0,
+	One = 1,
+	Red = 0x1903,
+	Green = 0x1904,
+	Blue = 0x1905,
+	Alpha = 0x1906,
+}
+
+texture_swizzle_r :: proc "contextless" (texture: Texture, swizzle_r: Swizzle) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_SWIZZLE_R, i32(swizzle_r))
+}
+
+texture_swizzle_g :: proc "contextless" (texture: Texture, swizzle_g: Swizzle) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_SWIZZLE_G, i32(swizzle_g))
+}
+
+texture_swizzle_b :: proc "contextless" (texture: Texture, swizzle_b: Swizzle) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_SWIZZLE_B, i32(swizzle_b))
+}
+
+texture_swizzle_a :: proc "contextless" (texture: Texture, swizzle_a: Swizzle) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_SWIZZLE_A, i32(swizzle_a))
+}
+
+texture_swizzle_rgba :: proc "contextless" (texture: Texture, r, g, b, a: Swizzle) {
+	swizzles := [4]i32{i32(r), i32(g), i32(b), i32(a)}
+	gl.TextureParameterIiv(u32(texture), gl.TEXTURE_SWIZZLE_RGBA, raw_data(swizzles[:]))
+}
+
+Wrap :: enum i32 {
+	Repeat = 0x2901,
+	Clamp_To_Border = 0x812D,
+	Clamp_To_Edge = 0x812F,
+	Mirrored_Repeat = 0x8370,
+	Mirror_Clamp_To_Edge = 0x8743,
+}
+
+texture_wrap_s :: proc "contextless" (texture: Texture, wrap_s: Wrap) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_S, i32(wrap_s))
+}
+
+texture_wrap_t :: proc "contextless" (texture: Texture, wrap_t: Wrap) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_T, i32(wrap_t))
+}
+
+texture_wrap_r :: proc "contextless" (texture: Texture, wrap_r: Wrap) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_R, i32(wrap_r))
+}
+
+// NOTE(pJotoro): I don't guarantee all the formats are in this enum. I want them to all be in there, it's just really annoying to find all of them because they're so disorganized.
+
+Internal_Format :: enum u32 {
+	R3_G3_B2 = 0x2A10,
+
+	Rgb4 = 0x804F,
+	Rgb5 = 0x8050,
+	Rgb8 = 0x8051,
+	Rgb10 = 0x8052,
+	Rgb12 = 0x8053,
+	Rgb16 = 0x8054,
+	Rgba2 = 0x8055,
+	Rgba4 = 0x8056,
+	Rgb5_A1 = 0x8057,
+	Rgba8 = 0x8058,
+	Rgb10_A2 = 0x8059,
+	Rgba12 = 0x805A,
+	Rgba16 = 0x805B,
+
+	R8 = 0x8229,
+	R16 = 0x822A,
+	Rg8 = 0x822B,
+	Rg16 = 0x822C,
+	R16f = 0x822D,
+	R32f = 0x822E,
+	Rg16f = 0x822F,
+	Rg32f = 0x8230,
+	R8i = 0x8231,
+	R8ui = 0x8232,
+	R16i = 0x8233,
+	R16ui = 0x8234,
+	R32i = 0x8235,
+	R32ui = 0x8236,
+	Rg8i = 0x8237,
+	Rg8ui = 0x8238,
+	Rg16i = 0x8239,
+	Rg16ui = 0x823A,
+	Rg32i = 0x823B,
+	Rg32ui = 0x823C,
+
+	Rgba32f = 0x8814,
+	Rgb32f = 0x8815,
+	Rgba16f = 0x881A,
+	Rgb16f = 0x881B,
+
+	R11f_G11f_B10f = 0x8C3A,
+
+	Rgb9_E5 = 0x8C3D,
+
+	Rgba32ui = 0x8D70,
+	Rgb32ui = 0x8D71,
+	Rgba16ui = 0x8D76,
+	Rgb16ui = 0x8D77,
+	Rgba8ui = 0x8D7C,
+	Rgb8ui = 0x8D7D,
+	Rgba32i = 0x8D82,
+	Rgb32i = 0x8D83,
+	Rgba16i = 0x8D88,
+	Rgb16i = 0x8D89,
+	Rgba8i = 0x8D8E,
+	Rgb8i = 0x8D8F,
+
+	R8_Snorm = 0x8F94,
+	Rg8_Snorm = 0x8F95,
+	Rgb8_Snorm = 0x8F96,
+	Rgba8_Snorm = 0x8F97,
+	R16_Snorm = 0x8F98,
+	Rg16_Snorm = 0x8F99,
+	Rgb16_Snorm = 0x8F9A,
+	Rgba16_Snorm = 0x8F9B,
+
+	Rgb10_A2ui = 0x906F,
+}
+
+texture_storage_1d :: proc "contextless" (texture: Texture, levels: i32, format: Internal_Format, size: i32) {
+	gl.TextureStorage1D(u32(texture), levels, u32(format), size)
+}
+
+texture_storage_2d :: proc "contextless" (texture: Texture, levels: i32, format: Internal_Format, width, height: i32) {
+	gl.TextureStorage2D(u32(texture), levels, u32(format), width, height)
+}
+
+texture_storage_3d :: proc "contextless" (texture: Texture, levels: i32, format: Internal_Format, width, height, depth: i32) {
+	gl.TextureStorage3D(u32(texture), levels, u32(format), width, height, depth)
+}
+
+Format :: enum i32 {
+	Stencil_Index = 0x1901,
+	Depth_Component = 0x1902,
+	Red = 0x1903,
+	Rgb = 0x1907,
+	Rgba = 0x1908,
+	Rg = 0x8227,
+}
+
+// TODO(pJotoro): Should we allow all the crazy formats like GL_UNSIGNED_BYTE_2_3_3_REV here? Or should we just keep the basic ones? 
+
+texture_sub_image_1d :: proc "contextless" (texture: Texture, level, offset: i32, format: Format, pixels: []$T) {
+	gl.TextureSubImage1D(u32(texture), level, offset, i32(len(pixels)), i32(format), gl_type(T), raw_data(pixels))
+}
+
+texture_sub_image_2d_1d :: proc(texture: Texture, level, xoffset, yoffset, width, height: i32, format: Format, pixels: []$T, loc := #caller_location) {
+	assert(condition = int(width * height) == len(pixels), loc = loc)
+	gl.TextureSubImage2D(u32(texture), level, xoffset, yoffset, width, height, i32(format), gl_type(T), raw_data(pixels))
+}
+
+texture_sub_image_2d_2d :: proc "contextless" (texture: Texture, level, xoffset, yoffset: i32, format: Format, pixels: [][]$T) {
+	gl.TextureSubImage2D(u32(texture), level, xoffset, yoffset, i32(len(pixels[0])), i32(len(pixels)), i32(format), gl_type(T), raw_data(pixels))
+}
+
+texture_sub_image_2d :: proc{texture_sub_image_2d_1d, texture_sub_image_2d_2d}
+
+texture_sub_image_3d_1d :: proc(texture: Texture, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Format, pixels: []$T, loc := #caller_location) {
+	assert(condition = int(width * height * depth) == len(pixels), loc = loc)
+	gl.TextureSubImage3D(u32(texture), level, xoffset, yoffset, zoffset, width, height, depth, i32(format), gl_type(T), raw_data(pixels))
+}
+
+texture_sub_image_3d_3d :: proc "contextless" (texture: Texture, level, xoffset, yoffset, zoffset: i32, format: Format, pixels: [][][]$T) {
+	gl.TextureSubImage3D(u32(texture), level, xoffset, yoffset, zoffset, i32(len(pixels[0][0])), i32(len(pixels[0])), i32(len(pixels)), i32(format), gl_type(T), raw_data(pixels))
+}
+
+texture_sub_image_3d :: proc{texture_sub_image_3d_1d, texture_sub_image_3d_3d}
+
+bind_texture_unit :: proc "contextless" (unit: u32, texture: Texture) {
+	gl.BindTextureUnit(unit, u32(texture))
+}
+
+generate_texture_mipmap :: proc "contextless" (texture: Texture) {
+	gl.GenerateTextureMipmap(u32(texture))
+}
+
+Framebuffer :: distinct u32
+
+create_framebuffer :: proc "contextless" () -> Framebuffer {
+	framebuffer: u32 = ---
+	gl.CreateFramebuffers(1, &framebuffer)
+	return Framebuffer(framebuffer)
+}
+
+create_framebuffers :: proc(n: i32, allocator := context.allocator, loc := #caller_location) -> []Framebuffer {
+	framebuffers := make([]u32, n, allocator, loc)
+	gl.CreateFramebuffers(n, raw_data(framebuffers))
+	return transmute([]Framebuffer)framebuffers
+}
+
+DEPTH :: 0x8D00
+STENCIL :: 0x8D20
+DEPTH_STENCIL :: 0x821A
+
+framebuffer_texture :: proc(framebuffer: Framebuffer, attachment: u32, texture: Texture, level: i32, loc := #caller_location) {
+	if attachment >= 0 && attachment <= 31 {
+		gl.NamedFramebufferTexture(u32(framebuffer), attachment + gl.COLOR_ATTACHMENT0, u32(texture), level)
+	} else if attachment == DEPTH || attachment == STENCIL || attachment == DEPTH_STENCIL {
+		gl.NamedFramebufferTexture(u32(framebuffer), attachment, u32(texture), level)
+	} else {
+		panic("invalid attachment", loc)
+	}
+}
+
+// NOTE(pJotoro): This is actually the same as Mag_Filter, except it's u32 instead of i32. I have no idea why OpenGL decides to make the same constants u32 or i32 whenever it wants. Either that or maybe there's an error in Odin's OpenGL bindings? I kind of doubt that though since they're auto generated...
+
+Stretch_Filter :: enum u32 {
+	Nearest = 0x2600,
+	Linear = 0x2601,
+}
+
+blit_framebuffer :: proc "contextless" (read_framebuffer, draw_framebuffer: Framebuffer, src_x_0, src_y_0, src_x_1, src_y_1, dst_x_0, dst_y_0, dst_x_1, dst_y_1: i32, mask: Clear_Flags, filter: Stretch_Filter) {
+	gl.BlitNamedFramebuffer(u32(read_framebuffer), u32(draw_framebuffer), src_x_0, src_y_0, src_x_1, src_y_1, dst_x_0, dst_y_0, dst_x_1, dst_y_1, transmute(u32)mask, u32(filter))
+}
+
+clear_framebuffer_color_iv :: proc "contextless" (framebuffer: Framebuffer, draw_buffer: i32, v0, v1, v2, v3: i32) {
+	value := [4]i32{v0, v1, v2, v3}
+	gl.ClearNamedFramebufferiv(u32(framebuffer), gl.COLOR, draw_buffer, raw_data(value[:]))
+}
+
+clear_framebuffer_color_uiv :: proc "contextless" (framebuffer: Framebuffer, draw_buffer: i32, v0, v1, v2, v3: u32) {
+	value := [4]u32{v0, v1, v2, v3}
+	gl.ClearNamedFramebufferuiv(u32(framebuffer), gl.COLOR, draw_buffer, raw_data(value[:]))
+}
+
+clear_framebuffer_color_fv :: proc "contextless" (framebuffer: Framebuffer, draw_buffer: i32, v0, v1, v2, v3: f32) {
+	value := [4]f32{v0, v1, v2, v3}
+	gl.ClearNamedFramebufferfv(u32(framebuffer), gl.COLOR, draw_buffer, raw_data(value[:]))
+}
+
+clear_framebuffer_color :: proc{clear_framebuffer_color_iv, clear_framebuffer_color_uiv, clear_framebuffer_color_fv}
+
+clear_framebuffer_depth :: proc "contextless" (framebuffer: Framebuffer, value: f32) {
+	value := value
+	gl.ClearNamedFramebufferfv(u32(framebuffer), gl.DEPTH, 0, &value)
+}
+
+clear_framebuffer_stencil :: proc "contextless" (framebuffer: Framebuffer, value: i32) {
+	value := value
+	gl.ClearNamedFramebufferiv(u32(framebuffer), gl.STENCIL, 0, &value)
+}
+
+clear_framebuffer_depth_stencil :: proc "contextless" (framebuffer: Framebuffer, depth: f32, stencil: i32) {
+	gl.ClearNamedFramebufferfi(u32(framebuffer), gl.DEPTH_STENCIL, 0, depth, stencil)
 }

@@ -3,7 +3,7 @@
 A stupidly easy to use alternative to SDL, GLFW, Raylib, and others.
 
 ```odin
-package example
+package app_example
 
 import "jo/app"
 import "core:image/png"
@@ -71,7 +71,7 @@ draw_image :: proc(bitmap: []u32, img: ^png.Image, pos: [2]f32) {
 You can also create an OpenGL context with just one procedure call:
 
 ```odin
-package gl_example
+package app_gl_example
 
 import "jo/app"
 import gl "vendor:OpenGL"
@@ -106,7 +106,7 @@ So far, these are the principles I've been running with when developing jo/app:
 A stupidly easy to use wrapper over OpenGL 4.6.
 
 ```odin
-package example
+package ngl_hello_triangle
 
 import "jo/app"
 import gl "jo/ngl"
