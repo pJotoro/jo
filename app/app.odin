@@ -1,9 +1,12 @@
 package app
 
-MODE :: #config(APP_MODE, 0) // 0 is automatic, 1 is windowed, and 2 is fullscreen.
+Configuration :: enum {
+    Game,
+    Tool,
+}
 
-init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, loc := #caller_location) {
-    _init(title, width, height, fps, event_callback, user_data, loc)
+init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, configuration: Configuration = .Game, loc := #caller_location) {
+    _init(title, width, height, fps, event_callback, user_data, configuration, loc)
 }
 
 should_close :: proc() -> bool {
