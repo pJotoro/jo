@@ -17,10 +17,15 @@ Event_Size :: struct {
     maximized: bool,
 }
 
+Event_Activate :: struct {}
+Event_Deactivate :: struct {}
+
 Event :: union {
     Event_Key_Down,
     Event_Key_Up,
     Event_Size,
+    Event_Activate,
+    Event_Deactivate,
 }
 
 Event_Callback :: #type proc(event: Event, user_data: rawptr)

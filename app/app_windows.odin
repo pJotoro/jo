@@ -39,6 +39,12 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
     result := win32.LRESULT(0)
     
     switch message {
+        case win32.WM_ACTIVATE:
+            activated := b32(w_param)
+            LWA_ALPHA :: 0x00000002
+            if activated do win32.SetLayeredWindowAttributes(ctx.window, 0, 255, LWA_ALPHA)
+            else do win32.SetLayeredWindowAttributes(ctx.window, 0, 150, LWA_ALPHA)
+
         case win32.WM_SIZE:
             ctx.width = int(l_param & 0xFFFF)
             ctx.height = int(l_param >> 16)
@@ -124,8 +130,9 @@ game_init_windowed :: proc(title := "", width := 0, height := 0, fps := 0, loc :
     }
     if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
 
+    ctx.window_extended_flags = win32.WS_EX_LAYERED | win32.WS_EX_TOPMOST
     ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
-    ctx.window = win32.CreateWindowExW(0, window_class.lpszClassName, wtitle, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, nil, nil)
+    ctx.window = win32.CreateWindowExW(ctx.window_extended_flags, window_class.lpszClassName, wtitle, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, nil, nil)
     if ctx.window == nil do panic(loc)
 
     // NOTE(pJotoro): There's no reason to panic for the rest of this procedure since it isn't necessary to make the library run at all.
