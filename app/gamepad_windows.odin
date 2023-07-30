@@ -28,7 +28,7 @@ _gamepad :: proc(index: int, loc := #caller_location) -> (gamepad: Gamepad) {
 }
 
 _gamepad_set_vibration :: proc(id: Gamepad, left_motor, right_motor: f32, loc := #caller_location) {
-	assert(condition = left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1, loc = loc)
+	assert(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1, "motors out of range 0..1", loc)
 
 	i := gamepad_index(id)
 	if i == -1 do return

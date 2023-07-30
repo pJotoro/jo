@@ -163,7 +163,7 @@ game_init_fullscreen :: proc(fps := 0, loc := #caller_location) {
     }
     if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
 
-    ctx.window_flags = win32.WS_CAPTION | win32.WS_POPUP
+    ctx.window_flags = win32.WS_POPUP | win32.WS_MAXIMIZE
     ctx.window = win32.CreateWindowExW(0, window_class.lpszClassName, nil, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, nil, nil)
     if ctx.window == nil do panic(loc)
 
@@ -189,7 +189,7 @@ game_init_fullscreen :: proc(fps := 0, loc := #caller_location) {
 
 @(private="file")
 tool_init :: proc(title := "", fps := 0, loc := #caller_location) {
-    assert(condition = ctx.event_callback != nil, loc = loc)
+    assert(ctx.event_callback != nil, ".Tool requires event callback", loc)
     ctx.configuration = .Tool
 
     wtitle := win32.utf8_to_wstring(title)
@@ -228,8 +228,6 @@ _init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Ev
     for gamepad in &ctx.gamepads {
         gamepad.id = INVALID_GAMEPAD
     }
-
-    assert(condition = ctx.xinput_enabled, loc = loc)
 }
 
 _should_close :: proc() -> bool {
@@ -267,9 +265,9 @@ _should_close :: proc() -> bool {
 }
 
 _render :: proc(bitmap: []u32, loc := #caller_location) {
-    assert(condition = len(bitmap) == ctx.width * ctx.height, loc = loc)
+    if len(bitmap) < ctx.width * ctx.height do runtime.panic("bitmap too small", loc)
+    if len(bitmap) > ctx.width * ctx.height do runtime.panic("bitmap too big", loc)
     hdc := win32.GetDC(ctx.window)
-    assert(condition = hdc != nil, loc = loc)
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
         biSize = size_of(win32.BITMAPINFOHEADER),
@@ -279,6 +277,6 @@ _render :: proc(bitmap: []u32, loc := #caller_location) {
         biBitCount = 32,
         biCompression = win32.BI_RGB,
     }
-    assert(condition = win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(bitmap), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY) != 0, loc = loc)
-    assert(condition = win32.ReleaseDC(ctx.window, hdc) != 0, loc = loc)
+    win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(bitmap), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
+    win32.ReleaseDC(ctx.window, hdc)
 }

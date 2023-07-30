@@ -49,7 +49,7 @@ gamepad_index :: proc(id: Gamepad) -> int {
 gamepad_connected :: proc(id: Gamepad, loc := #caller_location) -> bool {
 	i := gamepad_index(id)
 	if i == -1 do return false
-	assert(condition = ctx.gamepads[i].id != -1, loc = loc)
+	//assert(condition = ctx.gamepads[i].id != -1, loc = loc)
 	return true
 }
 
