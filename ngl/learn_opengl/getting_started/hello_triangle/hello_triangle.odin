@@ -22,7 +22,7 @@ main :: proc() {
 	gl.buffer_data(vertex_buffer, slice.to_bytes(vertices[:]), .Static_Draw)
 
 	vertex_array := gl.create_vertex_array()
-	gl.bind_vertex_buffer_to_vertex_array(vertex_array, 0, vertex_buffer, 0, size_of(f32) * 3)
+	gl.bind_vertex_buffer(vertex_array, 0, vertex_buffer, 0, size_of(f32) * 3)
 	gl.enable_vertex_array_attrib(vertex_array, 0)
 	gl.vertex_array_attrib_format(vertex_array, 0, 3, f32, false, 0)
 	gl.vertex_array_attrib_binding(vertex_array, 0, 0)

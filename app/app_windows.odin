@@ -9,6 +9,7 @@ import "xinput"
 Context :: struct {
     configuration: Configuration,
     user_data: rawptr,
+    name: string,
 
     should_close: bool,
     visible: bool,
@@ -125,14 +126,14 @@ game_init_windowed :: proc(title := "", width := 0, height := 0, fps := 0, loc :
         cbSize = size_of(win32.WNDCLASSEXW),
         style = win32.CS_DROPSHADOW,
         lpfnWndProc = window_proc,
+        hInstance = win32.HANDLE(win32.GetModuleHandleW(nil)),
         lpszClassName = L("app_class_name"),
-
     }
     if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
 
     ctx.window_extended_flags = win32.WS_EX_LAYERED | win32.WS_EX_TOPMOST
     ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
-    ctx.window = win32.CreateWindowExW(ctx.window_extended_flags, window_class.lpszClassName, wtitle, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, nil, nil)
+    ctx.window = win32.CreateWindowExW(ctx.window_extended_flags, window_class.lpszClassName, wtitle, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, window_class.hInstance, nil)
     if ctx.window == nil do panic(loc)
 
     // NOTE(pJotoro): There's no reason to panic for the rest of this procedure since it isn't necessary to make the library run at all.
@@ -166,12 +167,13 @@ game_init_fullscreen :: proc(fps := 0, loc := #caller_location) {
     window_class := win32.WNDCLASSEXW{
         cbSize = size_of(win32.WNDCLASSEXW),
         lpfnWndProc = window_proc,
+        hInstance = win32.HANDLE(win32.GetModuleHandleW(nil)),
         lpszClassName = L("app_class_name"),
     }
     if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
 
     ctx.window_flags = win32.WS_POPUP | win32.WS_MAXIMIZE
-    ctx.window = win32.CreateWindowExW(0, window_class.lpszClassName, nil, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, nil, nil)
+    ctx.window = win32.CreateWindowExW(0, window_class.lpszClassName, nil, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, window_class.hInstance, nil)
     if ctx.window == nil do panic(loc)
 
     // NOTE(pJotoro): There's no reason to panic for the rest of this procedure since it isn't necessary to make the library run at all.
@@ -204,13 +206,14 @@ tool_init :: proc(title := "", fps := 0, loc := #caller_location) {
     window_class := win32.WNDCLASSEXW{
         cbSize = size_of(win32.WNDCLASSEXW),
         lpfnWndProc = window_proc,
+        hInstance = win32.HANDLE(win32.GetModuleHandleW(nil)),
         lpszClassName = L("app_class_name"),
     }
     if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
 
     ctx.window_extended_flags = win32.WS_EX_ACCEPTFILES | win32.WS_EX_CLIENTEDGE | win32.WS_EX_WINDOWEDGE
     ctx.window_flags = win32.WS_BORDER | win32.WS_MAXIMIZE | win32.WS_OVERLAPPEDWINDOW
-    ctx.window = win32.CreateWindowExW(ctx.window_extended_flags, window_class.lpszClassName, wtitle, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, nil, nil)
+    ctx.window = win32.CreateWindowExW(ctx.window_extended_flags, window_class.lpszClassName, wtitle, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, window_class.hInstance, nil)
     if ctx.window == nil do panic(loc)
 
     rect: win32.RECT = ---
@@ -222,6 +225,7 @@ tool_init :: proc(title := "", fps := 0, loc := #caller_location) {
 _init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, configuration: Configuration = .Game, loc := #caller_location) {
     ctx.event_callback = event_callback
     ctx.user_data = user_data
+    ctx.name = title
 
     if configuration == .Game {
         when ODIN_DEBUG do game_init_windowed(title, width, height, fps, loc)

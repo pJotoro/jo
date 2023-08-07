@@ -28,3 +28,7 @@ width :: proc "contextless" () -> int {
 height :: proc "contextless" () -> int {
     return ctx.height
 }
+
+name :: proc "contextless" () -> string {
+    return ctx.name
+}

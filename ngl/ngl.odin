@@ -84,7 +84,7 @@ Buffer_Access_Flag :: enum u32 {
 
 Buffer_Access_Flags :: distinct bit_set[Buffer_Access_Flag; u32]
 
-map_buffer_range :: proc "contextless" (buffer: Buffer, offset, length: int, access: Buffer_Access_Flags) -> []byte {
+map_buffer :: proc "contextless" (buffer: Buffer, offset, length: int, access: Buffer_Access_Flags) -> []byte {
 	return ([^]byte)(gl.MapNamedBufferRange(u32(buffer), offset, length, transmute(u32)access))[:length]
 }
 
@@ -153,6 +153,17 @@ use_program :: proc "contextless" (program: Program) {
 	gl.UseProgram(u32(program))
 }
 
+get_uniform_location_cstring :: proc "contextless" (program: Program, name: cstring) -> i32 {
+	return gl.GetUniformLocation(u32(program), name)
+}
+
+get_uniform_location_string :: proc(program: Program, name: string, loc := #caller_location) -> i32 {
+	cstring_name := strings.clone_to_cstring(name, context.temp_allocator, loc)
+	return gl.GetUniformLocation(u32(program), cstring_name)
+}
+
+get_uniform_location :: proc{get_uniform_location_cstring, get_uniform_location_string}
+
 Pipeline :: distinct u32
 
 create_pipeline :: proc "contextless" () -> Pipeline {
@@ -200,22 +211,22 @@ create_vertex_arrays :: proc(n: i32) -> []Vertex_Array {
 	return transmute([]Vertex_Array)vertex_arrays
 }
 
-bind_vertex_buffer_to_vertex_array :: proc "contextless" (vertex_array: Vertex_Array, binding_index: u32, vertex_buffer: Buffer, offset: int, stride: i32) {
+bind_vertex_buffer :: proc "contextless" (vertex_array: Vertex_Array, binding_index: u32, vertex_buffer: Buffer, offset: int, stride: i32) {
 	gl.VertexArrayVertexBuffer(u32(vertex_array), binding_index, u32(vertex_buffer), offset, stride)
 }
 
-bind_element_buffer_to_vertex_array :: proc "contextless" (vertex_array: Vertex_Array, element_buffer: Buffer) {
+bind_element_buffer :: proc "contextless" (vertex_array: Vertex_Array, element_buffer: Buffer) {
 	gl.VertexArrayElementBuffer(u32(vertex_array), u32(element_buffer))
 }
 
-enable_vertex_array_attrib :: proc "contextless" (vertex_array: Vertex_Array, index: u32) {
-	gl.EnableVertexArrayAttrib(u32(vertex_array), index)
+enable_vertex_array_attrib :: proc "contextless" (vertex_array: Vertex_Array, attrib_index: u32) {
+	gl.EnableVertexArrayAttrib(u32(vertex_array), attrib_index)
 }
 
 @(private)
-gl_type :: #force_inline proc "contextless" ($T: typeid, loc := #caller_location) -> u32 {
+gl_type :: #force_inline proc "contextless" ($T: typeid) -> u32 {
 	when T == i8 do return gl.BYTE
-	else when T == u8 do return gl.UNSIGNED_BYTE
+	else when T == byte do return gl.UNSIGNED_BYTE
 	else when T == i16 do return gl.SHORT
 	else when T == u16 do return gl.UNSIGNED_SHORT
 	else when T == i32 do return gl.INT
@@ -251,8 +262,8 @@ draw_arrays :: proc "contextless" (mode: Draw_Mode, first, count: i32) {
 	gl.DrawArrays(u32(mode), first, count)
 }
 
-draw_elements :: proc "contextless" (mode: Draw_Mode, indices: []$T, loc := #caller_location) {
-	gl.DrawElements(u32(mode), i32(len(indices)), gl_type(typeid_of(T), loc), raw_data(indices))
+draw_elements :: proc "contextless" (mode: Draw_Mode, indices: []$T) {
+	gl.DrawElements(u32(mode), i32(len(indices)), gl_type(T), raw_data(indices))
 }
 
 bind_vertex_array :: proc "contextless" (vertex_array: Vertex_Array) {
@@ -480,16 +491,16 @@ Wrap :: enum i32 {
 	Mirror_Clamp_To_Edge = 0x8743,
 }
 
-texture_wrap_s :: proc "contextless" (texture: Texture, wrap_s: Wrap) {
-	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_S, i32(wrap_s))
+texture_wrap_s :: proc "contextless" (texture: Texture, wrap: Wrap) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_S, i32(wrap))
 }
 
-texture_wrap_t :: proc "contextless" (texture: Texture, wrap_t: Wrap) {
-	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_T, i32(wrap_t))
+texture_wrap_t :: proc "contextless" (texture: Texture, wrap: Wrap) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_T, i32(wrap))
 }
 
-texture_wrap_r :: proc "contextless" (texture: Texture, wrap_r: Wrap) {
-	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_R, i32(wrap_r))
+texture_wrap_r :: proc "contextless" (texture: Texture, wrap: Wrap) {
+	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_R, i32(wrap))
 }
 
 // NOTE(pJotoro): I don't guarantee all the formats are in this enum. I want them to all be in there, it's just really annoying to find all of them because they're so disorganized.
@@ -578,7 +589,7 @@ texture_storage_3d :: proc "contextless" (texture: Texture, levels: i32, format:
 	gl.TextureStorage3D(u32(texture), levels, u32(format), width, height, depth)
 }
 
-Format :: enum i32 {
+Format :: enum u32 {
 	Stencil_Index = 0x1901,
 	Depth_Component = 0x1902,
 	Red = 0x1903,
@@ -595,7 +606,7 @@ texture_sub_image_1d :: proc "contextless" (texture: Texture, level, offset: i32
 
 texture_sub_image_2d_1d :: proc(texture: Texture, level, xoffset, yoffset, width, height: i32, format: Format, pixels: []$T, loc := #caller_location) {
 	assert(condition = int(width * height) == len(pixels), loc = loc)
-	gl.TextureSubImage2D(u32(texture), level, xoffset, yoffset, width, height, i32(format), gl_type(T), raw_data(pixels))
+	gl.TextureSubImage2D(u32(texture), level, xoffset, yoffset, width, height, u32(format), gl_type(T), raw_data(pixels))
 }
 
 texture_sub_image_2d_2d :: proc "contextless" (texture: Texture, level, xoffset, yoffset: i32, format: Format, pixels: [][]$T) {
@@ -615,8 +626,9 @@ texture_sub_image_3d_3d :: proc "contextless" (texture: Texture, level, xoffset,
 
 texture_sub_image_3d :: proc{texture_sub_image_3d_1d, texture_sub_image_3d_3d}
 
-bind_texture_unit :: proc "contextless" (unit: u32, texture: Texture) {
-	gl.BindTextureUnit(unit, u32(texture))
+bind_texture_unit :: proc(unit: u32, texture: Texture, loc := #caller_location) {
+	assert(unit >= 0 && unit <= 31, "invalid texture unit", loc)
+	gl.BindTextureUnit(unit + gl.TEXTURE0, u32(texture))
 }
 
 generate_texture_mipmap :: proc "contextless" (texture: Texture) {
