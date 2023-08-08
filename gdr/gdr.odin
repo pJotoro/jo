@@ -488,8 +488,8 @@ init :: proc() -> bool {
 					return false
 				}
 			}
-			queue_family.command_pools[0].secondary_command_buffers = make([dynamic]vk.CommandBuffer, 1)
-			{
+			if .GRAPHICS in queue_family_properties[i].queueFlags {
+				queue_family.command_pools[0].secondary_command_buffers = make([dynamic]vk.CommandBuffer, 1)
 				info := vk.CommandBufferAllocateInfo{
 					sType = .COMMAND_BUFFER_ALLOCATE_INFO,
 					commandPool = queue_family.command_pools[0].h,
@@ -557,8 +557,10 @@ init :: proc() -> bool {
 		for &command_pool, j in queue_family.command_pools {
 			command_pool.primary_command_buffers = make([dynamic]vk.CommandBuffer, len(queue_families[i].command_pools[j].primary_command_buffers))
 			copy(command_pool.primary_command_buffers[:], queue_families[i].command_pools[j].primary_command_buffers[:])
-			command_pool.secondary_command_buffers = make([dynamic]vk.CommandBuffer, len(queue_families[i].command_pools[j].secondary_command_buffers))
-			copy(command_pool.secondary_command_buffers[:], queue_families[i].command_pools[j].secondary_command_buffers[:])
+			if len(queue_families[i].command_pools[j].secondary_command_buffers) > 0 {
+				command_pool.secondary_command_buffers = make([dynamic]vk.CommandBuffer, len(queue_families[i].command_pools[j].secondary_command_buffers))
+				copy(command_pool.secondary_command_buffers[:], queue_families[i].command_pools[j].secondary_command_buffers[:])
+			}
 		}
 	}
 
