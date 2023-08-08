@@ -6,21 +6,24 @@ import "core:thread"
 import "../app"
 import "core:strings"
 import "core:sync"
+import "core:log"
+import "core:runtime"
+import "core:slice"
+import "core:fmt"
 
 @(private)
 Command_Pool :: struct {
 	h: vk.CommandPool,
 	primary_command_buffers: [dynamic]vk.CommandBuffer,
-	total_primary_command_buffers: int,
 	secondary_command_buffers: [dynamic]vk.CommandBuffer,
-	total_secondary_command_buffers: int,
 }
 
 @(private)
 Queue_Family :: struct {
+	queues_lock: sync.Atomic_Mutex,
 	queues: [dynamic]vk.Queue,
+	command_pools_lock: sync.Atomic_Mutex,
 	command_pools: [dynamic]Command_Pool,
-	total_command_pools: int,
 	lock: sync.Mutex,
 }
 
@@ -39,26 +42,10 @@ Context :: struct {
 	swapchain_image_views: []vk.ImageView,
 	queue_families: []Queue_Family,
 
-	primary_graphics_queue_family_index: int,
-	primary_present_queue_family_index: int,
+	present_queue_family_indices: []int,
 }
 @(private)
 ctx: Context
-
-@(private)
-primary_graphics_command_buffer :: #force_inline proc "contextless" () -> vk.CommandBuffer {
-	return ctx.queue_families[ctx.primary_graphics_queue_family_index].command_pools[0].primary_command_buffers[0]
-}
-
-@(private)
-primary_graphics_queue :: #force_inline proc "contextless" () -> vk.Queue {
-	return ctx.queue_families[ctx.primary_graphics_queue_family_index].queues[0]
-}
-
-@(private)
-primary_present_queue :: #force_inline proc "contextless" () -> vk.Queue {
-	return ctx.queue_families[ctx.primary_present_queue_family_index].queues[0]
-}
 
 init :: proc() -> bool {
 	library: dynlib.Library = ---
@@ -79,11 +66,7 @@ init :: proc() -> bool {
 		}
 	}
 
-	instance_extensions := []cstring{
-		"VK_KHR_surface",
-		VK_KHR_platform_surface,
-	}
-	
+	instance_extensions := make([dynamic]cstring, 0, 32, context.temp_allocator)
 	{
 		app_name := strings.clone_to_cstring(app.name(), context.temp_allocator)
 		app_info := vk.ApplicationInfo{
@@ -91,9 +74,54 @@ init :: proc() -> bool {
 			pApplicationName = app_name,
 			apiVersion = vk.API_VERSION_1_3,
 		}
+
+		append(&instance_extensions, "VK_KHR_surface", VK_KHR_platform_surface)
+
 		when ODIN_DEBUG {
-			layers := []cstring{
+			layers := [?]cstring{
 				"VK_LAYER_KHRONOS_validation",
+			}
+			append(&instance_extensions, "VK_EXT_debug_utils", "VK_EXT_validation_features")
+
+			enabled_validation_features := [?]vk.ValidationFeatureEnableEXT{
+				.GPU_ASSISTED,
+				.BEST_PRACTICES,
+				.SYNCHRONIZATION_VALIDATION,
+			}
+			validation_features := vk.ValidationFeaturesEXT{
+				sType = .VALIDATION_FEATURES_EXT,
+				enabledValidationFeatureCount = u32(len(enabled_validation_features)),
+				pEnabledValidationFeatures = raw_data(&enabled_validation_features),
+			}
+
+			log_proc :: proc(data: rawptr, level: log.Level, text: string, options: log.Options, location := #caller_location) {
+				backing: [1024]byte
+				buf := strings.builder_from_bytes(backing[:])
+				log.do_level_header(options, level, &buf)
+				fmt.printf("%s%s\n", strings.to_string(buf), text)
+			}
+			debug_logger := new(log.Logger)
+			debug_logger^ = log.Logger{
+				procedure = log_proc,
+				lowest_level = .Debug,
+				options = {.Level, .Terminal_Color},
+			}
+
+			debug_callback :: proc "system" (message_severities: vk.DebugUtilsMessageSeverityFlagsEXT, message_types: vk.DebugUtilsMessageTypeFlagsEXT, callback_data: ^vk.DebugUtilsMessengerCallbackDataEXT, user_data: rawptr) -> b32 {
+				context = runtime.default_context()
+				context.logger = (^log.Logger)(user_data)^
+				if .ERROR in message_severities do log.error(callback_data.pMessage)
+				else if .WARNING in message_severities do log.warn(callback_data.pMessage)
+				else if .INFO in message_severities do log.info(callback_data.pMessage)
+				return false
+			}
+			debug_info := vk.DebugUtilsMessengerCreateInfoEXT{
+				sType = .DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+				pNext = &validation_features,
+				messageSeverity = {.ERROR, .INFO, .WARNING},
+				messageType = {.GENERAL, .PERFORMANCE, .VALIDATION},
+				pfnUserCallback = debug_callback,
+				pUserData = debug_logger,
 			}
 		}
 		
@@ -104,8 +132,9 @@ init :: proc() -> bool {
 			ppEnabledExtensionNames = raw_data(instance_extensions),
 		}
 		when ODIN_DEBUG {
+			info.pNext = &debug_info
 			info.enabledLayerCount = u32(len(layers))
-			info.ppEnabledLayerNames = raw_data(layers)
+			info.ppEnabledLayerNames = raw_data(&layers)
 		}
 		if vk.CreateInstance(&info, nil, &ctx.instance) != .SUCCESS {
 			dynlib.unload_library(library)
@@ -116,27 +145,6 @@ init :: proc() -> bool {
 
 	{
 		if create_surface() != .SUCCESS {
-			vk.DestroyInstance(ctx.instance, nil)
-			dynlib.unload_library(library)
-			return false
-		}
-
-		ctx.primary_present_queue_family_index = -1
-		for i in 0..<len(queue_family_properties) {
-			supported: b32 = ---
-			if vk.GetPhysicalDeviceSurfaceSupport(physical_device, u32(i), ctx.surface, &supported) != .SUCCESS {
-				vk.DestroySurfaceKHR(ctx.instance, ctx.surface, nil)
-				vk.DestroyInstance(ctx.instance, nil)
-				dynlib.unload_library(library)
-				return false
-			}
-			if supported {
-				ctx.primary_present_queue_family_index = i
-				break
-			}
-		}
-		if ctx.primary_present_queue_family_index == -1 {
-			vk.DestroySurfaceKHR(ctx.instance, ctx.surface, nil)
 			vk.DestroyInstance(ctx.instance, nil)
 			dynlib.unload_library(library)
 			return false
@@ -234,12 +242,50 @@ init :: proc() -> bool {
 		}
 	}
 
+	present_modes: []vk.PresentModeKHR
+	{
+		count: u32 = ---
+		if vk.GetPhysicalDeviceSurfacePresentModesKHR(physical_device, ctx.surface, &count, nil) != .SUCCESS {
+			vk.DestroySurfaceKHR(ctx.instance, ctx.surface, nil)
+			vk.DestroyInstance(ctx.instance, nil)
+			dynlib.unload_library(library)
+			return false
+		}
+		present_modes = make([]vk.PresentModeKHR, count, context.temp_allocator)
+		if vk.GetPhysicalDeviceSurfacePresentModesKHR(physical_device, ctx.surface, &count, raw_data(present_modes)) != .SUCCESS {
+			vk.DestroySurfaceKHR(ctx.instance, ctx.surface, nil)
+			vk.DestroyInstance(ctx.instance, nil)
+			dynlib.unload_library(library)
+			return false
+		}
+	}
+
 	queue_family_properties: []vk.QueueFamilyProperties
 	{
 		count: u32 = ---
 		vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &count, nil)
 		queue_family_properties = make([]vk.QueueFamilyProperties, count)
 		vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &count, raw_data(queue_family_properties))
+	}
+
+	present_queue_family_indices := make([dynamic]int, 0, len(queue_family_properties), context.temp_allocator)
+	{
+		for i in 0..<len(queue_family_properties) {
+			supported: b32 = ---
+			if vk.GetPhysicalDeviceSurfaceSupportKHR(physical_device, u32(i), ctx.surface, &supported) != .SUCCESS {
+				vk.DestroySurfaceKHR(ctx.instance, ctx.surface, nil)
+				vk.DestroyInstance(ctx.instance, nil)
+				dynlib.unload_library(library)
+				return false
+			}
+			if supported do append(&present_queue_family_indices, i)
+		}
+		if len(present_queue_family_indices) == 0 {
+			vk.DestroySurfaceKHR(ctx.instance, ctx.surface, nil)
+			vk.DestroyInstance(ctx.instance, nil)
+			dynlib.unload_library(library)
+			return false
+		}
 	}
 
 	{
@@ -312,22 +358,25 @@ init :: proc() -> bool {
 			return false
 		}
 
+		// TODO
 		queue_family_indices := make([dynamic]u32, 0, len(queue_family_properties), context.temp_allocator)
 		for p, i in queue_family_properties {
-			if .TRANSFER in p.queueFlags do append(&queue_family_indices, u32(i))
+			append(&queue_family_indices, u32(i))
 		}
 
 		swapchain_info := vk.SwapchainCreateInfoKHR{
 			sType = .SWAPCHAIN_CREATE_INFO_KHR,
 			surface = ctx.surface,
-			minImageCount = (capabilities.maxImageCount == 0 || capabilities.maxImageCount >= capabilities.minImageCount + 1) ? capabilities.minImageCount + 1 : capabilities.minImageCount,
+			minImageCount = capabilities.maxImageCount == 0 ? capabilities.minImageCount + 1 : capabilities.maxImageCount,
+			// TODO
 			imageFormat = .B8G8R8A8_SRGB,
+			// TODO
 			imageColorSpace = .SRGB_NONLINEAR,
-			presentMode = .FIFO,
+			presentMode = slice.contains(present_modes, vk.PresentModeKHR.MAILBOX) ? .MAILBOX : .FIFO,
 			imageExtent = {width = capabilities.currentExtent.width, height = capabilities.currentExtent.height},
 			imageUsage = {.COLOR_ATTACHMENT, .TRANSFER_SRC},
 			queueFamilyIndexCount = u32(len(queue_family_indices)),
-			pQueueFamilyIndices = &queue_family_indices[0],
+			pQueueFamilyIndices = raw_data(queue_family_indices),
 			imageSharingMode = len(queue_family_indices) > 1 ? .CONCURRENT : .EXCLUSIVE,
 			preTransform = capabilities.currentTransform,
 			compositeAlpha = {.OPAQUE},
@@ -395,7 +444,6 @@ init :: proc() -> bool {
 		queue_families = make([]Queue_Family, len(queue_family_properties))
 		for &queue_family, i in queue_families {
 			queue_family.command_pools = make([dynamic]Command_Pool, 1)
-			queue_family.total_command_pools = 1
 			{
 				info := vk.CommandPoolCreateInfo{
 					sType = .COMMAND_POOL_CREATE_INFO,
@@ -418,7 +466,6 @@ init :: proc() -> bool {
 				}
 			}
 			queue_family.command_pools[0].primary_command_buffers = make([dynamic]vk.CommandBuffer, 1)
-			queue_family.command_pools[0].total_primary_command_buffers = 1
 			{
 				info := vk.CommandBufferAllocateInfo{
 					sType = .COMMAND_BUFFER_ALLOCATE_INFO,
@@ -441,9 +488,8 @@ init :: proc() -> bool {
 					return false
 				}
 			}
-			if .GRAPHICS in queue_family_properties[i].queueFlags {
-				queue_family.command_pools[0].secondary_command_buffers = make([dynamic]vk.CommandBuffer, 1)
-				queue_family.command_pools[0].total_secondary_command_buffers = 1
+			queue_family.command_pools[0].secondary_command_buffers = make([dynamic]vk.CommandBuffer, 1)
+			{
 				info := vk.CommandBufferAllocateInfo{
 					sType = .COMMAND_BUFFER_ALLOCATE_INFO,
 					commandPool = queue_family.command_pools[0].h,
@@ -492,15 +538,6 @@ init :: proc() -> bool {
 		}
 	}
 
-	{
-		for p, i in queue_family_properties {
-			if .GRAPHICS in p.queueFlags {
-				ctx.primary_graphics_queue_family_index = i
-				break
-			}
-		}
-	}
-
 	ctx.queue_family_properties = make([]vk.QueueFamilyProperties, len(queue_family_properties))
 	copy(ctx.queue_family_properties, queue_family_properties)
 	ctx.swapchain_images = make([]vk.Image, len(swapchain_images))
@@ -509,79 +546,21 @@ init :: proc() -> bool {
 	copy(ctx.swapchain_image_views, swapchain_image_views)
 	ctx.queue_families = make([]Queue_Family, len(queue_families))
 	copy(ctx.queue_families, queue_families)
+	ctx.present_queue_family_indices = make([]int, len(present_queue_family_indices))
+	copy(ctx.present_queue_family_indices, present_queue_family_indices[:])
+
+	for &queue_family, i in ctx.queue_families {
+		queue_family.queues = make([dynamic]vk.Queue, len(queue_families[i].queues))
+		copy(queue_family.queues[:], queue_families[i].queues[:])
+		queue_family.command_pools = make([dynamic]Command_Pool, len(queue_families[i].command_pools))
+		copy(queue_family.command_pools[:], queue_families[i].command_pools[:])
+		for &command_pool, j in queue_family.command_pools {
+			command_pool.primary_command_buffers = make([dynamic]vk.CommandBuffer, len(queue_families[i].command_pools[j].primary_command_buffers))
+			copy(command_pool.primary_command_buffers[:], queue_families[i].command_pools[j].primary_command_buffers[:])
+			command_pool.secondary_command_buffers = make([dynamic]vk.CommandBuffer, len(queue_families[i].command_pools[j].secondary_command_buffers))
+			copy(command_pool.secondary_command_buffers[:], queue_families[i].command_pools[j].secondary_command_buffers[:])
+		}
+	}
 
 	return true
-}
-
-begin :: proc(r, g, b, a: f32, timeout := max(u64)) {
-	{
-		i: u32 = ---
-		vk.AcquireNextImageKHR(ctx.device, ctx.swapchain, timeout, 0, ctx.fence, &i)
-		vk.WaitForFences(ctx.device, 1, &ctx.fence, true, timeout)
-		vk.ResetFences(ctx.device, 1, &ctx.fence)
-		ctx.swapchain_image_index = int(i)
-	}
-
-	command_buffer := primary_graphics_command_buffer()
-	{
-		info := vk.CommandBufferBeginInfo{
-			sType = .COMMAND_BUFFER_BEGIN_INFO,
-			flags = {.ONE_TIME_SUBMIT},
-		}
-		vk.BeginCommandBuffer(command_buffer, &info)
-	}
-	{
-		color_attachment := vk.RenderingAttachmentInfo{
-			sType = .RENDERING_ATTACHMENT_INFO,
-			imageView = ctx.swapchain_image_views[ctx.swapchain_image_index],
-			imageLayout = .COLOR_ATTACHMENT_OPTIMAL,
-			loadOp = .CLEAR,
-			storeOp = .STORE,
-			clearValue = {color = {float32 = {r, g, b, a}}},
-		}
-
-		/*
-		depth_attachment := vk.RenderingAttachmentInfo{
-			sType = .RENDERING_ATTACHMENT_INFO,
-		}
-
-		stencil_attachment := vk.RenderingAttachmentInfo{
-			sType = .RENDERING_ATTACHMENT_INFO,
-		}
-		*/
-
-		info := vk.RenderingInfo{
-			sType = .RENDERING_INFO,
-			flags = {.CONTENTS_SECONDARY_COMMAND_BUFFERS},
-			renderArea = {extent = ctx.extent},
-			layerCount = 1,
-			colorAttachmentCount = 1,
-			pColorAttachments = &color_attachment,
-		}
-
-		vk.CmdBeginRendering(command_buffer, &info)
-	}
-}
-
-end :: proc(timeout := max(u64)) {
-	command_buffer := primary_graphics_command_buffer()
-	vk.CmdEndRendering(command_buffer)
-	vk.EndCommandBuffer(command_buffer)
-	queue := primary_graphics_queue()
-	{
-		command_buffer_info := vk.CommandBufferSubmitInfo{
-			sType = .COMMAND_BUFFER_SUBMIT_INFO,
-			commandBuffer = command_buffer,
-		}
-		info := vk.SubmitInfo2{
-			sType = .SUBMIT_INFO,
-			commandBufferInfoCount = 1,
-			pCommandBufferInfos = &command_buffer_info,
-		}
-		vk.QueueSubmit2(queue, 1, &info, ctx.fence)
-		vk.WaitForFences(ctx.device, 1, &ctx.fence, true, timeout)
-		vk.ResetFences(ctx.device, 1, &ctx.fence)
-	}
-
-	
 }
