@@ -15,7 +15,7 @@ Next_Chain_Entry :: struct {
 	struct_address: rawptr, // Vulkan_Struct_Start
 }
 
-set_next_chain :: proc(extensions: []cstring, start: rawptr, entries: ..Next_Chain_Entry) {
+set_next_chain1 :: proc(extensions: []cstring, start: rawptr, entries: ..Next_Chain_Entry) {
 	start := (^Vulkan_Struct_Start)(start)
 	for entry in entries {
 		if slice.contains(extensions, entry.extension_name) {
@@ -24,3 +24,16 @@ set_next_chain :: proc(extensions: []cstring, start: rawptr, entries: ..Next_Cha
 		}
 	}
 }
+
+set_next_chain2 :: proc(extensions1: []cstring, extensions2: []cstring, start: rawptr, entries: ..Next_Chain_Entry) {
+	start := (^Vulkan_Struct_Start)(start)
+	for entry in entries {
+		if slice.contains(extensions1, entry.extension_name) || slice.contains(extensions2, entry.extension_name) {
+			start.next = entry.struct_address
+			start = (^Vulkan_Struct_Start)(entry.struct_address)
+		}
+	}
+	start.next = nil
+}
+
+set_next_chain :: proc{set_next_chain1, set_next_chain2}

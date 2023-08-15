@@ -291,3 +291,4 @@ _render :: proc(bitmap: []u32, loc := #caller_location) {
     win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(bitmap), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
     win32.ReleaseDC(ctx.window, hdc)
 }
+

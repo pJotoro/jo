@@ -32,3 +32,7 @@ height :: proc "contextless" () -> int {
 name :: proc "contextless" () -> string {
     return ctx.name
 }
+
+fullscreen :: proc "contextless" () -> bool {
+    return ctx.fullscreen
+}

@@ -1,10 +1,10 @@
 //+private
 package app
 
-when USING_OPENGL {
-    import gl "vendor:OpenGL"
-    import win32 "core:sys/windows"
+import gl "vendor:OpenGL"
+import win32 "core:sys/windows"
 
+when USING_OPENGL {
     _gl_init :: proc(major, minor: int, loc := #caller_location) -> bool {
         {
             dummy := win32.CreateWindowExW(0, L("STATIC"), L("DummyWindow"), 0, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, nil, nil)
