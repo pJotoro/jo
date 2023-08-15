@@ -144,7 +144,6 @@ Context :: struct {
 	// ----- execution -----
 	queue_family_properties: []vk.QueueFamilyProperties,
 	queue_families: []Queue_Family,
-	present_queue_family_indices: [dynamic]int,
 	dynamic_states: [dynamic]vk.DynamicState,
 	// ---------------------
 
@@ -168,7 +167,14 @@ Context :: struct {
 	pipeline: vk.Pipeline,
 	pipeline_layout: vk.PipelineLayout,
 	descriptor_set_layout: vk.DescriptorSetLayout,
+	staging_buffer: vk.Buffer,
+	staging_buffer_memory: vk.DeviceMemory,
 	vertex_buffer: vk.Buffer,
+	copy_staging_buffer: bool,
+
+	graphics_queue_index: int,
+	transfer_queue_index: int,
+	present_queue_index: int,
 	// ----------------------------	
 }
 @(private)
@@ -465,7 +471,7 @@ init :: proc() -> bool {
 		vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &count, raw_data(queue_family_properties))
 	}
 
-	present_queue_family_indices = make([dynamic]int, 0, len(queue_family_properties))
+	present_queue_family_indices := make([dynamic]int, 0, len(queue_family_properties), context.temp_allocator)
 	{
 		for i in 0..<len(queue_family_properties) {
 			supported: b32 = ---
@@ -474,6 +480,11 @@ init :: proc() -> bool {
 		}
 		assert(len(present_queue_family_indices) != 0)
 	}
+
+	// TODO
+	graphics_queue_index = 0
+	transfer_queue_index = 1
+	present_queue_index = 2
 
 	{
 		features.sType = .PHYSICAL_DEVICE_FEATURES_2
@@ -706,7 +717,76 @@ init :: proc() -> bool {
 		info := vk.BufferCreateInfo{
 			sType = .BUFFER_CREATE_INFO,
 			size = size_of(vertices),
-			usage = {.VERTEX_BUFFER},
+			usage = {.TRANSFER_SRC},
+		}
+		assert(vk.CreateBuffer(device, &info, nil, &staging_buffer) == .SUCCESS)
+	}
+
+	{
+		info := vk.BufferMemoryRequirementsInfo2{
+			sType = .BUFFER_MEMORY_REQUIREMENTS_INFO_2,
+			buffer = staging_buffer,
+		}
+		memory_dedicated_requirements := vk.MemoryDedicatedRequirements{
+			sType = .MEMORY_DEDICATED_REQUIREMENTS,
+		}
+		memory_requirements := vk.MemoryRequirements2{
+			sType = .MEMORY_REQUIREMENTS_2,
+			pNext = &memory_dedicated_requirements,
+		}
+		vk.GetBufferMemoryRequirements2(device, &info, &memory_requirements)
+
+		dedicated_allocate_info := vk.MemoryDedicatedAllocateInfo{
+			sType = .MEMORY_DEDICATED_ALLOCATE_INFO,
+			buffer = staging_buffer,
+		}
+
+		memory_type_index, ok := find_memory_type(memory_requirements.memoryRequirements.memoryTypeBits, vk.MemoryPropertyFlags{.HOST_VISIBLE})
+		assert(ok)
+
+		allocation_size := memory_requirements.memoryRequirements.size
+
+		allocate_info := vk.MemoryAllocateInfo{
+			sType = .MEMORY_ALLOCATE_INFO,
+			allocationSize = allocation_size,
+			memoryTypeIndex = u32(memory_type_index),
+		}
+
+		if memory_dedicated_requirements.prefersDedicatedAllocation || memory_dedicated_requirements.requiresDedicatedAllocation {
+			allocate_info.pNext = &dedicated_allocate_info
+		} else {
+			allocation_size *= 8
+			allocate_info.allocationSize = allocation_size
+		}
+
+		memory: vk.DeviceMemory = ---
+		assert(vk.AllocateMemory(device, &allocate_info, nil, &memory) == .SUCCESS)
+		assert(vk.BindBufferMemory(device, staging_buffer, memory, 0) == .SUCCESS)
+		if memory_dedicated_requirements.prefersDedicatedAllocation || memory_dedicated_requirements.requiresDedicatedAllocation {
+			allocation := Dedicated_Allocation{
+				memory = memory,
+				size = u64(allocate_info.allocationSize),
+				object = vk.NonDispatchableHandle(staging_buffer),
+			}
+			append(&allocations[memory_type_index], allocation)
+		} else {
+			allocation := Undedicated_Allocation{
+				memory = memory,
+				size = u64(allocation_size),
+				blocks = make([dynamic]Allocation_Block),
+			}
+			append(&allocation.blocks, Allocation_Block{vk.NonDispatchableHandle(staging_buffer), 0, u64(allocation_size)})
+			append(&allocations[memory_type_index], allocation)
+		}
+
+		staging_buffer_memory = memory
+	}
+
+	{
+		info := vk.BufferCreateInfo{
+			sType = .BUFFER_CREATE_INFO,
+			size = size_of(vertices),
+			usage = {.TRANSFER_DST, .VERTEX_BUFFER},
 		}
 		assert(vk.CreateBuffer(device, &info, nil, &vertex_buffer) == .SUCCESS)
 	}
@@ -730,8 +810,8 @@ init :: proc() -> bool {
 			buffer = vertex_buffer,
 		}
 
-		memory_type_index, ok := find_memory_type(memory_requirements.memoryRequirements.memoryTypeBits, vk.MemoryPropertyFlags{.HOST_VISIBLE, .DEVICE_LOCAL})
-		if !ok do memory_type_index, ok = find_memory_type(memory_requirements.memoryRequirements.memoryTypeBits, vk.MemoryPropertyFlags{.HOST_VISIBLE})
+		memory_type_index, ok := find_memory_type(memory_requirements.memoryRequirements.memoryTypeBits, vk.MemoryPropertyFlags{.DEVICE_LOCAL}, vk.MemoryPropertyFlags{.HOST_VISIBLE})
+		assert(ok)
 
 		allocation_size := memory_requirements.memoryRequirements.size
 
@@ -767,11 +847,6 @@ init :: proc() -> bool {
 			append(&allocation.blocks, Allocation_Block{vk.NonDispatchableHandle(vertex_buffer), 0, u64(allocation_size)})
 			append(&allocations[memory_type_index], allocation)
 		}
-
-		mapped_memory: rawptr = ---
-		assert(vk.MapMemory(device, memory, 0, size_of(vertices), {}, &mapped_memory) == .SUCCESS)
-		mem.copy(mapped_memory, &vertices, size_of(vertices))
-		vk.UnmapMemory(device, memory)
 	}
 
 	when SHADERS != "" {
@@ -1016,10 +1091,10 @@ find_memory_type_any :: proc "contextless" (memory_types: u32) -> (memory_type_i
 }
 
 @(private)
-find_memory_type_properties :: proc "contextless" (memory_types: u32, memory_properties: vk.MemoryPropertyFlags) -> (memory_type_index: int, ok: bool) {
+find_memory_type_properties_include :: proc "contextless" (memory_types: u32, memory_properties_include: vk.MemoryPropertyFlags) -> (memory_type_index: int, ok: bool) {
 	for memory_type_index = 0; memory_type_index < len(ctx.memory_types); memory_type_index += 1 {
 		memory_type := u32(1 << u32(memory_type_index))
-		if (memory_types & memory_type != 0) && (memory_properties <= ctx.memory_types[memory_type_index].propertyFlags) {
+		if (memory_types & memory_type != 0) && (memory_properties_include <= ctx.memory_types[memory_type_index].propertyFlags) {
 			ok = true
 			return
 		}
@@ -1028,22 +1103,36 @@ find_memory_type_properties :: proc "contextless" (memory_types: u32, memory_pro
 }
 
 @(private)
-find_memory_type :: proc{find_memory_type_any, find_memory_type_properties}
+find_memory_type_properties_include_exclude :: proc "contextless" (memory_types: u32, memory_properties_include, memory_properties_exclude: vk.MemoryPropertyFlags) -> (memory_type_index: int, ok: bool) {
+	for memory_type_index = 0; memory_type_index < len(ctx.memory_types); memory_type_index += 1 {
+		memory_type := u32(1 << u32(memory_type_index))
+		if (memory_types & memory_type != 0) && (memory_properties_include <= ctx.memory_types[memory_type_index].propertyFlags) && !(memory_properties_exclude <= ctx.memory_types[memory_type_index].propertyFlags) {
+			ok = true
+			return
+		}
+	}
+	return
+}
 
 @(private)
+find_memory_type :: proc{find_memory_type_any, find_memory_type_properties_include, find_memory_type_properties_include_exclude}
+
+vertices: [3]Vertex
 Vertex :: struct {
 	position: [2]f32,
 	color: [3]f32,
 }
 
-@(private)
-vertices := [?]Vertex{
-    {{0.0, -0.5}, {1.0, 0.0, 0.0}},
-    {{0.5, 0.5}, {0.0, 1.0, 0.0}},
-    {{-0.5, 0.5}, {0.0, 0.0, 1.0}},
-}
+update :: proc(user_vertices: [3]Vertex) {
+	if vertices != user_vertices {
+		vertices = user_vertices
+		ctx.copy_staging_buffer = true
+		mapped_memory: rawptr = ---
+		assert(vk.MapMemory(ctx.device, ctx.staging_buffer_memory, 0, size_of(vertices), {}, &mapped_memory) == .SUCCESS)
+		mem.copy(mapped_memory, &vertices, size_of(vertices))
+		vk.UnmapMemory(ctx.device, ctx.staging_buffer_memory)
+	}
 
-update :: proc() {
 	command_pool := pop_command_pool(0)
 	defer append(&ctx.queue_families[0].command_pools, command_pool)
 	command_buffer := pop_primary_command_buffer(&command_pool)
@@ -1066,7 +1155,7 @@ update :: proc() {
 		ctx.swapchain_image_index = int(swapchain_image_index)
 	}
 	{
-		barrier := vk.ImageMemoryBarrier2 {
+		image_barrier := vk.ImageMemoryBarrier2 {
 			sType = .IMAGE_MEMORY_BARRIER_2,
 			srcStageMask = {.COLOR_ATTACHMENT_OUTPUT},
 			dstStageMask = {.COLOR_ATTACHMENT_OUTPUT},
@@ -1080,16 +1169,30 @@ update :: proc() {
 				layerCount = 1,
 			},
 		}
-		if ctx.present_queue_family_indices[0] != 0 {
-			barrier.srcQueueFamilyIndex = 0
-			barrier.dstQueueFamilyIndex = u32(ctx.present_queue_family_indices[0])
+		buffer_barrier := vk.BufferMemoryBarrier2{
+			sType = .BUFFER_MEMORY_BARRIER_2,
+			srcStageMask = {.TRANSFER},
+			srcAccessMask = {.TRANSFER_WRITE},
+			dstStageMask = {.VERTEX_INPUT},
+			dstAccessMask = {.VERTEX_ATTRIBUTE_READ},
+			buffer = ctx.vertex_buffer,
+			size = size_of(vertices),
 		}
 		info := vk.DependencyInfo{
 			sType = .DEPENDENCY_INFO,
 			imageMemoryBarrierCount = 1,
-			pImageMemoryBarriers = &barrier,
+			pImageMemoryBarriers = &image_barrier,
+			bufferMemoryBarrierCount = ctx.copy_staging_buffer ? 1 : 0,
+			pBufferMemoryBarriers = ctx.copy_staging_buffer ? &buffer_barrier : nil, 
 		}
 		vk.CmdPipelineBarrier2(command_buffer, &info)
+	}
+	if ctx.copy_staging_buffer {
+		defer ctx.copy_staging_buffer = false
+		info := vk.BufferCopy{
+			size = size_of(vertices),
+		}
+		vk.CmdCopyBuffer(command_buffer, ctx.staging_buffer, ctx.vertex_buffer, 1, &info)
 	}
 	{
 		color_attachment := vk.RenderingAttachmentInfo{
@@ -1119,7 +1222,7 @@ update :: proc() {
 
 		info := vk.RenderingInfo{
 			sType = .RENDERING_INFO,
-			flags = {.CONTENTS_SECONDARY_COMMAND_BUFFERS},
+			//flags = {.CONTENTS_SECONDARY_COMMAND_BUFFERS},
 			renderArea = {extent = ctx.extent},
 			layerCount = 1,
 			colorAttachmentCount = 1,
@@ -1186,7 +1289,7 @@ update :: proc() {
 			commandBufferInfoCount = 1,
 			pCommandBufferInfos = &command_buffer_info,
 		}
-		assert(vk.QueueSubmit2(ctx.queue_families[0].queues[0], 1, &info, ctx.rendering_fence) == .SUCCESS)
+		assert(vk.QueueSubmit2(ctx.queue_families[0].queues[ctx.graphics_queue_index], 1, &info, ctx.rendering_fence) == .SUCCESS)
 		assert(vk.WaitForFences(ctx.device, 1, &ctx.rendering_fence, true, max(u64)) == .SUCCESS)
 		assert(vk.ResetFences(ctx.device, 1, &ctx.rendering_fence) == .SUCCESS)
 	}
@@ -1201,7 +1304,7 @@ update :: proc() {
 			pImageIndices = &i,
 			pResults = &result,
 		}
-		assert(vk.QueuePresentKHR(ctx.queue_families[ctx.present_queue_family_indices[0]].queues[0], &info) == .SUCCESS)
+		assert(vk.QueuePresentKHR(ctx.queue_families[0].queues[ctx.present_queue_index], &info) == .SUCCESS)
 		assert(result == .SUCCESS)
 	}
 }
