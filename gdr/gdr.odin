@@ -19,9 +19,6 @@ import "core:path/filepath"
 import "core:os"
 import "core:mem"
 
-ASSETS :: #config(GDR_ASSETS, "")
-SHADERS :: #config(GDR_SHADERS, "")
-
 @(private)
 Command_Pool :: struct {
 	h: vk.CommandPool,
@@ -38,11 +35,36 @@ Queue_Family :: struct {
 	command_pools: [dynamic]Command_Pool,
 }
 
-// T - memory type index
-// A - allocation index
-// G - generation index
+/*
 // B - allocation block index
-// GGGGGGTTTTTAAAAABBBBBBBBBBBBBBBB
+// A - allocation index
+// T - memory type index
+// G - generation index
+// TTTTTTTTAAAAAAAABBBBBBBBBBBBBBBB
+
+Allocation_Block_Index_Mask :: 0x0000FFFF
+Allocation_Index_Mask       :: 0x00FF0000
+Memory_Type_Index_Mask      :: 0xFF000000
+
+@(private)
+create_object_allocation_id :: #force_inline proc(#any_int allocation_block_index, allocation_index, memory_type_index: int, loc := #caller_location) -> Object_Allocation {
+	assert(allocation_block_index >= 0 && allocation_block_index <= int(max(u16)))
+	assert(allocation_index >= 0 && allocation_index <= 255)
+	assert(memory_type_index >= 0 && memory_type_index <= 255)
+	return Object_Allocation((u32(memory_type_index) << 24) | (u32(allocation_index) << 16) | u32(allocation_block_index))
+}
+
+@(private)
+get_allocation :: #force_inline proc "contextless" (object_allocation: $T/Object_Allocation) -> (allocation_block: Allocation_Block, memory: vk.DeviceMemory) {
+	allocation_block_index := int(object_allocation & Allocation_Block_Index_Mask)
+	allocation_index := int((object_allocation & Allocation_Index_Mask) >> 16)
+	memory_type_index := int((object_allocation & Memory_Type_Index_Mask) >> 24)
+	allocation := ctx.allocations[memory_type_index][allocation_index]
+	allocation_block = allocation.blocks[allocation_block_index]
+	memory = allocation.memory
+	return
+}
+
 @(private)
 Object_Allocation :: distinct u32
 @(private)
@@ -51,30 +73,273 @@ Image_Allocation :: distinct Object_Allocation
 Buffer_Allocation :: distinct Object_Allocation
 
 @(private)
-Dedicated_Allocation :: struct {
-	memory: vk.DeviceMemory,
-	size: u64,
-	object: vk.NonDispatchableHandle,
+create_and_alloc_objects :: proc(buffer_infos: []vk.BufferCreateInfo, buffer_memory_properties: []vk.MemoryPropertyFlags, buffer_memory_properties_exclude: []vk.MemoryPropertyFlags, image_infos: []vk.ImageCreateInfo, image_memory_properties: []vk.MemoryPropertyFlags, image_memory_properties_exclude: []vk.MemoryPropertyFlags, loc := #caller_location) -> (buffer_allocations: []Buffer_Allocation, image_allocations: []Image_Allocation) {
+	result: vk.Result
+
+	assert(len(buffer_infos) != 0, "len(buffer_infos) == 0", loc)
+	assert(len(image_infos) != 0, "len(image_infos) == 0", loc)
+	assert(len(buffer_infos) == len(buffer_memory_properties), "len(buffer_infos) != len(buffer_memory_properties)", loc)
+	assert(len(image_infos) == len(image_memory_properties), "len(image_infos) != len(image_memory_properties)", loc)
+	assert(len(buffer_infos) == len(buffer_memory_properties_exclude), "len(buffer_infos) != len(buffer_memory_properties_exclude)", loc)
+	assert(len(image_infos) == len(image_memory_properties_exclude), "len(image_infos) != len(image_memory_properties_exclude)", loc)
+
+buffers := make([]vk.Buffer, len(buffer_infos), context.temp_allocator)
+buffer_memory_requirements := make([]vk.MemoryRequirements2, len(buffer_infos), context.temp_allocator)
+buffer_dedicated_requirements := make([]vk.MemoryDedicatedRequirements, len(buffer_infos), context.temp_allocator)
+for &buffer, buffer_index in buffers {
+	buffer_infos[buffer_index].sType = .BUFFER_CREATE_INFO
+	buffer_infos[buffer_index].flags = {}
+	result = vk.CreateBuffer(ctx.device, &buffer_infos[buffer_index], nil, &buffer)
+	assert(result == .SUCCESS)
+	buffer_dedicated_requirements[buffer_index].sType = .DEDICATED_REQUIREMENTS
+	info := vk.BufferMemoryRequirementsInfo2{
+		sType = .BUFFER_MEMORY_REQUIREMENTS_INFO_2,
+		pNext = &buffer_dedicated_requirements[buffer_index],
+		buffer = buffer,
+	}
+	buffer_memory_requirements[buffer_index].sType = .MEMORY_REQUIREMENTS_2
+	vk.GetBufferMemoryRequirements2(ctx.device, &info, &buffer_memory_requirements[buffer_index])
 }
 
+images := make([]vk.Image, len(image_infos), context.temp_allocator)
+image_memory_requirements := make([]vk.MemoryRequirements2, len(image_infos), context.temp_allocator)
+image_dedicated_requirements := make([]vk.MemoryDedicatedRequirements, len(image_infos), context.temp_allocator)
+for &image, image_index in images {
+	image_infos[image_index].sType = .IMAGE_CREATE_INFO
+	image_infos[image_index].flags = {}
+	result = vk.CreateImage(ctx.device,  &image_infos[image_index], nil, &image)
+	assert(result == .SUCCESS)
+	image_dedicated_requirements[image_index].sType = .DEDICATED_REQUIREMENTS
+	info := vk.ImageMemoryRequirementsInfo2{
+		sType = .IMAGE_MEMORY_REQUIREMENTS_INFO_2,
+		pNext = &image_dedicated_requirements[image_index],
+		image = image,
+	}
+	image_memory_requirements[image_index].sType = .MEMORY_REQUIREMENTS_2
+	vk.GetImageMemoryRequirements2(ctx.device, &info, &image_memory_requirements[image_index])
+}
+
+	Memory_Type :: struct {
+		index: int,
+		buffer_indices: [dynamic]int,
+		image_indices: [dynamic]int,
+	}
+	memory_types := make([dynamic]Memory_Type, len(ctx.memory_types), context.temp_allocator)
+	for &m, i in memory_types do m.index = i
+
+	for memory_type_index_index := 0; memory_type_index_index < len(memory_types); memory_type_index_index += 1 {
+		m := &memory_types[memory_type_index_index]
+
+		m.buffer_indices = make([dynamic]int, 0, len(buffers), context.temp_allocator)
+		m.image_indices = make([dynamic]int, 0, len(images), context.temp_allocator)
+
+		memory_type_bit := u32(1 << u32(m.index))
+		for buffer, buffer_index in buffer_memory_requirements {
+			if buffer.memoryTypeBits & memory_type_bit != 0 && buffer_memory_properties[buffer_index] <= ctx.memory_types[m.index].propertyFlags && buffer_memory_properties_exclude[buffer_index] == {} ? true : !(buffer_memory_properties_exclude[buffer_index] <= ctx.memory_types[m.index].propertyFlags) {
+				append(&m.buffer_indices, buffer_index)
+			}
+		}
+		for image, image_index in image_memory_requirements {
+			if image.memoryTypeBits & memory_type_bit != 0 && image_memory_properties[image_index] <= ctx.memory_types[m.index].propertyFlags && image_memory_properties_exclude[image_index] == {} ? true : !(image_memory_properties_exclude[image_index] <= ctx.memory_types[m.index].propertyFlags) {
+				append(&m.image_indices, image_index)
+			}
+		}
+		if len(m.buffer_indices) + len(m.image_indices) == 0 {
+			ordered_remove(&memory_types, memory_type_index_index)
+			memory_type_index_index -= 1
+		}
+	}
+
+	buffer_allocations = make([]Buffer_Allocation, len(buffers))
+	image_allocations = make([]Image_Allocation, len(images))
+
+	buffer_bind_infos := make([dynamic]vk.BindBufferMemoryInfo, 0, len(buffers), context.temp_allocator)
+	image_bind_infos := make([dynamic]vk.BindImageMemoryInfo, 0, len(images), context.temp_allocator)
+
+	Object_Type :: enum {Buffer, Image}
+
+for len(memory_types) > 0 {
+	m: Memory_Type = ---
+	{
+		highest_object_count := 0
+		highest_object_count_index_index := -1
+		for m, i in memory_types {
+			if len(m.buffer_indices) + len(m.image_indices) > highest_object_count {
+				highest_object_count = len(m.buffer_indices) + len(m.image_indices)
+				highest_object_count_index_index = i
+			}
+		}
+		m = memory_types[highest_object_count_index_index]
+		unordered_remove(&memory_types, highest_object_count_index_index)
+	}
+	for memory_type_index_index := 0; memory_type_index_index < len(memory_types); memory_type_index_index += 1 {
+		for buffer_index_index := 0; buffer_index_index < len(memory_types[memory_type_index_index].buffer_indices); buffer_index_index += 1 {
+			buffer_index := memory_types[memory_type_index_index].buffer_indices[buffer_index_index]
+			if slice.contains(m.buffer_indices[:], buffer_index) {
+				ordered_remove(&memory_types[memory_type_index_index].buffer_indices, buffer_index_index)
+				buffer_index_index -= 1
+			}
+		}
+		for image_index_index := 0; image_index_index < len(memory_types[memory_type_index_index].image_indices); image_index_index += 1 {
+			image_index := memory_types[memory_type_index_index].image_indices[image_index_index]
+			if slice.contains(m.image_indices[:], image_index) {
+				ordered_remove(&memory_types[memory_type_index_index].image_indices, image_index_index)
+				image_index_index -= 1
+			}
+		}
+		if len(memory_types[memory_type_index_index].buffer_indices) == 0 && len(memory_types[memory_type_index_index].image_indices) == 0 {
+			ordered_remove(&memory_types, memory_type_index_index)
+			memory_type_index_index -= 1
+		}
+	}
+
+		allocation := Allocation{
+			blocks = make([dynamic]Allocation_Block, 0, len(m.buffer_indices) + len(m.image_indices)),
+		}
+
+		buffer_bind_info_start_index := len(m.buffer_indices) > 0 ? len(buffer_bind_infos) : -1
+		image_bind_info_start_index := len(m.image_indices) > 0 ? len(image_bind_infos) : -1
+
+		for len(m.buffer_indices) > 0 || len(m.image_indices) > 0 {
+			largest_alignment := vk.DeviceSize(0)
+			largest_alignment_index_index := -1
+			object_type: Object_Type
+			for buffer, buffer_index in buffer_memory_requirements {
+				buffer_index_index, ok := slice.linear_search(m.buffer_indices[:], buffer_index)
+				if !ok do continue
+				if buffer.alignment > largest_alignment {
+					largest_alignment = buffer.alignment
+					largest_alignment_index_index = buffer_index_index
+					object_type = .Buffer
+				}
+			}
+			for image, image_index in image_memory_requirements {
+				image_index_index, ok := slice.linear_search(m.image_indices[:], image_index)
+				if !ok do continue
+				if image.alignment > largest_alignment {
+					largest_alignment = image.alignment
+					largest_alignment_index_index = image_index_index
+					object_type = .Image
+				}
+			}
+			switch object_type {
+				case .Buffer:
+					buffer_bind_info := vk.BindBufferMemoryInfo{
+						sType = .BIND_BUFFER_MEMORY_INFO,
+					}
+
+					buffer_index_index := largest_alignment_index_index
+					buffer_index := m.buffer_indices[buffer_index_index]
+					unordered_remove(&m.buffer_indices, buffer_index_index)
+					buffer_bind_info.buffer = buffers[buffer_index]
+
+					buffer_alignment := largest_alignment
+					allocation.size = align_forward_device_size(allocation.size, buffer_alignment)
+					buffer_bind_info.memoryOffset = allocation.size
+					append(&buffer_bind_infos, buffer_bind_info)
+
+					allocation_id := create_object_allocation_id(len(allocation.blocks), len(ctx.allocations[m.index]), m.index)
+					buffer_allocations[buffer_index] = Buffer_Allocation(allocation_id)
+					allocation_block := Allocation_Block{
+						object = vk.NonDispatchableHandle(buffers[buffer_index]),
+						offset = allocation.size,
+						size = buffer_memory_requirements[buffer_index].size,
+					}
+					append(&allocation.blocks, allocation_block)
+
+					allocation.size += buffer_memory_requirements[buffer_index].size
+				case .Image:
+					image_bind_info := vk.BindImageMemoryInfo{
+						sType = .BIND_IMAGE_MEMORY_INFO,
+					}
+
+					image_index_index := largest_alignment_index_index
+					image_index := m.image_indices[image_index_index]
+					unordered_remove(&m.image_indices, image_index_index)
+					image_bind_info.image = images[image_index]
+
+					image_alignment := largest_alignment
+					allocation.size = align_forward_device_size(allocation.size, image_alignment)
+					image_bind_info.memoryOffset = allocation.size
+					append(&image_bind_infos, image_bind_info)
+
+					allocation_id := create_object_allocation_id(len(allocation.blocks), len(ctx.allocations[m.index]), m.index)
+					image_allocations[image_index] = Image_Allocation(allocation_id)
+					allocation_block := Allocation_Block{
+						object = vk.NonDispatchableHandle(images[image_index]),
+						offset = allocation.size,
+						size = image_memory_requirements[image_index].size,
+					}
+					append(&allocation.blocks, allocation_block)
+					allocation.size += image_memory_requirements[image_index].size
+			}
+		}
+
+		memory_allocate_info := vk.MemoryAllocateInfo{
+			sType = .MEMORY_ALLOCATE_INFO,
+			allocationSize = allocation.size,
+			memoryTypeIndex = u32(m.index),
+		}
+		memory: vk.DeviceMemory = ---
+		result = vk.AllocateMemory(ctx.device, &memory_allocate_info, nil, &memory)
+		assert(result == .SUCCESS)
+
+		if buffer_bind_info_start_index != -1 {
+			for &buffer_bind_info in buffer_bind_infos[buffer_bind_info_start_index:] do buffer_bind_info.memory = memory
+		}
+		if image_bind_info_start_index != -1 {
+			for &image_bind_info in image_bind_infos[image_bind_info_start_index:] do image_bind_info.memory = memory
+		}
+
+		allocation.memory = memory
+		append(&ctx.allocations[m.index], allocation)
+	}
+
+	assert(len(buffer_bind_infos) == len(buffers))
+	assert(len(image_bind_infos) == len(images))
+
+	result = vk.BindBufferMemory2(ctx.device, u32(len(buffer_bind_infos)), raw_data(buffer_bind_infos))
+	assert(result == .SUCCESS)
+	result = vk.BindImageMemory2(ctx.device, u32(len(image_bind_infos)), raw_data(image_bind_infos))
+	assert(result == .SUCCESS)
+
+	return
+}
+*/
+
+@(require_results)
+align_forward_device_size :: proc(ptr, align: vk.DeviceSize) -> vk.DeviceSize {
+	assert(is_power_of_two(align))
+
+	p := ptr
+	modulo := p & (align-1)
+	if modulo != 0 {
+		p += align - modulo
+	}
+	return p
+}
+
+@(require_results)
+is_power_of_two :: proc "contextless" (x: vk.DeviceSize) -> bool {
+	if x <= 0 {
+		return false
+	}
+	return (x & (x-1)) == 0
+}
+
+/*
 @(private)
-Undedicated_Allocation :: struct {
+Allocation :: struct {
 	memory: vk.DeviceMemory,
-	size: u64,
+	size: vk.DeviceSize,
 	blocks: [dynamic]Allocation_Block,
-}
-
-@(private)
-Allocation :: union {
-	Dedicated_Allocation,
-	Undedicated_Allocation,
 }
 
 @(private)
 Allocation_Block :: struct {
 	object: vk.NonDispatchableHandle, // zero if freed
-	offset: u64,
-	size: u64,
+	offset: vk.DeviceSize,
+	size: vk.DeviceSize,
 }
 
 @(private)
@@ -88,6 +353,7 @@ Asset :: struct {
 	data: Asset_Data,
 	// TODO
 }
+*/
 
 @(private)
 Context :: struct {
@@ -128,7 +394,7 @@ Context :: struct {
 	_memory_properties: vk.PhysicalDeviceMemoryProperties,
 	memory_types: []vk.MemoryType,
 	memory_heaps: []vk.MemoryHeap,
-	allocations: [][dynamic]Allocation, // [len(memory_types)][dynamic]
+	//allocations: [][dynamic]Allocation, // [len(memory_types)][dynamic]
 	// ------------------
 
 	// ----- swapchain -----
@@ -158,20 +424,11 @@ Context :: struct {
 	// ---------------------------
 
 	// ----- assets -----
-	assets: map[string]Asset,
+	//assets: map[string]Asset,
 	gltf_options: gltf.options,
 	// ------------------
 
 	// ----- subject to change -----
-	shaders: map[string]vk.ShaderModule,
-	pipeline: vk.Pipeline,
-	pipeline_layout: vk.PipelineLayout,
-	descriptor_set_layout: vk.DescriptorSetLayout,
-	staging_buffer: vk.Buffer,
-	staging_buffer_memory: vk.DeviceMemory,
-	vertex_buffer: vk.Buffer,
-	copy_staging_buffer: bool,
-
 	graphics_queue_index: int,
 	transfer_queue_index: int,
 	present_queue_index: int,
@@ -184,6 +441,8 @@ ctx: Context
 
 init :: proc() -> bool {
 	using ctx
+
+	result: vk.Result
 
 	library: dynlib.Library = ---
 	{
@@ -266,9 +525,11 @@ init :: proc() -> bool {
 		}
 		{
 			count: u32 = ---
-			assert(vk.EnumerateInstanceExtensionProperties(nil, &count, nil) == .SUCCESS)
+			result = vk.EnumerateInstanceExtensionProperties(nil, &count, nil)
+			assert(result == .SUCCESS)
 			instance_extension_properties := make([]vk.ExtensionProperties, count, context.temp_allocator)
-			assert(vk.EnumerateInstanceExtensionProperties(nil, &count, raw_data(instance_extension_properties)) == .SUCCESS)
+			result = vk.EnumerateInstanceExtensionProperties(nil, &count, raw_data(instance_extension_properties))
+			assert(result == .SUCCESS)
 			desired_instance_extensions := [?]cstring{
 				//"VK_KHR_display",
 				//"VK_KHR_display_swapchain",
@@ -297,20 +558,24 @@ init :: proc() -> bool {
 			info.enabledLayerCount = u32(len(layers))
 			info.ppEnabledLayerNames = raw_data(&layers)
 		}
-		assert(vk.CreateInstance(&info, nil, &instance) == .SUCCESS)
+		result = vk.CreateInstance(&info, nil, &instance)
+		assert(result == .SUCCESS)
 		vk.load_proc_addresses(instance)
 	}
 
 	{
-		assert(create_surface() == .SUCCESS)
+		result = create_surface()
+		assert(result == .SUCCESS)
 	}
 
 	device_extensions = make([dynamic]cstring, 0, 128)
 	{
 		physical_device_count: u32 = ---
-		assert(vk.EnumeratePhysicalDevices(instance, &physical_device_count, nil) == .SUCCESS)
+		result = vk.EnumeratePhysicalDevices(instance, &physical_device_count, nil)
+		assert(result == .SUCCESS)
 		physical_devices := make([]vk.PhysicalDevice, physical_device_count, context.temp_allocator)
-		assert(vk.EnumeratePhysicalDevices(instance, &physical_device_count, raw_data(physical_devices)) == .SUCCESS)
+		result = vk.EnumeratePhysicalDevices(instance, &physical_device_count, raw_data(physical_devices))
+		assert(result == .SUCCESS)
 
 		chosen_physical_device: Maybe(vk.PhysicalDevice)
 		physical_device_loop: for physical_device, i in physical_devices {
@@ -329,9 +594,11 @@ init :: proc() -> bool {
 
 			for instance_extension in instance_extensions {
 				count: u32 = ---
-				assert(vk.EnumerateDeviceExtensionProperties(physical_device, instance_extension, &count, nil) == .SUCCESS)
+				result = vk.EnumerateDeviceExtensionProperties(physical_device, instance_extension, &count, nil)
+				assert(result == .SUCCESS)
 				properties := make([]vk.ExtensionProperties, count, context.temp_allocator)
-				assert(vk.EnumerateDeviceExtensionProperties(physical_device, instance_extension, &count, raw_data(properties)) == .SUCCESS)
+				result = vk.EnumerateDeviceExtensionProperties(physical_device, instance_extension, &count, raw_data(properties))
+				assert(result == .SUCCESS)
 				found: [len(required_device_extensions)]bool
 				find_device_extensions: for &p in properties {
 					for device_extension, found_index in required_device_extensions {
@@ -350,9 +617,11 @@ init :: proc() -> bool {
 				}
 			}
 			count: u32 = ---
-			assert(vk.EnumerateDeviceExtensionProperties(physical_device, nil, &count, nil) == .SUCCESS)
+			result = vk.EnumerateDeviceExtensionProperties(physical_device, nil, &count, nil)
+			assert(result == .SUCCESS)
 			properties := make([]vk.ExtensionProperties, count, context.temp_allocator)
-			assert(vk.EnumerateDeviceExtensionProperties(physical_device, nil, &count, raw_data(properties)) == .SUCCESS)
+			vk.EnumerateDeviceExtensionProperties(physical_device, nil, &count, raw_data(properties))
+			assert(result == .SUCCESS)
 			found: [len(required_device_extensions)]bool
 			find_device_extensions_no_layer: for &p in properties {
 				for device_extension, found_index in required_device_extensions {
@@ -398,14 +667,18 @@ init :: proc() -> bool {
 			surface = surface,
 		}
 		count: u32 = ---
-		assert(vk.GetPhysicalDeviceSurfacePresentModes2EXT(physical_device, &info, &count, nil) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfacePresentModes2EXT(physical_device, &info, &count, nil)
+		assert(result == .SUCCESS)
 		present_modes = make([]vk.PresentModeKHR, count, context.temp_allocator)
-		assert(vk.GetPhysicalDeviceSurfacePresentModes2EXT(physical_device, &info, &count, raw_data(present_modes)) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfacePresentModes2EXT(physical_device, &info, &count, raw_data(present_modes))
+		assert(result == .SUCCESS)
 	} else {
 		count: u32 = ---
-		assert(vk.GetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &count, nil) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &count, nil)
+		assert(result == .SUCCESS)
 		present_modes = make([]vk.PresentModeKHR, count, context.temp_allocator)
-		assert(vk.GetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &count, raw_data(present_modes)) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &count, raw_data(present_modes))
+		assert(result == .SUCCESS)
 	}
 
 	surface_formats_1: []vk.SurfaceFormatKHR
@@ -447,21 +720,27 @@ init :: proc() -> bool {
 				Next_Chain_Entry{"VK_EXT_surface_maintenance1", &surface_present_mode})
 		}
 
-		assert(vk.GetPhysicalDeviceSurfaceCapabilities2KHR(physical_device, &info, &surface_capabilities_2) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfaceCapabilities2KHR(physical_device, &info, &surface_capabilities_2)
+		assert(result == .SUCCESS)
 
 		count: u32 = ---
-		assert(vk.GetPhysicalDeviceSurfaceFormats2KHR(physical_device, &info, &count, nil) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfaceFormats2KHR(physical_device, &info, &count, nil)
+		assert(result == .SUCCESS)
 		surface_formats_2 = make([]vk.SurfaceFormat2KHR, count, context.temp_allocator)
 		for &f in surface_formats_2 do f.sType = .SURFACE_FORMAT_2_KHR
-		assert(vk.GetPhysicalDeviceSurfaceFormats2KHR(physical_device, &info, &count, raw_data(surface_formats_2)) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfaceFormats2KHR(physical_device, &info, &count, raw_data(surface_formats_2))
+		assert(result == .SUCCESS)
 
 		surface_capabilities = surface_capabilities_2.surfaceCapabilities
 	} else {
-		assert(vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities)
+		assert(result == .SUCCESS)
 		count: u32 = ---
-		assert(vk.GetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &count, nil) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &count, nil)
+		assert(result == .SUCCESS)
 		surface_formats_1 = make([]vk.SurfaceFormatKHR, count, context.temp_allocator)
-		assert(vk.GetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &count, raw_data(surface_formats_1)) == .SUCCESS)
+		result = vk.GetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &count, raw_data(surface_formats_1))
+		assert(result == .SUCCESS)
 	}
 
 	{
@@ -475,7 +754,8 @@ init :: proc() -> bool {
 	{
 		for i in 0..<len(queue_family_properties) {
 			supported: b32 = ---
-			assert(vk.GetPhysicalDeviceSurfaceSupportKHR(physical_device, u32(i), surface, &supported) == .SUCCESS)
+			result = vk.GetPhysicalDeviceSurfaceSupportKHR(physical_device, u32(i), surface, &supported)
+			assert(result == .SUCCESS)
 			if supported do append(&present_queue_family_indices, i)
 		}
 		assert(len(present_queue_family_indices) != 0)
@@ -524,7 +804,8 @@ init :: proc() -> bool {
 			enabledExtensionCount = u32(len(device_extensions)),
 			ppEnabledExtensionNames = raw_data(device_extensions),
 		}
-		assert(vk.CreateDevice(physical_device, &info, nil, &device) == .SUCCESS)
+		result = vk.CreateDevice(physical_device, &info, nil, &device)
+		assert(result == .SUCCESS)
 		vk.load_proc_addresses(device)
 	}
 
@@ -579,12 +860,15 @@ init :: proc() -> bool {
 		extent = swapchain_info.imageExtent
 
 		set_next_chain(device_extensions[:], &swapchain_info, Next_Chain_Entry{"VK_EXT_full_screen_exclusive", &fullscreen_info}, Next_Chain_Entry{"VK_EXT_full_screen_exclusive", &platform_fullscreen_info})
-		assert(vk.CreateSwapchainKHR(device, &swapchain_info, nil, &swapchain) == .SUCCESS)
+		result = vk.CreateSwapchainKHR(device, &swapchain_info, nil, &swapchain)
+		assert(result == .SUCCESS)
 
 		swapchain_image_count: u32 = ---
-		assert(vk.GetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, nil) == .SUCCESS)
+		result = vk.GetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, nil)
+		assert(result == .SUCCESS)
 		swapchain_images = make([]vk.Image, swapchain_image_count)
-		assert(vk.GetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, raw_data(swapchain_images)) == .SUCCESS)
+		result = vk.GetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, raw_data(swapchain_images))
+		assert(result == .SUCCESS)
 
 		swapchain_image_views = make([]vk.ImageView, len(swapchain_images))
 		for &s, i in swapchain_image_views {
@@ -600,7 +884,8 @@ init :: proc() -> bool {
 					layerCount = 1,
 				},
 			}
-			assert(vk.CreateImageView(device, &info, nil, &s) == .SUCCESS)
+			result = vk.CreateImageView(device, &info, nil, &s)
+			assert(result == .SUCCESS)
 		}
 	}
 
@@ -618,12 +903,13 @@ init :: proc() -> bool {
 		vk.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_properties)
 		memory_types = _memory_properties.memoryTypes[:int(_memory_properties.memoryTypeCount)]
 		memory_heaps = _memory_properties.memoryHeaps[:int(_memory_properties.memoryHeapCount)]
-		allocations = make([][dynamic]Allocation, len(memory_types))
-		for &allocation_list in allocations {
-			allocation_list = make([dynamic]Allocation)
-		}
+		//allocations = make([][dynamic]Allocation, len(memory_types))
+		//for &allocation_list in allocations {
+		//	allocation_list = make([dynamic]Allocation)
+		//}
 	}
 
+	/*
 	{
 		depth_stencil_formats := [?]vk.Format{
 			// NOTE(pJotoro): In order of usefulness
@@ -643,214 +929,69 @@ init :: proc() -> bool {
 	}
 
 	{
-		info := vk.ImageCreateInfo{
-			sType = .IMAGE_CREATE_INFO,
-			imageType = .D2,
+		buffer_create_infos := [?]vk.BufferCreateInfo{
+			{
+				size = size_of(vertices),
+				usage = {.TRANSFER_SRC},
+			},
+			{
+				size = size_of(vertices),
+				usage = {.TRANSFER_DST, .VERTEX_BUFFER},
+			},
+		}
+		buffer_memory_properties := [?]vk.MemoryPropertyFlags{
+			{.HOST_VISIBLE},
+			{.DEVICE_LOCAL},
+		}
+		buffer_memory_properties_exclude := [?]vk.MemoryPropertyFlags{
+			{.DEVICE_LOCAL},
+			{.HOST_VISIBLE},
+		}
+
+		image_create_infos := [?]vk.ImageCreateInfo{
+			
+		}
+		image_memory_properties := [?]vk.MemoryPropertyFlags{
+			{.DEVICE_LOCAL},
+		}
+		image_memory_properties_exclude := [?]vk.MemoryPropertyFlags{
+			{.HOST_VISIBLE},
+		}
+
+		buffer_allocations, image_allocations := create_and_alloc_sparse_objects(buffer_create_infos[:], buffer_memory_properties[:], buffer_memory_properties_exclude[:], image_create_infos[:], image_memory_properties[:], image_memory_properties_exclude[:])
+		defer {
+			delete(buffer_allocations)
+			delete(image_allocations)
+		}
+
+		staging_buffer = buffer_allocations[0]
+		vertex_buffer = buffer_allocations[1]
+
+		depth_stencil_image = image_allocations[0]
+	}
+
+	{
+		allocation, _ := get_allocation(depth_stencil_image)
+
+		info := vk.ImageViewCreateInfo{
+			sType = .IMAGE_VIEW_CREATE_INFO,
+			image = vk.Image(allocation.object),
+			viewType = .D1,
 			format = depth_stencil_format,
-			extent = {width = extent.width, height = extent.height, depth = 1},
-			arrayLayers = 1,
-			mipLevels = 1,
-			samples = {._1},
-			usage = {.DEPTH_STENCIL_ATTACHMENT},
-		}
-		assert(vk.CreateImage(device, &info, nil, &depth_stencil_image) == .SUCCESS)
-	}
-
-	{
-		memory_requirements_info := vk.ImageMemoryRequirementsInfo2{
-			sType = .IMAGE_MEMORY_REQUIREMENTS_INFO_2,
-			image = depth_stencil_image,
-		}
-		memory_dedicated_requirements := vk.MemoryDedicatedRequirements{
-			sType = .MEMORY_DEDICATED_REQUIREMENTS,
-		}
-		memory_requirements := vk.MemoryRequirements2{
-			sType = .MEMORY_REQUIREMENTS_2,
-			pNext = &memory_dedicated_requirements,
-		}
-		vk.GetImageMemoryRequirements2(device, &memory_requirements_info, &memory_requirements)
-
-		dedicated_allocate_info := vk.MemoryDedicatedAllocateInfo{
-			sType = .MEMORY_DEDICATED_ALLOCATE_INFO,
-			image = depth_stencil_image,
+			components = {.IDENTITY, .IDENTITY, .IDENTITY, .IDENTITY},
+			subresourceRange = {
+				aspectMask = {.DEPTH, .STENCIL},
+				levelCount = 1,
+				layerCount = 1,
+			},
 		}
 
-		memory_type_index := find_memory_type(memory_requirements.memoryRequirements.memoryTypeBits)
-
-		allocation_size := memory_requirements.memoryRequirements.size
-
-		allocate_info := vk.MemoryAllocateInfo{
-			sType = .MEMORY_ALLOCATE_INFO,
-			allocationSize = allocation_size,
-			memoryTypeIndex = u32(memory_type_index),
-		}
-		
-		if memory_dedicated_requirements.prefersDedicatedAllocation || memory_dedicated_requirements.requiresDedicatedAllocation {
-			allocate_info.pNext = &dedicated_allocate_info
-		} else {
-			allocation_size *= 8
-			allocate_info.allocationSize = allocation_size
-		}
-
-		memory: vk.DeviceMemory = ---
-		assert(vk.AllocateMemory(device, &allocate_info, nil, &memory) == .SUCCESS)
-		assert(vk.BindImageMemory(device, depth_stencil_image, memory, 0) == .SUCCESS)
-		if memory_dedicated_requirements.prefersDedicatedAllocation || memory_dedicated_requirements.requiresDedicatedAllocation {
-			allocation := Dedicated_Allocation{
-				memory = memory,
-				size = u64(allocate_info.allocationSize),
-				object = vk.NonDispatchableHandle(depth_stencil_image),
-			}
-			append(&allocations[memory_type_index], allocation)
-		} else {
-			allocation := Undedicated_Allocation{
-				memory = memory,
-				size = u64(allocation_size),
-				blocks = make([dynamic]Allocation_Block),
-			}
-			append(&allocation.blocks, Allocation_Block{vk.NonDispatchableHandle(depth_stencil_image), 0, u64(allocation_size)})
-			append(&allocations[memory_type_index], allocation)
-		}
-	}
-
-	{
-		info := vk.BufferCreateInfo{
-			sType = .BUFFER_CREATE_INFO,
-			size = size_of(vertices),
-			usage = {.TRANSFER_SRC},
-		}
-		assert(vk.CreateBuffer(device, &info, nil, &staging_buffer) == .SUCCESS)
-	}
-
-	{
-		info := vk.BufferMemoryRequirementsInfo2{
-			sType = .BUFFER_MEMORY_REQUIREMENTS_INFO_2,
-			buffer = staging_buffer,
-		}
-		memory_dedicated_requirements := vk.MemoryDedicatedRequirements{
-			sType = .MEMORY_DEDICATED_REQUIREMENTS,
-		}
-		memory_requirements := vk.MemoryRequirements2{
-			sType = .MEMORY_REQUIREMENTS_2,
-			pNext = &memory_dedicated_requirements,
-		}
-		vk.GetBufferMemoryRequirements2(device, &info, &memory_requirements)
-
-		dedicated_allocate_info := vk.MemoryDedicatedAllocateInfo{
-			sType = .MEMORY_DEDICATED_ALLOCATE_INFO,
-			buffer = staging_buffer,
-		}
-
-		memory_type_index, ok := find_memory_type(memory_requirements.memoryRequirements.memoryTypeBits, vk.MemoryPropertyFlags{.HOST_VISIBLE})
-		assert(ok)
-
-		allocation_size := memory_requirements.memoryRequirements.size
-
-		allocate_info := vk.MemoryAllocateInfo{
-			sType = .MEMORY_ALLOCATE_INFO,
-			allocationSize = allocation_size,
-			memoryTypeIndex = u32(memory_type_index),
-		}
-
-		if memory_dedicated_requirements.prefersDedicatedAllocation || memory_dedicated_requirements.requiresDedicatedAllocation {
-			allocate_info.pNext = &dedicated_allocate_info
-		} else {
-			allocation_size *= 8
-			allocate_info.allocationSize = allocation_size
-		}
-
-		memory: vk.DeviceMemory = ---
-		assert(vk.AllocateMemory(device, &allocate_info, nil, &memory) == .SUCCESS)
-		assert(vk.BindBufferMemory(device, staging_buffer, memory, 0) == .SUCCESS)
-		if memory_dedicated_requirements.prefersDedicatedAllocation || memory_dedicated_requirements.requiresDedicatedAllocation {
-			allocation := Dedicated_Allocation{
-				memory = memory,
-				size = u64(allocate_info.allocationSize),
-				object = vk.NonDispatchableHandle(staging_buffer),
-			}
-			append(&allocations[memory_type_index], allocation)
-		} else {
-			allocation := Undedicated_Allocation{
-				memory = memory,
-				size = u64(allocation_size),
-				blocks = make([dynamic]Allocation_Block),
-			}
-			append(&allocation.blocks, Allocation_Block{vk.NonDispatchableHandle(staging_buffer), 0, u64(allocation_size)})
-			append(&allocations[memory_type_index], allocation)
-		}
-
-		staging_buffer_memory = memory
-	}
-
-	{
-		info := vk.BufferCreateInfo{
-			sType = .BUFFER_CREATE_INFO,
-			size = size_of(vertices),
-			usage = {.TRANSFER_DST, .VERTEX_BUFFER},
-		}
-		assert(vk.CreateBuffer(device, &info, nil, &vertex_buffer) == .SUCCESS)
-	}
-
-	{
-		info := vk.BufferMemoryRequirementsInfo2{
-			sType = .BUFFER_MEMORY_REQUIREMENTS_INFO_2,
-			buffer = vertex_buffer,
-		}
-		memory_dedicated_requirements := vk.MemoryDedicatedRequirements{
-			sType = .MEMORY_DEDICATED_REQUIREMENTS,
-		}
-		memory_requirements := vk.MemoryRequirements2{
-			sType = .MEMORY_REQUIREMENTS_2,
-			pNext = &memory_dedicated_requirements,
-		}
-		vk.GetBufferMemoryRequirements2(device, &info, &memory_requirements)
-
-		dedicated_allocate_info := vk.MemoryDedicatedAllocateInfo{
-			sType = .MEMORY_DEDICATED_ALLOCATE_INFO,
-			buffer = vertex_buffer,
-		}
-
-		memory_type_index, ok := find_memory_type(memory_requirements.memoryRequirements.memoryTypeBits, vk.MemoryPropertyFlags{.DEVICE_LOCAL}, vk.MemoryPropertyFlags{.HOST_VISIBLE})
-		assert(ok)
-
-		allocation_size := memory_requirements.memoryRequirements.size
-
-		allocate_info := vk.MemoryAllocateInfo{
-			sType = .MEMORY_ALLOCATE_INFO,
-			allocationSize = allocation_size,
-			memoryTypeIndex = u32(memory_type_index),
-		}
-
-		if memory_dedicated_requirements.prefersDedicatedAllocation || memory_dedicated_requirements.requiresDedicatedAllocation {
-			allocate_info.pNext = &dedicated_allocate_info
-		} else {
-			allocation_size *= 8
-			allocate_info.allocationSize = allocation_size
-		}
-
-		memory: vk.DeviceMemory = ---
-		assert(vk.AllocateMemory(device, &allocate_info, nil, &memory) == .SUCCESS)
-		assert(vk.BindBufferMemory(device, vertex_buffer, memory, 0) == .SUCCESS)
-		if memory_dedicated_requirements.prefersDedicatedAllocation || memory_dedicated_requirements.requiresDedicatedAllocation {
-			allocation := Dedicated_Allocation{
-				memory = memory,
-				size = u64(allocate_info.allocationSize),
-				object = vk.NonDispatchableHandle(vertex_buffer),
-			}
-			append(&allocations[memory_type_index], allocation)
-		} else {
-			allocation := Undedicated_Allocation{
-				memory = memory,
-				size = u64(allocation_size),
-				blocks = make([dynamic]Allocation_Block),
-			}
-			append(&allocation.blocks, Allocation_Block{vk.NonDispatchableHandle(vertex_buffer), 0, u64(allocation_size)})
-			append(&allocations[memory_type_index], allocation)
-		}
+		result = vk.CreateImageView(device, &info, nil, &depth_stencil_image_view)
+		assert(result == .SUCCESS)
 	}
 
 	when SHADERS != "" {
-		shader_pattern := strings.concatenate({SHADERS, "/*.spv"}, context.temp_allocator)
+		shader_pattern := strings.concatenate({SHADERS, "/\*.spv"}, context.temp_allocator)
 		shader_matches, filepath_err := filepath.glob(shader_pattern)
 		assert(filepath_err == .None)
 		for match in shader_matches {
@@ -862,10 +1003,12 @@ init :: proc() -> bool {
 				pCode = (^u32)(raw_data(data)),
 			}
 			shader: vk.ShaderModule = ---
-			assert(vk.CreateShaderModule(device, &info, nil, &shader) == .SUCCESS)
+			result = vk.CreateShaderModule(device, &info, nil, &shader)
+			assert(result == .SUCCESS)
 			shaders[match] = shader
 		}
 	}
+	*/
 
 	allocator := new(mem.Allocator)
 	allocator^ = context.allocator
@@ -889,9 +1032,10 @@ init :: proc() -> bool {
 	gltf_options.memory.free_func = gltf_free_func
 	gltf_options.memory.user_data = allocator
 
+	/*
 	match_assets :: proc(file_extension: string) -> []string {
 		using ctx
-		pattern := strings.concatenate({ASSETS, "/*.", file_extension}, context.temp_allocator)
+		pattern := strings.concatenate({ASSETS, "/\*.", file_extension}, context.temp_allocator)
 		matches, err := filepath.glob(pattern)
 		assert(err == .None, "invalid asset folder")
 		return matches
@@ -937,6 +1081,7 @@ init :: proc() -> bool {
 		match_images("qoi")
 		match_images("tga")
 	}
+	*/
 
 	{
 		dynamic_states = make([dynamic]vk.DynamicState)
@@ -991,12 +1136,14 @@ init :: proc() -> bool {
 		//if features_extended_dynamic_state_3.extendedDynamicState3DepthClipNegativeOneToOne 		do append(&dynamic_states, vk.DynamicState.DEPTH_CLIP_NEGATIVE_ONE_TO_ONE_EXT)
 	}
 
+	/*
 	{
 		info := vk.DescriptorSetLayoutCreateInfo{
 			sType = .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			//flags = {.DESCRIPTOR_BUFFER},
 		}
-		assert(vk.CreateDescriptorSetLayout(device, &info, nil, &descriptor_set_layout) == .SUCCESS)
+		result = vk.CreateDescriptorSetLayout(device, &info, nil, &descriptor_set_layout)
+		assert(result == .SUCCESS)
 	}
 
 	{
@@ -1005,7 +1152,8 @@ init :: proc() -> bool {
 			setLayoutCount = 1,
 			pSetLayouts = &descriptor_set_layout,
 		}
-		assert(vk.CreatePipelineLayout(device, &info, nil, &pipeline_layout) == .SUCCESS)
+		result = vk.CreatePipelineLayout(device, &info, nil, &pipeline_layout)
+		assert(result == .SUCCESS)
 	}
 
 	{
@@ -1068,90 +1216,79 @@ init :: proc() -> bool {
 			layout = pipeline_layout,
 
 		}
-		assert(vk.CreateGraphicsPipelines(device, 0, 1, &info, nil, &pipeline) == .SUCCESS)
+		result = vk.CreateGraphicsPipelines(device, 0, 1, &info, nil, &pipeline)
+		assert(result == .SUCCESS)
 	}
+	*/
 
 	{
 		info := vk.FenceCreateInfo{
 			sType = .FENCE_CREATE_INFO,
 		}
-		assert(vk.CreateFence(device, &info, nil, &rendering_fence) == .SUCCESS)
+		result = vk.CreateFence(device, &info, nil, &rendering_fence)
+		assert(result == .SUCCESS)
 	}
 
 	return true
 }
 
-@(private)
-find_memory_type_any :: proc "contextless" (memory_types: u32) -> (memory_type_index: int) {
-	for memory_type_index = 0; memory_type_index < len(ctx.memory_types); memory_type_index += 1 {
-		memory_type := u32(1 << u32(memory_type_index))
-		if memory_types & memory_type != 0 do return
-	}
-	return // NOTE(pJotoro): This can't happen!
-}
-
-@(private)
-find_memory_type_properties_include :: proc "contextless" (memory_types: u32, memory_properties_include: vk.MemoryPropertyFlags) -> (memory_type_index: int, ok: bool) {
-	for memory_type_index = 0; memory_type_index < len(ctx.memory_types); memory_type_index += 1 {
-		memory_type := u32(1 << u32(memory_type_index))
-		if (memory_types & memory_type != 0) && (memory_properties_include <= ctx.memory_types[memory_type_index].propertyFlags) {
-			ok = true
-			return
-		}
-	}
-	return
-}
-
-@(private)
-find_memory_type_properties_include_exclude :: proc "contextless" (memory_types: u32, memory_properties_include, memory_properties_exclude: vk.MemoryPropertyFlags) -> (memory_type_index: int, ok: bool) {
-	for memory_type_index = 0; memory_type_index < len(ctx.memory_types); memory_type_index += 1 {
-		memory_type := u32(1 << u32(memory_type_index))
-		if (memory_types & memory_type != 0) && (memory_properties_include <= ctx.memory_types[memory_type_index].propertyFlags) && !(memory_properties_exclude <= ctx.memory_types[memory_type_index].propertyFlags) {
-			ok = true
-			return
-		}
-	}
-	return
-}
-
-@(private)
-find_memory_type :: proc{find_memory_type_any, find_memory_type_properties_include, find_memory_type_properties_include_exclude}
-
+/*
 vertices: [3]Vertex
 Vertex :: struct {
 	position: [2]f32,
 	color: [3]f32,
 }
 
-update :: proc(user_vertices: [3]Vertex) {
+copy_to_buffer :: proc(buffer_allocation: Buffer_Allocation, data: []byte, loc := #caller_location) {
+	allocation_block, memory := get_allocation(buffer_allocation)
+	fmt.assertf(allocation_block.size >= vk.DeviceSize(len(data)), "len(buffer) %v < len(data) %v", allocation_block.size, len(data), loc)
+	mapped_memory: rawptr = ---
+	result := vk.MapMemory(ctx.device, memory, allocation_block.offset, vk.DeviceSize(len(data)), {}, &mapped_memory)
+	assert(result == .SUCCESS)
+	mem.copy(mapped_memory, raw_data(data), len(data))
+	vk.UnmapMemory(ctx.device, memory)
+}
+*/
+
+update :: proc() {
+	result: vk.Result
+
+	/*
 	if vertices != user_vertices {
 		vertices = user_vertices
 		ctx.copy_staging_buffer = true
-		mapped_memory: rawptr = ---
-		assert(vk.MapMemory(ctx.device, ctx.staging_buffer_memory, 0, size_of(vertices), {}, &mapped_memory) == .SUCCESS)
-		mem.copy(mapped_memory, &vertices, size_of(vertices))
-		vk.UnmapMemory(ctx.device, ctx.staging_buffer_memory)
+		copy_to_buffer(ctx.staging_buffer, slice.to_bytes(vertices[:]))
 	}
+	*/
 
 	command_pool := pop_command_pool(0)
 	defer append(&ctx.queue_families[0].command_pools, command_pool)
 	command_buffer := pop_primary_command_buffer(&command_pool)
 	defer append(&command_pool.primary_command_buffers, command_buffer)
 
+	/*
+	staging_buffer_allocation, _ := get_allocation(ctx.staging_buffer)
+	vertex_buffer_allocation, _ := get_allocation(ctx.vertex_buffer)
+	*/
+
 	swapchain_image_index: u32 = ---
 	{
-		assert(vk.AcquireNextImageKHR(ctx.device, ctx.swapchain, max(u64), 0, ctx.rendering_fence, &swapchain_image_index) == .SUCCESS)
+		result = vk.AcquireNextImageKHR(ctx.device, ctx.swapchain, max(u64), 0, ctx.rendering_fence, &swapchain_image_index)
+		assert(result == .SUCCESS)
 	}
 	{
 		info := vk.CommandBufferBeginInfo{
 			sType = .COMMAND_BUFFER_BEGIN_INFO,
 			flags = {.ONE_TIME_SUBMIT},
 		}
-		assert(vk.BeginCommandBuffer(command_buffer, &info) == .SUCCESS)
+		result = vk.BeginCommandBuffer(command_buffer, &info)
+		assert(result == .SUCCESS)
 	}
 	{
-		assert(vk.WaitForFences(ctx.device, 1, &ctx.rendering_fence, true, max(u64)) == .SUCCESS)
-		assert(vk.ResetFences(ctx.device, 1, &ctx.rendering_fence) == .SUCCESS)
+		result = vk.WaitForFences(ctx.device, 1, &ctx.rendering_fence, true, max(u64))
+		assert(result == .SUCCESS)
+		result = vk.ResetFences(ctx.device, 1, &ctx.rendering_fence)
+		assert(result == .SUCCESS)
 		ctx.swapchain_image_index = int(swapchain_image_index)
 	}
 	{
@@ -1169,31 +1306,35 @@ update :: proc(user_vertices: [3]Vertex) {
 				layerCount = 1,
 			},
 		}
+		/*
 		buffer_barrier := vk.BufferMemoryBarrier2{
 			sType = .BUFFER_MEMORY_BARRIER_2,
 			srcStageMask = {.TRANSFER},
 			srcAccessMask = {.TRANSFER_WRITE},
 			dstStageMask = {.VERTEX_INPUT},
 			dstAccessMask = {.VERTEX_ATTRIBUTE_READ},
-			buffer = ctx.vertex_buffer,
-			size = size_of(vertices),
+			buffer = vk.Buffer(vertex_buffer_allocation.object),
+			size = vertex_buffer_allocation.size,
 		}
+		*/
 		info := vk.DependencyInfo{
 			sType = .DEPENDENCY_INFO,
 			imageMemoryBarrierCount = 1,
 			pImageMemoryBarriers = &image_barrier,
-			bufferMemoryBarrierCount = ctx.copy_staging_buffer ? 1 : 0,
-			pBufferMemoryBarriers = ctx.copy_staging_buffer ? &buffer_barrier : nil, 
+			//bufferMemoryBarrierCount = ctx.copy_staging_buffer ? 1 : 0,
+			//pBufferMemoryBarriers = ctx.copy_staging_buffer ? &buffer_barrier : nil, 
 		}
 		vk.CmdPipelineBarrier2(command_buffer, &info)
 	}
+	/*
 	if ctx.copy_staging_buffer {
-		defer ctx.copy_staging_buffer = false
+		ctx.copy_staging_buffer = false
 		info := vk.BufferCopy{
-			size = size_of(vertices),
+			size = vertex_buffer_allocation.size,
 		}
-		vk.CmdCopyBuffer(command_buffer, ctx.staging_buffer, ctx.vertex_buffer, 1, &info)
+		vk.CmdCopyBuffer(command_buffer, vk.Buffer(staging_buffer_allocation.object), vk.Buffer(vertex_buffer_allocation.object), 1, &info)
 	}
+	*/
 	{
 		color_attachment := vk.RenderingAttachmentInfo{
 			sType = .RENDERING_ATTACHMENT_INFO,
@@ -1204,6 +1345,7 @@ update :: proc(user_vertices: [3]Vertex) {
 			clearValue = {color = {float32 = {0.2, 0.3, 1, 1}}},
 		}
 
+		/*
 		depth_attachment := vk.RenderingAttachmentInfo{
 			sType = .RENDERING_ATTACHMENT_INFO,
 			imageView = ctx.depth_stencil_image_view,
@@ -1219,6 +1361,7 @@ update :: proc(user_vertices: [3]Vertex) {
 			loadOp = .CLEAR,
 			storeOp = .STORE,
 		}
+		*/
 
 		info := vk.RenderingInfo{
 			sType = .RENDERING_INFO,
@@ -1227,8 +1370,8 @@ update :: proc(user_vertices: [3]Vertex) {
 			layerCount = 1,
 			colorAttachmentCount = 1,
 			pColorAttachments = &color_attachment,
-			pDepthAttachment = &depth_attachment,
-			pStencilAttachment = &stencil_attachment,
+			//pDepthAttachment = &depth_attachment,
+			//pStencilAttachment = &stencil_attachment,
 		}
 
 		vk.CmdBeginRendering(command_buffer, &info)
@@ -1242,8 +1385,9 @@ update :: proc(user_vertices: [3]Vertex) {
 	vk.CmdSetViewportWithCount(command_buffer, 1, &viewport)
 	scissor := vk.Rect2D{extent = ctx.extent}
 	vk.CmdSetScissorWithCount(command_buffer, 1, &scissor)
-	vk.CmdBindPipeline(command_buffer, .GRAPHICS, ctx.pipeline)
+	//vk.CmdBindPipeline(command_buffer, .GRAPHICS, ctx.pipeline)
 
+	/*
 	bindings := [?]vk.VertexInputBindingDescription2EXT{
 		{
 			sType = .VERTEX_INPUT_BINDING_DESCRIPTION_2_EXT,
@@ -1272,12 +1416,14 @@ update :: proc(user_vertices: [3]Vertex) {
 	vk.CmdSetVertexInputEXT(command_buffer, u32(len(bindings)), raw_data(&bindings), u32(len(attributes)), raw_data(&attributes))
 
 	offset := vk.DeviceSize(0)
-	vk.CmdBindVertexBuffers(command_buffer, 0, 1, &ctx.vertex_buffer, &offset)
+	vertex_buffers := [?]vk.Buffer{vk.Buffer(vertex_buffer_allocation.object)}
+	vk.CmdBindVertexBuffers(command_buffer, 0, 1, raw_data(&vertex_buffers), &offset)
 
 	vk.CmdDraw(command_buffer, 3, 1, 0, 0)
-
+	*/
 	vk.CmdEndRendering(command_buffer)
-	assert(vk.EndCommandBuffer(command_buffer) == .SUCCESS)
+	result = vk.EndCommandBuffer(command_buffer)
+	assert(result == .SUCCESS)
 
 	{
 		command_buffer_info := vk.CommandBufferSubmitInfo{
@@ -1289,27 +1435,33 @@ update :: proc(user_vertices: [3]Vertex) {
 			commandBufferInfoCount = 1,
 			pCommandBufferInfos = &command_buffer_info,
 		}
-		assert(vk.QueueSubmit2(ctx.queue_families[0].queues[ctx.graphics_queue_index], 1, &info, ctx.rendering_fence) == .SUCCESS)
-		assert(vk.WaitForFences(ctx.device, 1, &ctx.rendering_fence, true, max(u64)) == .SUCCESS)
-		assert(vk.ResetFences(ctx.device, 1, &ctx.rendering_fence) == .SUCCESS)
+		result = vk.QueueSubmit2(ctx.queue_families[0].queues[ctx.graphics_queue_index], 1, &info, ctx.rendering_fence)
+		assert(result == .SUCCESS)
+		result = vk.WaitForFences(ctx.device, 1, &ctx.rendering_fence, true, max(u64))
+		assert(result == .SUCCESS)
+		result = vk.ResetFences(ctx.device, 1, &ctx.rendering_fence)
+		assert(result == .SUCCESS)
 	}
 	
 	{
 		i := u32(swapchain_image_index)
-		result: vk.Result = ---
+		result2: vk.Result = ---
 		info := vk.PresentInfoKHR{
 			sType = .PRESENT_INFO_KHR,
 			swapchainCount = 1,
 			pSwapchains = &ctx.swapchain,
 			pImageIndices = &i,
-			pResults = &result,
+			pResults = &result2,
 		}
-		assert(vk.QueuePresentKHR(ctx.queue_families[0].queues[ctx.present_queue_index], &info) == .SUCCESS)
+		result = vk.QueuePresentKHR(ctx.queue_families[0].queues[ctx.present_queue_index], &info)
 		assert(result == .SUCCESS)
+		assert(result2 == .SUCCESS)
 	}
 }
 
 pop_command_pool :: proc(queue_family_index: int) -> Command_Pool {
+	result: vk.Result
+
 	using ctx
 	command_pool, ok := pop_safe(&ctx.queue_families[queue_family_index].command_pools)
 	if ok do return command_pool
@@ -1319,7 +1471,8 @@ pop_command_pool :: proc(queue_family_index: int) -> Command_Pool {
 		flags = {.TRANSIENT, .RESET_COMMAND_BUFFER},
 		queueFamilyIndex = u32(queue_family_index),
 	}
-	assert(vk.CreateCommandPool(device, &info, nil, &vk_command_pool) == .SUCCESS)
+	result = vk.CreateCommandPool(device, &info, nil, &vk_command_pool)
+	assert(result == .SUCCESS)
 	command_pool = Command_Pool{
 		h = vk_command_pool,
 		primary_command_buffers = make([dynamic]vk.CommandBuffer),
@@ -1329,6 +1482,8 @@ pop_command_pool :: proc(queue_family_index: int) -> Command_Pool {
 }
 
 pop_primary_command_buffer :: proc(command_pool: ^Command_Pool) -> vk.CommandBuffer {
+	result: vk.Result
+
 	command_buffer, ok := pop_safe(&command_pool.primary_command_buffers)
 	if ok do return command_buffer
 	old_len := len(command_pool.primary_command_buffers)
@@ -1347,11 +1502,14 @@ pop_primary_command_buffer :: proc(command_pool: ^Command_Pool) -> vk.CommandBuf
 		commandBufferCount = u32(command_pool.primary_command_buffer_count - uint(old_len)),
 	}
 
-	assert(vk.AllocateCommandBuffers(ctx.device, &info, &command_pool.primary_command_buffers[old_len]) == .SUCCESS)
+	result = vk.AllocateCommandBuffers(ctx.device, &info, &command_pool.primary_command_buffers[old_len])
+	assert(result == .SUCCESS)
 	return pop(&command_pool.primary_command_buffers)
 }
 
 pop_secondary_command_buffer :: proc(command_pool: ^Command_Pool) -> vk.CommandBuffer {
+	result: vk.Result
+
 	command_buffer, ok := pop_safe(&command_pool.secondary_command_buffers)
 	if ok do return command_buffer
 
@@ -1370,6 +1528,8 @@ pop_secondary_command_buffer :: proc(command_pool: ^Command_Pool) -> vk.CommandB
 		level = .SECONDARY,
 		commandBufferCount = u32(command_pool.secondary_command_buffer_count - uint(old_len)),
 	}
-	assert(vk.AllocateCommandBuffers(ctx.device, &info, &command_pool.secondary_command_buffers[old_len]) == .SUCCESS)
+
+	result = vk.AllocateCommandBuffers(ctx.device, &info, &command_pool.secondary_command_buffers[old_len])
+	assert(result == .SUCCESS)
 	return pop(&command_pool.secondary_command_buffers)
 }
