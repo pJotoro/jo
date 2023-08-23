@@ -2,76 +2,29 @@ package gdr
 
 import vk "vendor:vulkan"
 import "core:dynlib"
-import "core:thread"
 import "../app"
 import "core:strings"
-import "core:sync"
 import "core:log"
 import "core:runtime"
 import "core:slice"
 import "core:fmt"
-import gltf "vendor:cgltf"
-import "core:image"
-import "core:image/png"
-import "core:image/tga"
-import "core:image/qoi"
-import "core:path/filepath"
 import "core:os"
 import "core:mem"
 
 @(private)
 Command_Pool :: struct {
 	h: vk.CommandPool,
-	primary_command_buffer_count: uint,
-	primary_command_buffers: [dynamic]vk.CommandBuffer,
-	secondary_command_buffer_count: uint,
-	secondary_command_buffers: [dynamic]vk.CommandBuffer,
+	command_buffer_count: int,
+	command_buffers: [dynamic]vk.CommandBuffer,
 }
 
 @(private)
 Queue_Family :: struct {
 	queues: []vk.Queue,
-	command_pools_lock: sync.Atomic_Mutex,
 	command_pools: [dynamic]Command_Pool,
 }
 
 /*
-// B - allocation block index
-// A - allocation index
-// T - memory type index
-// G - generation index
-// TTTTTTTTAAAAAAAABBBBBBBBBBBBBBBB
-
-Allocation_Block_Index_Mask :: 0x0000FFFF
-Allocation_Index_Mask       :: 0x00FF0000
-Memory_Type_Index_Mask      :: 0xFF000000
-
-@(private)
-create_object_allocation_id :: #force_inline proc(#any_int allocation_block_index, allocation_index, memory_type_index: int, loc := #caller_location) -> Object_Allocation {
-	assert(allocation_block_index >= 0 && allocation_block_index <= int(max(u16)))
-	assert(allocation_index >= 0 && allocation_index <= 255)
-	assert(memory_type_index >= 0 && memory_type_index <= 255)
-	return Object_Allocation((u32(memory_type_index) << 24) | (u32(allocation_index) << 16) | u32(allocation_block_index))
-}
-
-@(private)
-get_allocation :: #force_inline proc "contextless" (object_allocation: $T/Object_Allocation) -> (allocation_block: Allocation_Block, memory: vk.DeviceMemory) {
-	allocation_block_index := int(object_allocation & Allocation_Block_Index_Mask)
-	allocation_index := int((object_allocation & Allocation_Index_Mask) >> 16)
-	memory_type_index := int((object_allocation & Memory_Type_Index_Mask) >> 24)
-	allocation := ctx.allocations[memory_type_index][allocation_index]
-	allocation_block = allocation.blocks[allocation_block_index]
-	memory = allocation.memory
-	return
-}
-
-@(private)
-Object_Allocation :: distinct u32
-@(private)
-Image_Allocation :: distinct Object_Allocation
-@(private)
-Buffer_Allocation :: distinct Object_Allocation
-
 @(private)
 create_and_alloc_objects :: proc(buffer_infos: []vk.BufferCreateInfo, buffer_memory_properties: []vk.MemoryPropertyFlags, buffer_memory_properties_exclude: []vk.MemoryPropertyFlags, image_infos: []vk.ImageCreateInfo, image_memory_properties: []vk.MemoryPropertyFlags, image_memory_properties_exclude: []vk.MemoryPropertyFlags, loc := #caller_location) -> (buffer_allocations: []Buffer_Allocation, image_allocations: []Image_Allocation) {
 	result: vk.Result
@@ -327,34 +280,6 @@ is_power_of_two :: proc "contextless" (x: vk.DeviceSize) -> bool {
 	return (x & (x-1)) == 0
 }
 
-/*
-@(private)
-Allocation :: struct {
-	memory: vk.DeviceMemory,
-	size: vk.DeviceSize,
-	blocks: [dynamic]Allocation_Block,
-}
-
-@(private)
-Allocation_Block :: struct {
-	object: vk.NonDispatchableHandle, // zero if freed
-	offset: vk.DeviceSize,
-	size: vk.DeviceSize,
-}
-
-@(private)
-Asset_Data :: union {
-	^gltf.data,
-	^image.Image,
-}
-
-@(private)
-Asset :: struct {
-	data: Asset_Data,
-	// TODO
-}
-*/
-
 @(private)
 Context :: struct {
 	// ----- instance -----
@@ -421,12 +346,7 @@ Context :: struct {
 
 	// ----- synchronization/concurrency -----
 	rendering_fence: vk.Fence,
-	// ---------------------------
-
-	// ----- assets -----
-	//assets: map[string]Asset,
-	gltf_options: gltf.options,
-	// ------------------
+	// ---------------------------------------
 
 	// ----- subject to change -----
 	graphics_queue_index: int,
@@ -903,19 +823,13 @@ init :: proc() -> bool {
 		vk.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_properties)
 		memory_types = _memory_properties.memoryTypes[:int(_memory_properties.memoryTypeCount)]
 		memory_heaps = _memory_properties.memoryHeaps[:int(_memory_properties.memoryHeapCount)]
-		//allocations = make([][dynamic]Allocation, len(memory_types))
-		//for &allocation_list in allocations {
-		//	allocation_list = make([dynamic]Allocation)
-		//}
 	}
 
-	/*
 	{
 		depth_stencil_formats := [?]vk.Format{
-			// NOTE(pJotoro): In order of usefulness
+			.D32_SFLOAT_S8_UINT,
 			.D24_UNORM_S8_UINT,
 			.D16_UNORM_S8_UINT,
-			.D32_SFLOAT_S8_UINT,
 		}
 		for format in depth_stencil_formats {
 			p: vk.FormatProperties = ---
@@ -927,161 +841,6 @@ init :: proc() -> bool {
 		}
 		assert(depth_stencil_format != .UNDEFINED)
 	}
-
-	{
-		buffer_create_infos := [?]vk.BufferCreateInfo{
-			{
-				size = size_of(vertices),
-				usage = {.TRANSFER_SRC},
-			},
-			{
-				size = size_of(vertices),
-				usage = {.TRANSFER_DST, .VERTEX_BUFFER},
-			},
-		}
-		buffer_memory_properties := [?]vk.MemoryPropertyFlags{
-			{.HOST_VISIBLE},
-			{.DEVICE_LOCAL},
-		}
-		buffer_memory_properties_exclude := [?]vk.MemoryPropertyFlags{
-			{.DEVICE_LOCAL},
-			{.HOST_VISIBLE},
-		}
-
-		image_create_infos := [?]vk.ImageCreateInfo{
-			
-		}
-		image_memory_properties := [?]vk.MemoryPropertyFlags{
-			{.DEVICE_LOCAL},
-		}
-		image_memory_properties_exclude := [?]vk.MemoryPropertyFlags{
-			{.HOST_VISIBLE},
-		}
-
-		buffer_allocations, image_allocations := create_and_alloc_sparse_objects(buffer_create_infos[:], buffer_memory_properties[:], buffer_memory_properties_exclude[:], image_create_infos[:], image_memory_properties[:], image_memory_properties_exclude[:])
-		defer {
-			delete(buffer_allocations)
-			delete(image_allocations)
-		}
-
-		staging_buffer = buffer_allocations[0]
-		vertex_buffer = buffer_allocations[1]
-
-		depth_stencil_image = image_allocations[0]
-	}
-
-	{
-		allocation, _ := get_allocation(depth_stencil_image)
-
-		info := vk.ImageViewCreateInfo{
-			sType = .IMAGE_VIEW_CREATE_INFO,
-			image = vk.Image(allocation.object),
-			viewType = .D1,
-			format = depth_stencil_format,
-			components = {.IDENTITY, .IDENTITY, .IDENTITY, .IDENTITY},
-			subresourceRange = {
-				aspectMask = {.DEPTH, .STENCIL},
-				levelCount = 1,
-				layerCount = 1,
-			},
-		}
-
-		result = vk.CreateImageView(device, &info, nil, &depth_stencil_image_view)
-		assert(result == .SUCCESS)
-	}
-
-	when SHADERS != "" {
-		shader_pattern := strings.concatenate({SHADERS, "/\*.spv"}, context.temp_allocator)
-		shader_matches, filepath_err := filepath.glob(shader_pattern)
-		assert(filepath_err == .None)
-		for match in shader_matches {
-			data, ok := read_entire_file_aligned(match, align_of(u32), context.temp_allocator)
-			assert(ok)
-			info := vk.ShaderModuleCreateInfo{
-				sType = .SHADER_MODULE_CREATE_INFO,
-				codeSize = len(data),
-				pCode = (^u32)(raw_data(data)),
-			}
-			shader: vk.ShaderModule = ---
-			result = vk.CreateShaderModule(device, &info, nil, &shader)
-			assert(result == .SUCCESS)
-			shaders[match] = shader
-		}
-	}
-	*/
-
-	allocator := new(mem.Allocator)
-	allocator^ = context.allocator
-
-	gltf_alloc_func :: proc "c" (user: rawptr, size: uint) -> rawptr {
-		allocator := (^mem.Allocator)(user)
-		context = runtime.default_context()
-		context.allocator = allocator^
-		res, _ := mem.alloc(int(size))
-		return res
-	}
-
-	gltf_free_func :: proc "c" (user: rawptr, ptr: rawptr) {
-		allocator := (^mem.Allocator)(user)
-		context = runtime.default_context()
-		context.allocator = allocator^
-		mem.free(ptr)
-	}
-
-	gltf_options.memory.alloc_func = gltf_alloc_func
-	gltf_options.memory.free_func = gltf_free_func
-	gltf_options.memory.user_data = allocator
-
-	/*
-	match_assets :: proc(file_extension: string) -> []string {
-		using ctx
-		pattern := strings.concatenate({ASSETS, "/\*.", file_extension}, context.temp_allocator)
-		matches, err := filepath.glob(pattern)
-		assert(err == .None, "invalid asset folder")
-		return matches
-	}
-
-	assets = make(map[string]Asset)
-
-	when ASSETS != "" {
-		gltf_matches_binary := match_assets("glb")
-		for match in gltf_matches_binary {
-			file, ok := os.read_entire_file(match, context.temp_allocator)
-			assert(ok)
-			options := gltf_options
-			options.type = .glb
-			data, result := gltf.parse(options, raw_data(file), len(file))
-			assert(result == .success)
-			assets[match] = Asset{data = data}
-		}
-		gltf_matches_json := match_assets("gltf")
-		for match in gltf_matches_json {
-			file, ok := os.read_entire_file(match, context.temp_allocator)
-			assert(ok)
-			options := gltf_options
-			options.type = .gltf
-			data, result := gltf.parse(options, raw_data(file), len(file))
-			assert(result == .success)
-			assets[match] = Asset{data = data}
-		}
-
-		match_images :: proc(file_extension: string) {
-			using ctx
-			matches := match_assets(file_extension)
-			for match in matches {
-				file, ok := os.read_entire_file(match, context.temp_allocator)
-				assert(ok)
-				image, error := image.load(match)
-				assert(error == nil)
-				assets[match] = Asset{data = image}
-			}
-		}
-
-		match_images("png")
-		match_images("qoi")
-		match_images("tga")
-	}
-	*/
 
 	{
 		dynamic_states = make([dynamic]vk.DynamicState)
@@ -1136,91 +895,6 @@ init :: proc() -> bool {
 		//if features_extended_dynamic_state_3.extendedDynamicState3DepthClipNegativeOneToOne 		do append(&dynamic_states, vk.DynamicState.DEPTH_CLIP_NEGATIVE_ONE_TO_ONE_EXT)
 	}
 
-	/*
-	{
-		info := vk.DescriptorSetLayoutCreateInfo{
-			sType = .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			//flags = {.DESCRIPTOR_BUFFER},
-		}
-		result = vk.CreateDescriptorSetLayout(device, &info, nil, &descriptor_set_layout)
-		assert(result == .SUCCESS)
-	}
-
-	{
-		info := vk.PipelineLayoutCreateInfo{
-			sType = .PIPELINE_LAYOUT_CREATE_INFO,
-			setLayoutCount = 1,
-			pSetLayouts = &descriptor_set_layout,
-		}
-		result = vk.CreatePipelineLayout(device, &info, nil, &pipeline_layout)
-		assert(result == .SUCCESS)
-	}
-
-	{
-		stages := [?]vk.PipelineShaderStageCreateInfo{
-			{
-				sType = .PIPELINE_SHADER_STAGE_CREATE_INFO,
-				stage = {.VERTEX},
-				module = shaders["C:\\Users\\jonas\\Desktop\\jo\\vert.spv"],
-				pName = "main",
-			},
-			{
-				sType = .PIPELINE_SHADER_STAGE_CREATE_INFO,
-				stage = {.FRAGMENT},
-				module = shaders["C:\\Users\\jonas\\Desktop\\jo\\frag.spv"],
-				pName = "main",
-			},
-		}
-		vertex_input_state := vk.PipelineVertexInputStateCreateInfo{
-			sType = .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-		}
-		input_assembly_state := vk.PipelineInputAssemblyStateCreateInfo{
-			sType = .PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-			topology = .TRIANGLE_LIST, // NOTE(pJotoro): This won't actually be used for anything, but it makes the validation layer happy.
-		}
-		viewport_state := vk.PipelineViewportStateCreateInfo{
-			sType = .PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-		}
-		rasterization_state := vk.PipelineRasterizationStateCreateInfo{
-			sType = .PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-		}
-		multisample_state := vk.PipelineMultisampleStateCreateInfo{
-			sType = .PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-			rasterizationSamples = {._1}, // NOTE(pJotoro): This won't actually be used for anything, but it makes the validation layer happy.
-		}
-		//blend_state := vk.PipelineColorBlendStateCreateInfo{
-		//	sType = .PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-		//}
-		dynamic_state := vk.PipelineDynamicStateCreateInfo{
-			sType = .PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-			dynamicStateCount = u32(len(dynamic_states)),
-			pDynamicStates = raw_data(dynamic_states),
-		}
-		//rendering_info := vk.PipelineRenderingCreateInfo{
-		//	sType = .PIPELINE_RENDERING_CREATE_INFO,
-		//	colorAttachmentCount = 1,
-		//	pColorAttachmentFormats = &swapchain_format,
-		//}
-		info := vk.GraphicsPipelineCreateInfo{
-			sType = .GRAPHICS_PIPELINE_CREATE_INFO,
-			//pNext = &rendering_info,
-			stageCount = u32(len(stages)),
-			pStages = raw_data(&stages),
-			pVertexInputState = &vertex_input_state,
-			pInputAssemblyState = &input_assembly_state,
-			pViewportState = &viewport_state,
-			pRasterizationState = &rasterization_state,
-			pMultisampleState = &multisample_state,
-			//pColorBlendState = &blend_state,
-			pDynamicState = &dynamic_state,
-			layout = pipeline_layout,
-
-		}
-		result = vk.CreateGraphicsPipelines(device, 0, 1, &info, nil, &pipeline)
-		assert(result == .SUCCESS)
-	}
-	*/
-
 	{
 		info := vk.FenceCreateInfo{
 			sType = .FENCE_CREATE_INFO,
@@ -1232,44 +906,13 @@ init :: proc() -> bool {
 	return true
 }
 
-/*
-vertices: [3]Vertex
-Vertex :: struct {
-	position: [2]f32,
-	color: [3]f32,
-}
-
-copy_to_buffer :: proc(buffer_allocation: Buffer_Allocation, data: []byte, loc := #caller_location) {
-	allocation_block, memory := get_allocation(buffer_allocation)
-	fmt.assertf(allocation_block.size >= vk.DeviceSize(len(data)), "len(buffer) %v < len(data) %v", allocation_block.size, len(data), loc)
-	mapped_memory: rawptr = ---
-	result := vk.MapMemory(ctx.device, memory, allocation_block.offset, vk.DeviceSize(len(data)), {}, &mapped_memory)
-	assert(result == .SUCCESS)
-	mem.copy(mapped_memory, raw_data(data), len(data))
-	vk.UnmapMemory(ctx.device, memory)
-}
-*/
-
 update :: proc() {
 	result: vk.Result
 
-	/*
-	if vertices != user_vertices {
-		vertices = user_vertices
-		ctx.copy_staging_buffer = true
-		copy_to_buffer(ctx.staging_buffer, slice.to_bytes(vertices[:]))
-	}
-	*/
-
 	command_pool := pop_command_pool(0)
 	defer append(&ctx.queue_families[0].command_pools, command_pool)
-	command_buffer := pop_primary_command_buffer(&command_pool)
-	defer append(&command_pool.primary_command_buffers, command_buffer)
-
-	/*
-	staging_buffer_allocation, _ := get_allocation(ctx.staging_buffer)
-	vertex_buffer_allocation, _ := get_allocation(ctx.vertex_buffer)
-	*/
+	command_buffer := pop_command_buffer(&command_pool)
+	defer append(&command_pool.command_buffers, command_buffer)
 
 	swapchain_image_index: u32 = ---
 	{
@@ -1306,35 +949,15 @@ update :: proc() {
 				layerCount = 1,
 			},
 		}
-		/*
-		buffer_barrier := vk.BufferMemoryBarrier2{
-			sType = .BUFFER_MEMORY_BARRIER_2,
-			srcStageMask = {.TRANSFER},
-			srcAccessMask = {.TRANSFER_WRITE},
-			dstStageMask = {.VERTEX_INPUT},
-			dstAccessMask = {.VERTEX_ATTRIBUTE_READ},
-			buffer = vk.Buffer(vertex_buffer_allocation.object),
-			size = vertex_buffer_allocation.size,
-		}
-		*/
+		
 		info := vk.DependencyInfo{
 			sType = .DEPENDENCY_INFO,
 			imageMemoryBarrierCount = 1,
 			pImageMemoryBarriers = &image_barrier,
-			//bufferMemoryBarrierCount = ctx.copy_staging_buffer ? 1 : 0,
-			//pBufferMemoryBarriers = ctx.copy_staging_buffer ? &buffer_barrier : nil, 
 		}
 		vk.CmdPipelineBarrier2(command_buffer, &info)
 	}
-	/*
-	if ctx.copy_staging_buffer {
-		ctx.copy_staging_buffer = false
-		info := vk.BufferCopy{
-			size = vertex_buffer_allocation.size,
-		}
-		vk.CmdCopyBuffer(command_buffer, vk.Buffer(staging_buffer_allocation.object), vk.Buffer(vertex_buffer_allocation.object), 1, &info)
-	}
-	*/
+
 	{
 		color_attachment := vk.RenderingAttachmentInfo{
 			sType = .RENDERING_ATTACHMENT_INFO,
@@ -1365,7 +988,6 @@ update :: proc() {
 
 		info := vk.RenderingInfo{
 			sType = .RENDERING_INFO,
-			//flags = {.CONTENTS_SECONDARY_COMMAND_BUFFERS},
 			renderArea = {extent = ctx.extent},
 			layerCount = 1,
 			colorAttachmentCount = 1,
@@ -1385,42 +1007,7 @@ update :: proc() {
 	vk.CmdSetViewportWithCount(command_buffer, 1, &viewport)
 	scissor := vk.Rect2D{extent = ctx.extent}
 	vk.CmdSetScissorWithCount(command_buffer, 1, &scissor)
-	//vk.CmdBindPipeline(command_buffer, .GRAPHICS, ctx.pipeline)
-
-	/*
-	bindings := [?]vk.VertexInputBindingDescription2EXT{
-		{
-			sType = .VERTEX_INPUT_BINDING_DESCRIPTION_2_EXT,
-			binding = 0,
-			stride = size_of(Vertex),
-			inputRate = .VERTEX,
-			divisor = 1,
-		},
-	}
-	attributes := [?]vk.VertexInputAttributeDescription2EXT{
-		{
-			sType = .VERTEX_INPUT_ATTRIBUTE_DESCRIPTION_2_EXT,
-			location = 0,
-			binding = 0,
-			format = .R32G32_SFLOAT,
-			offset = 0,
-		},
-		{
-			sType = .VERTEX_INPUT_ATTRIBUTE_DESCRIPTION_2_EXT,
-			location = 1,
-			binding = 0,
-			format = .R32G32B32_SFLOAT,
-			offset = size_of(f32) * 2,
-		},
-	}
-	vk.CmdSetVertexInputEXT(command_buffer, u32(len(bindings)), raw_data(&bindings), u32(len(attributes)), raw_data(&attributes))
-
-	offset := vk.DeviceSize(0)
-	vertex_buffers := [?]vk.Buffer{vk.Buffer(vertex_buffer_allocation.object)}
-	vk.CmdBindVertexBuffers(command_buffer, 0, 1, raw_data(&vertex_buffers), &offset)
-
-	vk.CmdDraw(command_buffer, 3, 1, 0, 0)
-	*/
+	
 	vk.CmdEndRendering(command_buffer)
 	result = vk.EndCommandBuffer(command_buffer)
 	assert(result == .SUCCESS)
@@ -1475,61 +1062,32 @@ pop_command_pool :: proc(queue_family_index: int) -> Command_Pool {
 	assert(result == .SUCCESS)
 	command_pool = Command_Pool{
 		h = vk_command_pool,
-		primary_command_buffers = make([dynamic]vk.CommandBuffer),
-		secondary_command_buffers = make([dynamic]vk.CommandBuffer),
+		command_buffers = make([dynamic]vk.CommandBuffer),
 	}
 	return command_pool
 }
 
-pop_primary_command_buffer :: proc(command_pool: ^Command_Pool) -> vk.CommandBuffer {
+pop_command_buffer :: proc(command_pool: ^Command_Pool) -> vk.CommandBuffer {
 	result: vk.Result
 
-	command_buffer, ok := pop_safe(&command_pool.primary_command_buffers)
+	command_buffer, ok := pop_safe(&command_pool.command_buffers)
 	if ok do return command_buffer
-	old_len := len(command_pool.primary_command_buffers)
-	if old_len == 0 {
-		command_pool.primary_command_buffer_count = 1
-		command_pool.primary_command_buffers = make([dynamic]vk.CommandBuffer, 1)
+	if command_pool.command_buffer_count == 0 {
+		command_pool.command_buffer_count = 1
+		command_pool.command_buffers = make([dynamic]vk.CommandBuffer, command_pool.command_buffer_count)
 	} else {
-		command_pool.primary_command_buffer_count *= 2
-		resize(&command_pool.primary_command_buffers, int(command_pool.primary_command_buffer_count))
+		resize(&command_pool.command_buffers, command_pool.command_buffer_count)
+		command_pool.command_buffer_count *= 2
 	}
 	
 	info := vk.CommandBufferAllocateInfo{
 		sType = .COMMAND_BUFFER_ALLOCATE_INFO,
 		commandPool = command_pool.h,
 		level = .PRIMARY,
-		commandBufferCount = u32(command_pool.primary_command_buffer_count - uint(old_len)),
+		commandBufferCount = u32(len(command_pool.command_buffers)),
 	}
 
-	result = vk.AllocateCommandBuffers(ctx.device, &info, &command_pool.primary_command_buffers[old_len])
+	result = vk.AllocateCommandBuffers(ctx.device, &info, raw_data(command_pool.command_buffers))
 	assert(result == .SUCCESS)
-	return pop(&command_pool.primary_command_buffers)
-}
-
-pop_secondary_command_buffer :: proc(command_pool: ^Command_Pool) -> vk.CommandBuffer {
-	result: vk.Result
-
-	command_buffer, ok := pop_safe(&command_pool.secondary_command_buffers)
-	if ok do return command_buffer
-
-	old_len := len(command_pool.secondary_command_buffers)
-	if old_len == 0 {
-		command_pool.secondary_command_buffer_count = 1
-		command_pool.secondary_command_buffers = make([dynamic]vk.CommandBuffer, 1)
-	} else {
-		command_pool.secondary_command_buffer_count *= 2
-		resize(&command_pool.secondary_command_buffers, int(command_pool.secondary_command_buffer_count))
-	}
-
-	info := vk.CommandBufferAllocateInfo{
-		sType = .COMMAND_BUFFER_ALLOCATE_INFO,
-		commandPool = command_pool.h,
-		level = .SECONDARY,
-		commandBufferCount = u32(command_pool.secondary_command_buffer_count - uint(old_len)),
-	}
-
-	result = vk.AllocateCommandBuffers(ctx.device, &info, &command_pool.secondary_command_buffers[old_len])
-	assert(result == .SUCCESS)
-	return pop(&command_pool.secondary_command_buffers)
+	return pop(&command_pool.command_buffers)
 }

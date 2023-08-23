@@ -12,7 +12,7 @@ Context :: struct {
     name: string,
 
     should_close: bool,
-    visible: bool,
+    visible: int, // -1 and 0 mean invisible, 1 means visible
     window: win32.HWND,
     window_extended_flags: u32,
     window_flags: u32,
@@ -226,6 +226,7 @@ _init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Ev
     ctx.event_callback = event_callback
     ctx.user_data = user_data
     ctx.name = title
+    ctx.visible = -1
 
     if configuration == .Game {
         when ODIN_DEBUG do game_init_windowed(title, width, height, fps, loc)
@@ -245,10 +246,11 @@ _should_close :: proc() -> bool {
     for k in &ctx.keyboard_keys_pressed do k = false
     for k in &ctx.keyboard_keys_released do k = false
 
-    if !ctx.visible {
+    if ctx.visible == -1 do ctx.visible += 1
+    else if ctx.visible == 0 {
+        ctx.visible += 1
         flags := win32.SW_SHOW
         win32.ShowWindow(ctx.window, flags)
-        ctx.visible = true
     }
     for {
         message: win32.MSG
