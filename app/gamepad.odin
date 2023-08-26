@@ -19,6 +19,11 @@ Gamepad_Button :: enum u16 {
 
 Gamepad_Buttons :: distinct bit_set[Gamepad_Button; u16]
 
+Gamepad_Type :: enum {
+	Xbox_One,
+	Xbox_360,
+}
+
 @(private)
 Gamepad_Desc :: struct {
 	buttons: Gamepad_Buttons,
@@ -29,11 +34,20 @@ Gamepad_Desc :: struct {
 	right_stick: [2]f32,
 
 	id: Gamepad,
+	type: Gamepad_Type,
 }
 
 Gamepad :: distinct int
 
 INVALID_GAMEPAD : Gamepad : -1
+
+XBOX_360_LEFT_THUMB_DEADZONE  :: 7849
+XBOX_360_RIGHT_THUMB_DEADZONE :: 8689
+XBOX_360_TRIGGER_THRESHOLD    :: 30
+
+XBOX_ONE_LEFT_THUMB_DEADZONE :: 2193
+XBOX_ONE_RIGHT_THUMB_DEADZONE :: 3480
+XBOX_ONE_TRIGGER_THRESHOLD :: 0
 
 gamepad :: proc(index: int, loc := #caller_location) -> Gamepad {
 	return _gamepad(index, loc)
@@ -107,4 +121,9 @@ gamepad_right_stick :: proc(id: Gamepad) -> [2]f32 {
 
 gamepad_set_vibration :: proc(id: Gamepad, left_motor, right_motor: f32, loc := #caller_location) {
 	_gamepad_set_vibration(id, left_motor, right_motor, loc)
+}
+
+// NOTE(pJotoro): 99% of the time, there is no reason for the user to call this. It already gets called in `should_close`.
+gamepads_get_input :: proc() {
+	_gamepads_get_input()
 }

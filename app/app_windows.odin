@@ -6,23 +6,13 @@ import "core:intrinsics"
 import "core:runtime"
 import "xinput"
 
-Context :: struct {
-    configuration: Configuration,
-    user_data: rawptr,
-    name: string,
-
-    should_close: bool,
+OS_Specific :: struct {
     visible: int, // -1 and 0 mean invisible, 1 means visible
     window: win32.HWND,
+    dpi: u32,
+    window_class_flags: u32,
     window_extended_flags: u32,
     window_flags: u32,
-    width, height: int,
-    keyboard_keys: #sparse [Keyboard_Key]bool,
-    keyboard_keys_pressed: #sparse [Keyboard_Key]bool,
-    keyboard_keys_released: #sparse [Keyboard_Key]bool,
-    fullscreen: bool,
-
-    event_callback: Event_Callback,
 
     xinput_enabled: bool,
     gamepads: [4]Gamepad_Desc,
@@ -31,7 +21,6 @@ Context :: struct {
     gl_hdc: win32.HDC,
     gl_vsync: bool,
 }
-ctx: Context
 
 L :: intrinsics.constant_utf16_cstring
 
@@ -46,6 +35,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             if activated do win32.SetLayeredWindowAttributes(ctx.window, 0, 255, LWA_ALPHA)
             else do win32.SetLayeredWindowAttributes(ctx.window, 0, 150, LWA_ALPHA)
 
+        /*
         case win32.WM_SIZE:
             ctx.width = int(l_param & 0xFFFF)
             ctx.height = int(l_param >> 16)
@@ -63,6 +53,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
                 }
                 ctx.event_callback(event, ctx.user_data)
             }
+            */
 
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
             key := Keyboard_Key(w_param)
@@ -116,124 +107,85 @@ panic :: proc(loc := #caller_location) {
     }
 }
 
-@(private="file")
-game_init_windowed :: proc(title := "", width := 0, height := 0, fps := 0, loc := #caller_location) {
-    ctx.configuration = .Game
+foreign import user32 "system:User32.lib"
 
-    wtitle := win32.utf8_to_wstring(title)
-
-    window_class := win32.WNDCLASSEXW{
-        cbSize = size_of(win32.WNDCLASSEXW),
-        style = win32.CS_DROPSHADOW,
-        lpfnWndProc = window_proc,
-        hInstance = win32.HANDLE(win32.GetModuleHandleW(nil)),
-        lpszClassName = L("app_class_name"),
-    }
-    if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
-
-    ctx.window_extended_flags = win32.WS_EX_LAYERED | win32.WS_EX_TOPMOST
-    ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
-    ctx.window = win32.CreateWindowExW(ctx.window_extended_flags, window_class.lpszClassName, wtitle, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, window_class.hInstance, nil)
-    if ctx.window == nil do panic(loc)
-
-    // NOTE(pJotoro): There's no reason to panic for the rest of this procedure since it isn't necessary to make the library run at all.
-
-    monitor := win32.MonitorFromWindow(ctx.window, .MONITOR_DEFAULTTOPRIMARY)
-    monitor_info: win32.MONITORINFO
-    monitor_info.cbSize = size_of(win32.MONITORINFO)
-    win32.GetMonitorInfoW(monitor, &monitor_info)
-    monitor_width := monitor_info.rcMonitor.right - monitor_info.rcMonitor.left
-    monitor_height := monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top
-
-    ctx.width = width != 0 ? width : int(monitor_width/2)
-    ctx.height = height != 0 ? height : int(monitor_height/2)
-
-    window_rect := win32.RECT{0, 0, i32(ctx.width), i32(ctx.height)}
-    win32.AdjustWindowRect(&window_rect, ctx.window_flags, false)
-
-    window_width := window_rect.right - window_rect.left
-    window_height := window_rect.bottom - window_rect.top
-    window_x := (monitor_width - window_width) / 2
-    window_y := (monitor_height - window_height) / 2
-
-    win32.SetWindowPos(ctx.window, nil, window_x, window_y, window_width, window_height, 0)
+@(default_calling_convention="stdcall")
+foreign user32 {
+    GetDpiForSystem :: proc() -> win32.UINT ---
 }
 
-@(private="file")
-game_init_fullscreen :: proc(fps := 0, loc := #caller_location) {
-    ctx.configuration = .Game
-    ctx.fullscreen = true
-
-    window_class := win32.WNDCLASSEXW{
-        cbSize = size_of(win32.WNDCLASSEXW),
-        lpfnWndProc = window_proc,
-        hInstance = win32.HANDLE(win32.GetModuleHandleW(nil)),
-        lpszClassName = L("app_class_name"),
-    }
-    if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
-
-    ctx.window_flags = win32.WS_POPUP | win32.WS_MAXIMIZE
-    ctx.window = win32.CreateWindowExW(0, window_class.lpszClassName, nil, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, window_class.hInstance, nil)
-    if ctx.window == nil do panic(loc)
-
-    // NOTE(pJotoro): There's no reason to panic for the rest of this procedure since it isn't necessary to make the library run at all.
-
-    monitor := win32.MonitorFromWindow(ctx.window, .MONITOR_DEFAULTTOPRIMARY)
-    monitor_info: win32.MONITORINFO
-    monitor_info.cbSize = size_of(win32.MONITORINFO)
-    win32.GetMonitorInfoW(monitor, &monitor_info)
-    monitor_width := monitor_info.rcMonitor.right - monitor_info.rcMonitor.left
-    monitor_height := monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top
-
-    window_rect := win32.RECT{monitor_info.rcMonitor.left, monitor_info.rcMonitor.top, monitor_width, monitor_height}
-    win32.AdjustWindowRect(&window_rect, ctx.window_flags, false)
-
-    win32.SetWindowPos(ctx.window, nil, window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0)
-
-    rect: win32.RECT = ---
-    win32.GetClientRect(ctx.window, &rect)
-    ctx.width = int(rect.right - rect.left)
-    ctx.height = int(rect.bottom - rect.top)
-}
-
-@(private="file")
-tool_init :: proc(title := "", fps := 0, loc := #caller_location) {
-    assert(ctx.event_callback != nil, ".Tool requires event callback", loc)
-    ctx.configuration = .Tool
-
-    wtitle := win32.utf8_to_wstring(title)
-
-    window_class := win32.WNDCLASSEXW{
-        cbSize = size_of(win32.WNDCLASSEXW),
-        lpfnWndProc = window_proc,
-        hInstance = win32.HANDLE(win32.GetModuleHandleW(nil)),
-        lpszClassName = L("app_class_name"),
-    }
-    if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
-
-    ctx.window_extended_flags = win32.WS_EX_ACCEPTFILES | win32.WS_EX_CLIENTEDGE | win32.WS_EX_WINDOWEDGE
-    ctx.window_flags = win32.WS_BORDER | win32.WS_MAXIMIZE | win32.WS_OVERLAPPEDWINDOW
-    ctx.window = win32.CreateWindowExW(ctx.window_extended_flags, window_class.lpszClassName, wtitle, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, window_class.hInstance, nil)
-    if ctx.window == nil do panic(loc)
-
-    rect: win32.RECT = ---
-    win32.GetClientRect(ctx.window, &rect)
-    ctx.width = int(rect.right - rect.left)
-    ctx.height = int(rect.bottom - rect.top)
-}
-
-_init :: proc(title := "", width := 0, height := 0, fps := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, configuration: Configuration = .Game, loc := #caller_location) {
-    ctx.event_callback = event_callback
-    ctx.user_data = user_data
-    ctx.name = title
+_init :: proc(loc := #caller_location) {
     ctx.visible = -1
+    ctx.dpi = GetDpiForSystem()
 
-    if configuration == .Game {
-        when ODIN_DEBUG do game_init_windowed(title, width, height, fps, loc)
-        else do game_init_fullscreen(fps, loc)
-    } else if configuration == .Tool {
-        tool_init(title, fps, loc)
+    wname: win32.LPWSTR
+
+    if ctx.configuration == .Game {
+        when ODIN_DEBUG {
+            ctx.window_class_flags = win32.CS_DROPSHADOW
+            ctx.window_extended_flags = win32.WS_EX_LAYERED | win32.WS_EX_TOPMOST
+            ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
+            wname = win32.utf8_to_wstring(ctx.name)
+        } else {
+            ctx.window_flags = win32.WS_CAPTION | win32.WS_POPUP | win32.WS_MAXIMIZE
+        }
+    } else if ctx.configuration == .Tool {
+        ctx.window_extended_flags = win32.WS_EX_ACCEPTFILES | win32.WS_EX_CLIENTEDGE | win32.WS_EX_WINDOWEDGE
+        ctx.window_flags = win32.WS_BORDER | win32.WS_MAXIMIZE | win32.WS_OVERLAPPEDWINDOW
+        wname = win32.utf8_to_wstring(ctx.name)
     }
+
+    window_class := win32.WNDCLASSEXW{
+        cbSize = size_of(win32.WNDCLASSEXW),
+        style = ctx.window_class_flags,
+        lpfnWndProc = window_proc,
+        hInstance = win32.HANDLE(win32.GetModuleHandleW(nil)),
+        lpszClassName = L("app_class_name"),
+    }
+    if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
+
+    ctx.window = win32.CreateWindowExW(ctx.window_extended_flags, window_class.lpszClassName, wname, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, window_class.hInstance, nil)
+    if ctx.window == nil do panic(loc)
+
+    monitor := win32.MonitorFromWindow(ctx.window, .MONITOR_DEFAULTTOPRIMARY)
+    monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
+    ok := win32.GetMonitorInfoW(monitor, &monitor_info)
+    assert(ok == true, "failed to get monitor info", loc)
+
+    window_width, window_height, window_left, window_right, window_top, window_bottom: i32
+
+    if ctx.window_flags & win32.WS_POPUP == 0 {
+        window_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) / 2 : i32(ctx.width)
+        window_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) / 2 : i32(ctx.height)
+
+        window_left = monitor_info.rcMonitor.left + (window_width / 2)
+        window_top = monitor_info.rcMonitor.top + (window_height / 2)
+        window_right = monitor_info.rcMonitor.right - (window_width / 2)
+        window_bottom = monitor_info.rcMonitor.bottom - (window_height / 2)
+    } else {
+        window_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) : i32(ctx.width)
+        window_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) : i32(ctx.height)
+
+        window_left = 0
+        window_top = 0
+        window_right = window_width
+        window_bottom = window_height
+    }
+
+    window_rect := win32.RECT{window_left, window_top, window_right, window_bottom}
+    ok = win32.AdjustWindowRectExForDpi(&window_rect, ctx.window_flags, false, ctx.window_extended_flags, ctx.dpi)
+    if !ok do panic(loc)
+
+    ok = win32.SetWindowPos(ctx.window, nil, window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0)
+    if !ok do panic(loc)
+
+    rect: win32.RECT = ---
+    ok = win32.GetClientRect(ctx.window, &rect)
+    if !ok do panic(loc)
+    if ctx.width != 0 do assert(ctx.width == int(rect.right - rect.left), "window width incorrectly set!")
+    ctx.width = int(rect.right - rect.left)
+    if ctx.height != 0 do assert(ctx.height == int(rect.bottom - rect.top), "window height incorrectly set!")
+    ctx.height = int(rect.bottom - rect.top)
 
     ctx.xinput_enabled = xinput.init()
     ctx.next_gamepad_id = 4
@@ -249,8 +201,7 @@ _should_close :: proc() -> bool {
     if ctx.visible == -1 do ctx.visible += 1
     else if ctx.visible == 0 {
         ctx.visible += 1
-        flags := win32.SW_SHOW
-        win32.ShowWindow(ctx.window, flags)
+        win32.ShowWindow(ctx.window, win32.SW_SHOW)
     }
     for {
         message: win32.MSG
@@ -262,17 +213,7 @@ _should_close :: proc() -> bool {
         break
     }
 
-    for gamepad, i in &ctx.gamepads {
-        if gamepad.id != INVALID_GAMEPAD {
-            state: xinput.STATE = ---
-            result := xinput.GetState(win32.DWORD(i), &state)
-            if result != win32.ERROR_SUCCESS {
-                gamepad.id = INVALID_GAMEPAD
-                continue
-            }
-            gamepad_get_input(&gamepad, state.Gamepad)
-        }
-    }
+    gamepads_get_input()
     
     return ctx.should_close
 }

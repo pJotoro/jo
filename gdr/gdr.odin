@@ -296,7 +296,6 @@ init :: proc() -> bool {
 				if !f do continue physical_device_loop
 			}
 			chosen_physical_device = physical_device
-			assert(i == 1)
 			break physical_device_loop
 		}
 		ok: bool = ---
@@ -464,10 +463,10 @@ init :: proc() -> bool {
 			if slice.contains(instance_extensions[:], "VK_KHR_get_surface_capabilities2") {
 				found: bool
 				for surface_format in surface_formats_2 {
-					if surface_format.surfaceFormat.format == vk.Format.B8G8R8A8_SRGB && surface_format.surfaceFormat.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR {
+					if surface_format.surfaceFormat.format == vk.Format.B8G8R8A8_SRGB && (surface_format.surfaceFormat.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR || surface_format.surfaceFormat.colorSpace == vk.ColorSpaceKHR.DISPLAY_NATIVE_AMD) {
 						found = true
-						swapchain_format = .B8G8R8A8_SRGB
-						swapchain_color_space = .SRGB_NONLINEAR
+						swapchain_format = surface_format.surfaceFormat.format
+						swapchain_color_space = surface_format.surfaceFormat.colorSpace
 						break
 					}
 				}
@@ -475,10 +474,10 @@ init :: proc() -> bool {
 			} else {
 				found: bool
 				for surface_format in surface_formats_1 {
-					if surface_format.format == vk.Format.B8G8R8A8_SRGB && surface_format.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR {
+					if surface_format.format == vk.Format.B8G8R8A8_SRGB && (surface_format.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR || surface_format.colorSpace == vk.ColorSpaceKHR.DISPLAY_NATIVE_AMD) {
 						found = true
-						swapchain_format = .B8G8R8A8_SRGB
-						swapchain_color_space = .SRGB_NONLINEAR
+						swapchain_format = surface_format.format
+						swapchain_color_space = surface_format.colorSpace
 						break
 					}
 				}
