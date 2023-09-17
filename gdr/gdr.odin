@@ -1,6 +1,9 @@
 package gdr
 
+RENDER_DOC :: #config(GDR_RENDER_DOC, false)
+
 import vk "vendor:vulkan"
+import "../vkma"
 import "core:dynlib"
 import "../app"
 import "core:strings"
@@ -10,99 +13,26 @@ import "core:slice"
 import "core:fmt"
 import "core:os"
 import "core:mem"
+import "core:reflect"
 
-@(private)
-Context :: struct {
-	// ----- instance -----
-	instance: vk.Instance,
-	instance_extensions: [dynamic]cstring,
-	// --------------------
-
-	// ----- physical device -----
-	physical_device: vk.PhysicalDevice,
-
-	properties: vk.PhysicalDeviceProperties,
-	descriptor_buffer_properties: vk.PhysicalDeviceDescriptorBufferPropertiesEXT,
-
-	features: vk.PhysicalDeviceFeatures2,
-	features_1_1: vk.PhysicalDeviceVulkan11Features,
-	features_1_2: vk.PhysicalDeviceVulkan12Features,
-	features_1_3: vk.PhysicalDeviceVulkan13Features,
-	features_extended_dynamic_state_2: vk.PhysicalDeviceExtendedDynamicState2FeaturesEXT,
-	features_extended_dynamic_state_3: vk.PhysicalDeviceExtendedDynamicState3FeaturesEXT,
-	features_vertex_input_dynamic_state: vk.PhysicalDeviceVertexInputDynamicStateFeaturesEXT,
-	features_descriptor_buffer: vk.PhysicalDeviceDescriptorBufferFeaturesEXT,
-	// ---------------------------
-
-	// ----- surface -----
-	surface: vk.SurfaceKHR,
-	surface_capabilities: vk.SurfaceCapabilitiesKHR,
-	surface_capabilities_hdr_amd: vk.DisplayNativeHdrSurfaceCapabilitiesAMD,
-	surface_capabilities_fullscreen_exclusive: vk.SurfaceCapabilitiesFullScreenExclusiveEXT,
-	// -------------------
-	
-	// ----- device -----
-	device: vk.Device,
-	device_extensions: [dynamic]cstring,
-	// ------------------
-	
-	// ----- memory -----
-	_memory_properties: vk.PhysicalDeviceMemoryProperties,
-	memory_types: []vk.MemoryType,
-	memory_heaps: []vk.MemoryHeap,
-	//allocations: [][dynamic]Allocation, // [len(memory_types)][dynamic]
-	// ------------------
-
-	// ----- swapchain -----
-	swapchain: vk.SwapchainKHR,
-	swapchain_format: vk.Format,
-	swapchain_color_space: vk.ColorSpaceKHR,
-	swapchain_images: []vk.Image,
-	swapchain_image_views: []vk.ImageView,
-	swapchain_image_index: int,
-	extent: vk.Extent2D,
-	// ---------------------
-
-	// ----- execution -----
-	queue_family_properties: []vk.QueueFamilyProperties,
-	queues: [][]vk.Queue,
-	dynamic_states: [dynamic]vk.DynamicState,
-	// ---------------------
-
-	// ----- depth stencil -----
-	depth_stencil_format: vk.Format,
-	depth_stencil_image: vk.Image,
-	depth_stencil_image_view: vk.ImageView,
-	// -------------------------
-
-	// ----- synchronization/concurrency -----
-
-	// ---------------------------------------
-
-	// ----- subject to change -----
-	fences: [2]vk.Fence,
-	graphics_semaphores: [2]vk.Semaphore,
-	present_semaphores: [2]vk.Semaphore,
-	command_pool: vk.CommandPool,
-	command_buffers: [2]vk.CommandBuffer,
-	submission_index: int,
-	// ----------------------------	
+vertices := [?]f32{
+	-0.5, -0.5, 0.0,
+	0.5, -0.5, 0.0,
+	0.0, 0.5, 0.0,
 }
-@(private)
-ctx: Context
-
-// TODO(pJotoro): Figure out a way to destory Vulkan objects in a way that's both safe and efficient.
 
 init :: proc() -> bool {
 	using ctx
 
 	result: vk.Result
 
-	library: dynlib.Library = ---
+	deletion_queue = make([dynamic]any, 0, 128)
+
 	{
 		ok: bool = ---
 		library, ok = dynlib.load_library(VK_library_name)
 		if !ok do return false
+		append(&deletion_queue, library)
 		get_instance_proc_addr := dynlib.symbol_address(library, "vkGetInstanceProcAddr")
 		vk.load_proc_addresses(get_instance_proc_addr)
 	}
@@ -110,10 +40,13 @@ init :: proc() -> bool {
 	{
 		version: u32 = ---
 		vk.EnumerateInstanceVersion(&version)
-		assert(version > vk.API_VERSION_1_3)
+		if version < vk.API_VERSION_1_3 do return delete_all()
 	}
 
+	instance_layers = make([dynamic]cstring, 0, 2)
+	append(&deletion_queue, instance_layers)
 	instance_extensions = make([dynamic]cstring, 0, 32)
+	append(&deletion_queue, instance_extensions)
 	{
 		app_name := strings.clone_to_cstring(app.name(), context.temp_allocator)
 		app_info := vk.ApplicationInfo{
@@ -122,13 +55,15 @@ init :: proc() -> bool {
 			apiVersion = vk.API_VERSION_1_3,
 		}
 
-		append(&instance_extensions, cstring("VK_KHR_surface"), VK_KHR_platform_surface)
+		when RENDER_DOC {
+			append(&instance_layers, "VK_LAYER_RENDERDOC_Capture")
+		}
+
+		append(&instance_extensions, "VK_KHR_surface", VK_KHR_platform_surface)
 
 		when ODIN_DEBUG {
-			layers := [?]cstring{
-				"VK_LAYER_KHRONOS_validation",
-			}
-			append(&instance_extensions, cstring("VK_EXT_debug_utils"), "VK_EXT_validation_features")
+			append(&instance_layers, "VK_LAYER_KHRONOS_validation")
+			append(&instance_extensions, "VK_EXT_debug_utils", "VK_EXT_validation_features")
 
 			enabled_validation_features := [?]vk.ValidationFeatureEnableEXT{
 				.GPU_ASSISTED,
@@ -154,6 +89,7 @@ init :: proc() -> bool {
 				debug_print_string(strings.to_string(buf))
 			}
 			debug_logger := new(log.Logger)
+			append(&deletion_queue, debug_logger)
 			debug_logger^ = log.Logger{
 				procedure = debugger_present() ? log_proc_debugger : log_proc_no_debugger,
 				lowest_level = .Debug,
@@ -180,10 +116,10 @@ init :: proc() -> bool {
 		{
 			count: u32 = ---
 			result = vk.EnumerateInstanceExtensionProperties(nil, &count, nil)
-			assert(result == .SUCCESS)
+			if result != .SUCCESS do return delete_all()
 			instance_extension_properties := make([]vk.ExtensionProperties, count, context.temp_allocator)
 			result = vk.EnumerateInstanceExtensionProperties(nil, &count, raw_data(instance_extension_properties))
-			assert(result == .SUCCESS)
+			if result != .SUCCESS do return delete_all()
 			desired_instance_extensions := [?]cstring{
 				//"VK_KHR_display",
 				//"VK_KHR_display_swapchain",
@@ -204,106 +140,68 @@ init :: proc() -> bool {
 		info := vk.InstanceCreateInfo{
 			sType = .INSTANCE_CREATE_INFO,
 			pApplicationInfo = &app_info,
+			enabledLayerCount = u32(len(instance_layers)),
+			ppEnabledLayerNames = len(instance_layers) == 0 ? nil : raw_data(instance_layers),
 			enabledExtensionCount = u32(len(instance_extensions)),
 			ppEnabledExtensionNames = raw_data(instance_extensions),
 		}
 		when ODIN_DEBUG {
 			info.pNext = &debug_info
-			info.enabledLayerCount = u32(len(layers))
-			info.ppEnabledLayerNames = raw_data(&layers)
 		}
 		result = vk.CreateInstance(&info, nil, &instance)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, instance)
 		vk.load_proc_addresses(instance)
 	}
 
 	{
 		result = create_surface()
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, surface)
 	}
 
-	device_extensions = make([dynamic]cstring, 0, 128)
 	{
 		physical_device_count: u32 = ---
 		result = vk.EnumeratePhysicalDevices(instance, &physical_device_count, nil)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 		physical_devices := make([]vk.PhysicalDevice, physical_device_count, context.temp_allocator)
 		result = vk.EnumeratePhysicalDevices(instance, &physical_device_count, raw_data(physical_devices))
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 
-		chosen_physical_device: Maybe(vk.PhysicalDevice)
-		physical_device_loop: for physical_device, i in physical_devices {
-			@(static)
-			required_device_extensions := [?]cstring{
-				"VK_KHR_swapchain", 
-				"VK_EXT_extended_dynamic_state3", 
-				"VK_EXT_vertex_input_dynamic_state", 
-				"VK_EXT_descriptor_buffer",
-			}
-			@(static)
-			desired_device_extensions := [?]cstring{
-				"VK_EXT_full_screen_exclusive",
-				"VK_AMD_display_native_hdr",
-			}
-
-			for instance_extension in instance_extensions {
-				count: u32 = ---
-				result = vk.EnumerateDeviceExtensionProperties(physical_device, instance_extension, &count, nil)
-				assert(result == .SUCCESS)
-				properties := make([]vk.ExtensionProperties, count, context.temp_allocator)
-				result = vk.EnumerateDeviceExtensionProperties(physical_device, instance_extension, &count, raw_data(properties))
-				assert(result == .SUCCESS)
-				found: [len(required_device_extensions)]bool
-				find_device_extensions: for &p in properties {
-					for device_extension, found_index in required_device_extensions {
-						if cstring(raw_data(&p.extensionName)) == device_extension {
-							found[found_index] = true
-							append(&device_extensions, device_extension)
-							continue find_device_extensions
-						}
-					}
-					for device_extension in desired_device_extensions {
-						if cstring(&p.extensionName[0]) == device_extension { 
-							append(&device_extensions, device_extension)
-							continue find_device_extensions
-						}
-					}
-				}
-			}
-			count: u32 = ---
-			result = vk.EnumerateDeviceExtensionProperties(physical_device, nil, &count, nil)
-			assert(result == .SUCCESS)
-			properties := make([]vk.ExtensionProperties, count, context.temp_allocator)
-			vk.EnumerateDeviceExtensionProperties(physical_device, nil, &count, raw_data(properties))
-			assert(result == .SUCCESS)
-			found: [len(required_device_extensions)]bool
-			find_device_extensions_no_layer: for &p in properties {
-				for device_extension, found_index in required_device_extensions {
-					if cstring(&p.extensionName[0]) == device_extension {
-						found[found_index] = true
-						append(&device_extensions, device_extension)
-						continue find_device_extensions_no_layer
-					}
-				}
-				for device_extension in desired_device_extensions {
-					if cstring(&p.extensionName[0]) == device_extension { 
-						append(&device_extensions, device_extension)
-						continue find_device_extensions_no_layer
-					}
-				}
-			}
-			for f in found {
-				if !f do continue physical_device_loop
-			}
-			chosen_physical_device = physical_device
-			break physical_device_loop
-		}
-		ok: bool = ---
-		physical_device, ok = chosen_physical_device.(vk.PhysicalDevice)
-		assert(ok)
+		// TODO
+		physical_device = physical_devices[0]
 	}
 
-	surface_capabilities_hdr_amd.sType = .DISPLAY_NATIVE_HDR_SURFACE_CAPABILITIES_AMD
+	desired_device_extensions := [?]cstring{
+		"VK_EXT_extended_dynamic_state3", 
+		"VK_EXT_vertex_input_dynamic_state", 
+		"VK_EXT_descriptor_buffer",
+		//"VK_EXT_full_screen_exclusive",
+	}
+
+	device_extensions = make([dynamic]cstring, 0, 128)
+	append(&deletion_queue, device_extensions)
+
+	append(&device_extensions, "VK_KHR_swapchain")
+	{
+		count: u32 = ---
+		result = vk.EnumerateDeviceExtensionProperties(physical_device, nil, &count, nil)
+		if result != .SUCCESS do return delete_all()
+		extension_properties := make([]vk.ExtensionProperties, count, context.temp_allocator)
+		result = vk.EnumerateDeviceExtensionProperties(physical_device, nil, &count, raw_data(extension_properties))
+		for &e in extension_properties {
+			when RENDER_DOC {
+				if slice.contains(desired_device_extensions[:], cstring(raw_data(&e.extensionName))) && !slice.contains(render_doc_unsupported_extensions[:], cstring(raw_data(&e.extensionName))) {
+					append(&device_extensions, cstring(raw_data(&e.extensionName)))
+				}
+			} else {
+				if slice.contains(desired_device_extensions[:], cstring(raw_data(&e.extensionName))) {
+					append(&device_extensions, cstring(raw_data(&e.extensionName)))
+				}
+			}
+		}
+	}
+
 	surface_capabilities_fullscreen_exclusive.sType = .SURFACE_CAPABILITIES_FULL_SCREEN_EXCLUSIVE_EXT
 
 	present_modes: []vk.PresentModeKHR
@@ -312,7 +210,7 @@ init :: proc() -> bool {
 		fullscreen_info := vk.SurfaceFullScreenExclusiveInfoEXT{
 			sType = .SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT,
 			pNext = &platform_fullscreen_info,
-			fullScreenExclusive = .ALLOWED,
+			fullScreenExclusive = .APPLICATION_CONTROLLED,
 		}
 		info := vk.PhysicalDeviceSurfaceInfo2KHR{
 			sType = .PHYSICAL_DEVICE_SURFACE_INFO_2_KHR,
@@ -321,17 +219,19 @@ init :: proc() -> bool {
 		}
 		count: u32 = ---
 		result = vk.GetPhysicalDeviceSurfacePresentModes2EXT(physical_device, &info, &count, nil)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 		present_modes = make([]vk.PresentModeKHR, count, context.temp_allocator)
 		result = vk.GetPhysicalDeviceSurfacePresentModes2EXT(physical_device, &info, &count, raw_data(present_modes))
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 	} else {
+		//set_fullscreen = true // NOTE(pJotoro): In this case, the application is not fullscreen, so it should never actually try to set itself to fullscreen.
+
 		count: u32 = ---
 		result = vk.GetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &count, nil)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 		present_modes = make([]vk.PresentModeKHR, count, context.temp_allocator)
 		result = vk.GetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &count, raw_data(present_modes))
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 	}
 
 	surface_formats_1: []vk.SurfaceFormatKHR
@@ -362,44 +262,43 @@ init :: proc() -> bool {
 				Next_Chain_Entry{"VK_EXT_full_screen_exclusive", &platform_fullscreen_info}, 
 				Next_Chain_Entry{"VK_EXT_surface_maintenance1", &surface_present_mode})
 			set_next_chain(instance_extensions[:], device_extensions[:], &surface_capabilities_2, 
-				Next_Chain_Entry{"VK_AMD_display_native_hdr", &surface_capabilities_hdr_amd}, 
 				Next_Chain_Entry{"VK_EXT_full_screen_exclusive", &surface_capabilities_fullscreen_exclusive}, 
 				Next_Chain_Entry{"VK_EXT_surface_maintenance1", &surface_present_mode})
 		} else {
 			set_next_chain(instance_extensions[:], device_extensions[:], &info, 
 				Next_Chain_Entry{"VK_EXT_surface_maintenance1", &surface_present_mode})
 			set_next_chain(instance_extensions[:], device_extensions[:], &surface_capabilities_2, 
-				Next_Chain_Entry{"VK_AMD_display_native_hdr", &surface_capabilities_hdr_amd}, 
 				Next_Chain_Entry{"VK_EXT_surface_maintenance1", &surface_present_mode})
 		}
 
 		result = vk.GetPhysicalDeviceSurfaceCapabilities2KHR(physical_device, &info, &surface_capabilities_2)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 
 		count: u32 = ---
 		result = vk.GetPhysicalDeviceSurfaceFormats2KHR(physical_device, &info, &count, nil)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 		surface_formats_2 = make([]vk.SurfaceFormat2KHR, count, context.temp_allocator)
 		for &f in surface_formats_2 do f.sType = .SURFACE_FORMAT_2_KHR
 		result = vk.GetPhysicalDeviceSurfaceFormats2KHR(physical_device, &info, &count, raw_data(surface_formats_2))
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 
 		surface_capabilities = surface_capabilities_2.surfaceCapabilities
 	} else {
 		result = vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 		count: u32 = ---
 		result = vk.GetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &count, nil)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 		surface_formats_1 = make([]vk.SurfaceFormatKHR, count, context.temp_allocator)
 		result = vk.GetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &count, raw_data(surface_formats_1))
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 	}
 
 	{
 		count: u32 = ---
 		vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &count, nil)
 		queue_family_properties = make([]vk.QueueFamilyProperties, count)
+		append(&deletion_queue, queue_family_properties)
 		vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &count, raw_data(queue_family_properties))
 	}
 
@@ -408,10 +307,10 @@ init :: proc() -> bool {
 		for i in 0..<len(queue_family_properties) {
 			supported: b32 = ---
 			result = vk.GetPhysicalDeviceSurfaceSupportKHR(physical_device, u32(i), surface, &supported)
-			assert(result == .SUCCESS)
+			if result != .SUCCESS do return delete_all()
 			if supported do append(&present_queue_family_indices, i)
 		}
-		assert(len(present_queue_family_indices) != 0)
+		if len(present_queue_family_indices) == 0 do return delete_all()
 	}
 
 	{
@@ -424,14 +323,14 @@ init :: proc() -> bool {
 		features_1_3.sType = .PHYSICAL_DEVICE_VULKAN_1_3_FEATURES
 		features_1_3.pNext = &features_extended_dynamic_state_2
 		features_extended_dynamic_state_2.sType = .PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT
-		features_extended_dynamic_state_2.pNext = &features_extended_dynamic_state_3
+
 		features_extended_dynamic_state_3.sType = .PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT
-		features_extended_dynamic_state_3.pNext = &features_vertex_input_dynamic_state
 		features_vertex_input_dynamic_state.sType = .PHYSICAL_DEVICE_VERTEX_INPUT_DYNAMIC_STATE_FEATURES_EXT
-		features_vertex_input_dynamic_state.pNext = &features_descriptor_buffer
 		features_descriptor_buffer.sType = .PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT
+
+		set_next_chain(device_extensions[:], &features_extended_dynamic_state_2, Next_Chain_Entry{"VK_EXT_extended_dynamic_state3", &features_extended_dynamic_state_3}, Next_Chain_Entry{"VK_EXT_vertex_input_dynamic_state", &features_vertex_input_dynamic_state}, Next_Chain_Entry{"VK_EXT_descriptor_buffer", &features_descriptor_buffer})
 		vk.GetPhysicalDeviceFeatures2(physical_device, &features)
-		assert(features_1_2.descriptorIndexing == true)
+		if features_1_2.descriptorIndexing == false do return delete_all()
 
 		device_queue_infos := make([]vk.DeviceQueueCreateInfo, len(queue_family_properties), context.temp_allocator)
 		for &info, i in device_queue_infos {
@@ -453,35 +352,35 @@ init :: proc() -> bool {
 			ppEnabledExtensionNames = raw_data(device_extensions),
 		}
 		result = vk.CreateDevice(physical_device, &info, nil, &device)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, device)
 		vk.load_proc_addresses(device)
 	}
 
 	{
 		{
-			// TODO(pJotoro): DISPLAY_NATIVE_AMD
 			if slice.contains(instance_extensions[:], "VK_KHR_get_surface_capabilities2") {
 				found: bool
 				for surface_format in surface_formats_2 {
-					if surface_format.surfaceFormat.format == vk.Format.B8G8R8A8_SRGB && (surface_format.surfaceFormat.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR || surface_format.surfaceFormat.colorSpace == vk.ColorSpaceKHR.DISPLAY_NATIVE_AMD) {
+					if surface_format.surfaceFormat.format == vk.Format.B8G8R8A8_SRGB && surface_format.surfaceFormat.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR {
 						found = true
 						swapchain_format = surface_format.surfaceFormat.format
 						swapchain_color_space = surface_format.surfaceFormat.colorSpace
 						break
 					}
 				}
-				assert(found)
+				if !found do return delete_all()
 			} else {
 				found: bool
 				for surface_format in surface_formats_1 {
-					if surface_format.format == vk.Format.B8G8R8A8_SRGB && (surface_format.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR || surface_format.colorSpace == vk.ColorSpaceKHR.DISPLAY_NATIVE_AMD) {
+					if surface_format.format == vk.Format.B8G8R8A8_SRGB && surface_format.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR {
 						found = true
 						swapchain_format = surface_format.format
 						swapchain_color_space = surface_format.colorSpace
 						break
 					}
 				}
-				assert(found)
+				if !found do return delete_all()
 			}
 		}
 
@@ -494,7 +393,7 @@ init :: proc() -> bool {
 		swapchain_info := vk.SwapchainCreateInfoKHR{
 			sType = .SWAPCHAIN_CREATE_INFO_KHR,
 			surface = surface,
-			minImageCount = surface_capabilities.maxImageCount == 0 ? surface_capabilities.minImageCount + 1 : surface_capabilities.maxImageCount,
+			minImageCount = surface_capabilities.minImageCount != surface_capabilities.maxImageCount ? surface_capabilities.minImageCount + 1 : surface_capabilities.minImageCount,
 			imageFormat = swapchain_format,
 			imageColorSpace = swapchain_color_space,
 			presentMode = slice.contains(present_modes, vk.PresentModeKHR.FIFO_RELAXED) ? .FIFO_RELAXED : .FIFO,
@@ -507,18 +406,23 @@ init :: proc() -> bool {
 		}
 		extent = swapchain_info.imageExtent
 
-		set_next_chain(device_extensions[:], &swapchain_info, Next_Chain_Entry{"VK_EXT_full_screen_exclusive", &fullscreen_info}, Next_Chain_Entry{"VK_EXT_full_screen_exclusive", &platform_fullscreen_info})
+		set_next_chain(device_extensions[:], &swapchain_info, 
+			Next_Chain_Entry{"VK_EXT_full_screen_exclusive", &fullscreen_info}, 
+			Next_Chain_Entry{"VK_EXT_full_screen_exclusive", &platform_fullscreen_info})
 		result = vk.CreateSwapchainKHR(device, &swapchain_info, nil, &swapchain)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, swapchain)
 
 		swapchain_image_count: u32 = ---
 		result = vk.GetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, nil)
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 		swapchain_images = make([]vk.Image, swapchain_image_count)
+		append(&deletion_queue, swapchain_images)
 		result = vk.GetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, raw_data(swapchain_images))
-		assert(result == .SUCCESS)
+		if result != .SUCCESS do return delete_all()
 
 		swapchain_image_views = make([]vk.ImageView, len(swapchain_images))
+		append(&deletion_queue, swapchain_image_views)
 		for &s, i in swapchain_image_views {
 			info := vk.ImageViewCreateInfo{
 				sType = .IMAGE_VIEW_CREATE_INFO,
@@ -533,24 +437,21 @@ init :: proc() -> bool {
 				},
 			}
 			result = vk.CreateImageView(device, &info, nil, &s)
-			assert(result == .SUCCESS)
+			if result != .SUCCESS do return delete_all()
+			append(&deletion_queue, swapchain_image_views[i])
 		}
 	}
 
 	{
 		queues = make([][]vk.Queue, len(queue_family_properties))
+		append(&deletion_queue, queues)
 		for &queue_family, i in queues {
 			queue_family = make([]vk.Queue, queue_family_properties[i].queueCount)
+			append(&deletion_queue, queues[i])
 			for &queue, j in queue_family {
 				vk.GetDeviceQueue(device, u32(i), u32(j), &queue)
 			}
 		}
-	}
-
-	{
-		vk.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_properties)
-		memory_types = _memory_properties.memoryTypes[:int(_memory_properties.memoryTypeCount)]
-		memory_heaps = _memory_properties.memoryHeaps[:int(_memory_properties.memoryHeapCount)]
 	}
 
 	{
@@ -567,33 +468,54 @@ init :: proc() -> bool {
 				break
 			}
 		}
-		assert(depth_stencil_format != .UNDEFINED)
+		if depth_stencil_format == .UNDEFINED do return delete_all()
+	}
+
+	allocator = vkma.create_allocator(physical_device, device)
+
+	{
+		depth_stencil_image, result = vkma.create_image(&allocator, depth_stencil_format, extent.width, extent.height, 1, 1, 1, {._1}, {.DEPTH_STENCIL_ATTACHMENT}, .UNDEFINED, {.DEVICE_LOCAL}, {.HOST_VISIBLE})
+		if result != .SUCCESS do return delete_all()
 	}
 
 	{
-		// TODO
-		for i in 0..<2 {
-			fence_info := vk.FenceCreateInfo{
-				sType = .FENCE_CREATE_INFO,
-				flags = {.SIGNALED},
-			}
-			result = vk.CreateFence(device, &fence_info, nil, &fences[i])
-			assert(result == .SUCCESS)
-
-			semaphore_type_info := vk.SemaphoreTypeCreateInfo{
-				sType = .SEMAPHORE_TYPE_CREATE_INFO,
-				semaphoreType = .BINARY,
-			}
-			semaphore_info := vk.SemaphoreCreateInfo{
-				sType = .SEMAPHORE_CREATE_INFO,
-				pNext = &semaphore_type_info,
-			}
-			result = vk.CreateSemaphore(device, &semaphore_info, nil, &graphics_semaphores[i])
-			assert(result == .SUCCESS)
-
-			result = vk.CreateSemaphore(device, &semaphore_info, nil, &present_semaphores[i])
-			assert(result == .SUCCESS)
+		fence_info := vk.FenceCreateInfo{
+			sType = .FENCE_CREATE_INFO,
+			flags = {.SIGNALED},
 		}
+
+		semaphore_type_info := vk.SemaphoreTypeCreateInfo{
+			sType = .SEMAPHORE_TYPE_CREATE_INFO,
+			semaphoreType = .BINARY,
+		}
+		semaphore_info := vk.SemaphoreCreateInfo{
+			sType = .SEMAPHORE_CREATE_INFO,
+			pNext = &semaphore_type_info,
+		}
+
+		result = vk.CreateFence(device, &fence_info, nil, &fences[0])
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, fences[0])
+
+		result = vk.CreateFence(device, &fence_info, nil, &fences[1])
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, fences[1])
+		
+		result = vk.CreateSemaphore(device, &semaphore_info, nil, &graphics_semaphores[0])
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, graphics_semaphores[0])
+
+		result = vk.CreateSemaphore(device, &semaphore_info, nil, &graphics_semaphores[1])
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, graphics_semaphores[1])
+
+		result = vk.CreateSemaphore(device, &semaphore_info, nil, &present_semaphores[0])
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, present_semaphores[0])
+
+		result = vk.CreateSemaphore(device, &semaphore_info, nil, &present_semaphores[1])
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, present_semaphores[1])
 	}
 
 	{
@@ -602,23 +524,58 @@ init :: proc() -> bool {
 			flags = {.TRANSIENT, .RESET_COMMAND_BUFFER},
 			queueFamilyIndex = 0,
 		}
-		result = vk.CreateCommandPool(device, &info, nil, &command_pool)
-		assert(result == .SUCCESS)
+		result = vk.CreateCommandPool(device, &info, nil, &graphics_command_pool)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, graphics_command_pool)
 	}
 
 	{
 		info := vk.CommandBufferAllocateInfo{
 			sType = .COMMAND_BUFFER_ALLOCATE_INFO,
-			commandPool = command_pool,
+			commandPool = graphics_command_pool,
 			level = .PRIMARY,
 			commandBufferCount = 2,
 		}
-		result = vk.AllocateCommandBuffers(device, &info, raw_data(&command_buffers))
-		assert(result == .SUCCESS)
+		result = vk.AllocateCommandBuffers(device, &info, raw_data(&graphics_command_buffers))
+		if result != .SUCCESS do return delete_all()
+	}
+
+	staging_buffer, result = vkma.create_buffer(&allocator, size_of(vertices), {.TRANSFER_SRC}, {.HOST_VISIBLE}, {.DEVICE_LOCAL})
+	if result != .SUCCESS do return delete_all()
+
+	vertex_buffer, result = vkma.create_buffer(&allocator, size_of(vertices), {.TRANSFER_DST, .VERTEX_BUFFER}, {.DEVICE_LOCAL}, {.HOST_VISIBLE})
+	if result != .SUCCESS do return delete_all()
+
+	if vkma.alloc(&allocator) != .SUCCESS do return delete_all()
+
+	{
+		info := vk.ImageViewCreateInfo{
+			sType = .IMAGE_VIEW_CREATE_INFO,
+			image = depth_stencil_image,
+			viewType = .D2,
+			format = depth_stencil_format,
+			components = {.IDENTITY, .IDENTITY, .IDENTITY, .IDENTITY},
+			subresourceRange = {
+				aspectMask = {.DEPTH, .STENCIL},
+				levelCount = 1,
+				layerCount = 1,
+			},
+		}
+		result = vk.CreateImageView(ctx.device, &info, nil, &depth_stencil_image_view)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, depth_stencil_image_view)
+	}
+
+	{
+		data, result := vkma.map_memory(&allocator, staging_buffer, 0, size_of(vertices), {})
+		if result != .SUCCESS do return delete_all()
+		copy(data, slice.to_bytes(vertices[:]))
+		vkma.unmap_memory(&allocator, staging_buffer)
 	}
 
 	{
 		dynamic_states = make([dynamic]vk.DynamicState)
+		append(&deletion_queue, dynamic_states)
 		append(&dynamic_states,
 			vk.DynamicState.LINE_WIDTH,
 			//vk.DynamicState.DEPTH_BIAS,
@@ -649,8 +606,8 @@ init :: proc() -> bool {
 		//if features_extended_dynamic_state_3.extendedDynamicState3DepthClampEnable 					do append(&dynamic_states, vk.DynamicState.DEPTH_CLAMP_ENABLE_EXT)
 		//if features_extended_dynamic_state_3.extendedDynamicState3PolygonMode 						do append(&dynamic_states, vk.DynamicState.POLYGON_MODE_EXT)
 		//else do panic("no dynamic polygon mode!")
-		if features_extended_dynamic_state_3.extendedDynamicState3RasterizationSamples 				do append(&dynamic_states, vk.DynamicState.RASTERIZATION_SAMPLES_EXT)
-		else do panic("no rasterization samples!")
+		//if features_extended_dynamic_state_3.extendedDynamicState3RasterizationSamples 				do append(&dynamic_states, vk.DynamicState.RASTERIZATION_SAMPLES_EXT)
+		//else do return delete_all()
 		//if features_extended_dynamic_state_3.extendedDynamicState3SampleMask 						do append(&dynamic_states, vk.DynamicState.SAMPLE_MASK_EXT)
 		//if features_extended_dynamic_state_3.extendedDynamicState3AlphaToCoverageEnable 			do append(&dynamic_states, vk.DynamicState.ALPHA_TO_COVERAGE_ENABLE_EXT)
 		//if features_extended_dynamic_state_3.extendedDynamicState3AlphaToOneEnable 					do append(&dynamic_states, vk.DynamicState.ALPHA_TO_ONE_ENABLE_EXT)
@@ -670,25 +627,142 @@ init :: proc() -> bool {
 		//if features_extended_dynamic_state_3.extendedDynamicState3DepthClipNegativeOneToOne 		do append(&dynamic_states, vk.DynamicState.DEPTH_CLIP_NEGATIVE_ONE_TO_ONE_EXT)
 	}
 
+	vertex_shader_module, result = create_shader_module("vert.spv")
+	if result != .SUCCESS do return delete_all()
+	append(&deletion_queue, vertex_shader_module)
+
+	fragment_shader_module, result = create_shader_module("frag.spv")
+	if result != .SUCCESS do return delete_all()
+	append(&deletion_queue, fragment_shader_module)
+
+	{
+		info := vk.PipelineCacheCreateInfo{
+			sType = .PIPELINE_CACHE_CREATE_INFO,
+			flags = {.EXTERNALLY_SYNCHRONIZED},
+		}
+		result = vk.CreatePipelineCache(device, &info, nil, &pipeline_cache)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, pipeline_cache)
+	}
+
+	//{
+	//	info := vk.DescriptorSetLayoutCreateInfo{
+	//		sType = .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+	//		//flags = {.CREATE_UPDATE_AFTER_BIND_POOL},
+	//		//bindingCount
+	//		//pBindings
+	//	}
+	//	result = vk.CreateDescriptorSetLayout(device, &info, nil, &descriptor_set_layout)
+	//	if result != .SUCCESS do return delete_all()
+	//	append(&deletion_queue, descriptor_set_layout)
+	//}
+
+	{
+		info := vk.PipelineLayoutCreateInfo{
+			sType = .PIPELINE_LAYOUT_CREATE_INFO,
+		}
+		result = vk.CreatePipelineLayout(device, &info, nil, &pipeline_layout)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, pipeline_layout)
+	}
+
+	{
+		stages := [?]vk.PipelineShaderStageCreateInfo{
+			{
+				sType = .PIPELINE_SHADER_STAGE_CREATE_INFO,
+				stage = {.VERTEX},
+				module = vertex_shader_module,
+				pName = "main",
+			},
+			{
+				sType = .PIPELINE_SHADER_STAGE_CREATE_INFO,
+				stage = {.FRAGMENT},
+				module = fragment_shader_module,
+				pName = "main",
+			},
+		}
+
+		// NOTE(pJotoro): It actually isn't that straightforward to not include this.
+		// "If the VK_EXT_extended_dynamic_state3 extension is enabled, it can be NULL if the pipeline is created with 
+		// both VK_DYNAMIC_STATE_PRIMITIVE_RESTART_ENABLE, and VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY dynamic states set 
+		// and dynamicPrimitiveTopologyUnrestricted is VK_TRUE."
+		// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkGraphicsPipelineCreateInfo.html
+		input_assembly := vk.PipelineInputAssemblyStateCreateInfo{
+			sType = .PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+			topology = .TRIANGLE_LIST,
+		}
+		tessellation := vk.PipelineTessellationStateCreateInfo{
+			sType = .PIPELINE_TESSELLATION_STATE_CREATE_INFO,
+		}
+		viewport := vk.PipelineViewportStateCreateInfo{
+			sType = .PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+		}
+		rasterization := vk.PipelineRasterizationStateCreateInfo{
+			sType = .PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+		}
+		multisample := vk.PipelineMultisampleStateCreateInfo{
+			sType = .PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+			rasterizationSamples = {._1},
+		}
+		depth_stencil := vk.PipelineDepthStencilStateCreateInfo{
+			sType = .PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+		}
+		color_blend := vk.PipelineColorBlendStateCreateInfo{
+			sType = .PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+		}
+		dynamic_ := vk.PipelineDynamicStateCreateInfo{
+			sType = .PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+			dynamicStateCount = u32(len(dynamic_states)),
+			pDynamicStates = raw_data(dynamic_states),
+		}
+
+		rendering_info := vk.PipelineRenderingCreateInfo{
+			sType = .PIPELINE_RENDERING_CREATE_INFO,
+			colorAttachmentCount = 1,
+			pColorAttachmentFormats = &swapchain_format,
+			depthAttachmentFormat = depth_stencil_format,
+			stencilAttachmentFormat = depth_stencil_format,
+		}
+		info := vk.GraphicsPipelineCreateInfo{
+			sType = .GRAPHICS_PIPELINE_CREATE_INFO,
+			pNext = &rendering_info,
+			stageCount = u32(len(stages)),
+			pStages = raw_data(&stages),
+			pInputAssemblyState = &input_assembly,
+			pTessellationState = &tessellation,
+			pViewportState = &viewport,
+			pRasterizationState = &rasterization,
+			pMultisampleState = &multisample,
+			pDepthStencilState = &depth_stencil,
+			pColorBlendState = &color_blend,
+			pDynamicState = &dynamic_,
+			layout = pipeline_layout,
+		}
+		result = vk.CreateGraphicsPipelines(device, pipeline_cache, 1, &info, nil, &pipeline)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, pipeline)
+	}
+
 	return true
 }
 
-update :: proc() {
+present :: proc() {
 	result: vk.Result
+
+	{
+		swapchain_image_index: u32 = ---
+		result = vk.AcquireNextImageKHR(ctx.device, ctx.swapchain, max(u64), ctx.graphics_semaphores[ctx.submission_index], 0, &swapchain_image_index)
+		assert(result == .SUCCESS)
+		ctx.swapchain_image_index = int(swapchain_image_index)
+	}
 
 	result = vk.WaitForFences(ctx.device, 1, &ctx.fences[ctx.submission_index], true, max(u64))
 	assert(result == .SUCCESS)
 	result = vk.ResetFences(ctx.device, 1, &ctx.fences[ctx.submission_index])
 	assert(result == .SUCCESS)
 
-	command_buffer := ctx.command_buffers[ctx.submission_index]
+	command_buffer := ctx.graphics_command_buffers[ctx.submission_index]
 
-	swapchain_image_index: u32 = ---
-	{
-		result = vk.AcquireNextImageKHR(ctx.device, ctx.swapchain, max(u64), ctx.graphics_semaphores[ctx.submission_index], 0, &swapchain_image_index)
-		assert(result == .SUCCESS)
-		ctx.swapchain_image_index = int(swapchain_image_index)
-	}
 	{
 		info := vk.CommandBufferBeginInfo{
 			sType = .COMMAND_BUFFER_BEGIN_INFO,
@@ -698,27 +772,66 @@ update :: proc() {
 		assert(result == .SUCCESS)
 	}
 	{
-		image_barrier := vk.ImageMemoryBarrier2 {
-			sType = .IMAGE_MEMORY_BARRIER_2,
-			srcStageMask = {.COLOR_ATTACHMENT_OUTPUT},
-			dstStageMask = {.COLOR_ATTACHMENT_OUTPUT},
-			dstAccessMask = {.COLOR_ATTACHMENT_WRITE},
-			oldLayout = .UNDEFINED,
-			newLayout = .PRESENT_SRC_KHR,
-			image = ctx.swapchain_images[ctx.swapchain_image_index],
-			subresourceRange = {
-				aspectMask = {.COLOR},
-				levelCount = 1,
-				layerCount = 1,
+		buffer_barriers := [?]vk.BufferMemoryBarrier2{
+			{
+				sType = .BUFFER_MEMORY_BARRIER_2,
+				srcStageMask = {.TRANSFER},
+				dstAccessMask = {.VERTEX_ATTRIBUTE_READ},
+				dstStageMask = {.VERTEX_INPUT},
+				buffer = ctx.vertex_buffer,
+				offset = 0,
+				size = size_of(vertices),
+			},
+		}
+
+		@(static)
+		copy_staging_buffer := true
+
+		image_barriers := [?]vk.ImageMemoryBarrier2{
+			{
+				sType = .IMAGE_MEMORY_BARRIER_2,
+				dstAccessMask = {.COLOR_ATTACHMENT_WRITE},
+				dstStageMask = {.COLOR_ATTACHMENT_OUTPUT},
+				oldLayout = .UNDEFINED,
+				newLayout = .COLOR_ATTACHMENT_OPTIMAL,
+				image = ctx.swapchain_images[ctx.swapchain_image_index],
+				subresourceRange = {
+					aspectMask = {.COLOR},
+					levelCount = 1,
+					layerCount = 1,
+				},
+			},
+			{
+				sType = .IMAGE_MEMORY_BARRIER_2,
+				srcAccessMask = {.COLOR_ATTACHMENT_WRITE},
+				srcStageMask = {.COLOR_ATTACHMENT_OUTPUT},
+				dstStageMask = {.COLOR_ATTACHMENT_OUTPUT},
+				oldLayout = .COLOR_ATTACHMENT_OPTIMAL,
+				newLayout = .PRESENT_SRC_KHR,
+				image = ctx.swapchain_images[ctx.swapchain_image_index],
+				subresourceRange = {
+					aspectMask = {.COLOR},
+					levelCount = 1,
+					layerCount = 1,
+				},
 			},
 		}
 		
 		info := vk.DependencyInfo{
 			sType = .DEPENDENCY_INFO,
-			imageMemoryBarrierCount = 1,
-			pImageMemoryBarriers = &image_barrier,
+			bufferMemoryBarrierCount = copy_staging_buffer ? u32(len(buffer_barriers)) : 0,
+			pBufferMemoryBarriers = copy_staging_buffer ? raw_data(&buffer_barriers) : nil,
+			imageMemoryBarrierCount = u32(len(image_barriers)),
+			pImageMemoryBarriers = raw_data(&image_barriers),
 		}
 		vk.CmdPipelineBarrier2(command_buffer, &info)
+
+		if copy_staging_buffer {
+			copy_staging_buffer = false
+
+			region := vk.BufferCopy{0, 0, size_of(vertices)}
+			vk.CmdCopyBuffer(command_buffer, ctx.staging_buffer, ctx.vertex_buffer, 1, &region)
+		}
 	}
 
 	{
@@ -730,7 +843,6 @@ update :: proc() {
 			storeOp = .STORE,
 		}
 
-		/*
 		depth_attachment := vk.RenderingAttachmentInfo{
 			sType = .RENDERING_ATTACHMENT_INFO,
 			imageView = ctx.depth_stencil_image_view,
@@ -746,7 +858,6 @@ update :: proc() {
 			loadOp = .CLEAR,
 			storeOp = .STORE,
 		}
-		*/
 
 		info := vk.RenderingInfo{
 			sType = .RENDERING_INFO,
@@ -754,8 +865,8 @@ update :: proc() {
 			layerCount = 1,
 			colorAttachmentCount = 1,
 			pColorAttachments = &color_attachment,
-			//pDepthAttachment = &depth_attachment,
-			//pStencilAttachment = &stencil_attachment,
+			pDepthAttachment = &depth_attachment,
+			pStencilAttachment = &stencil_attachment,
 		}
 
 		vk.CmdBeginRendering(command_buffer, &info)
@@ -764,34 +875,54 @@ update :: proc() {
 	vk.CmdSetLineWidth(command_buffer, 1)
 	vk.CmdSetPrimitiveTopology(command_buffer, .TRIANGLE_LIST)
 	vk.CmdSetFrontFace(command_buffer, .CLOCKWISE)
-	vk.CmdSetRasterizationSamplesEXT(command_buffer, {._1})
 	viewport := vk.Viewport{0, 0, f32(ctx.extent.width), f32(ctx.extent.height), 0, 1}
 	vk.CmdSetViewportWithCount(command_buffer, 1, &viewport)
 	scissor := vk.Rect2D{extent = ctx.extent}
 	vk.CmdSetScissorWithCount(command_buffer, 1, &scissor)
+
+	binding := vk.VertexInputBindingDescription2EXT{
+		sType = .VERTEX_INPUT_BINDING_DESCRIPTION_2_EXT,
+		binding = 0,
+		stride = size_of(f32) * 3,
+		inputRate = .VERTEX,
+		divisor = 1,
+	}
+	attribute := vk.VertexInputAttributeDescription2EXT{
+		sType = .VERTEX_INPUT_ATTRIBUTE_DESCRIPTION_2_EXT,
+		location = 0,
+		binding = 0,
+		format = .R32G32B32_SFLOAT,
+		offset = 0,
+	}
+	vk.CmdSetVertexInputEXT(command_buffer, 1, &binding, 1, &attribute)
+
+	vk.CmdBindPipeline(command_buffer, .GRAPHICS, ctx.pipeline)
+	vk.CmdDraw(command_buffer, 3, 1, 0, 0)
 	
 	vk.CmdEndRendering(command_buffer)
 	result = vk.EndCommandBuffer(command_buffer)
 	assert(result == .SUCCESS)
 
 	{
-		dst_stage := vk.PipelineStageFlags{.COLOR_ATTACHMENT_OUTPUT}
+		dst_stages := [?]vk.PipelineStageFlags{{.COLOR_ATTACHMENT_OUTPUT}}
+		wait_semaphores := [?]vk.Semaphore{ctx.graphics_semaphores[ctx.submission_index]}
+		signal_semaphores := [?]vk.Semaphore{ctx.present_semaphores[ctx.submission_index]}
 		info := vk.SubmitInfo{
 			sType = .SUBMIT_INFO,
-			waitSemaphoreCount = 1,
-			pWaitSemaphores = &ctx.graphics_semaphores[ctx.submission_index],
-			pWaitDstStageMask = &dst_stage,
+			waitSemaphoreCount = u32(len(wait_semaphores)),
+			pWaitSemaphores = raw_data(&wait_semaphores),
+			pWaitDstStageMask = raw_data(&dst_stages),
 			commandBufferCount = 1,
-			pCommandBuffers = &ctx.command_buffers[ctx.submission_index],
-			signalSemaphoreCount = 1,
-			pSignalSemaphores = &ctx.present_semaphores[ctx.submission_index],
+			pCommandBuffers = &ctx.graphics_command_buffers[ctx.submission_index],
+			signalSemaphoreCount = u32(len(signal_semaphores)),
+			pSignalSemaphores = raw_data(&signal_semaphores),
 		}
-		result = vk.QueueSubmit(ctx.queues[0][ctx.submission_index], 1, &info, ctx.fences[ctx.submission_index])
+		result = vk.QueueSubmit(ctx.queues[0][0], 1, &info, ctx.fences[ctx.submission_index])
 		assert(result == .SUCCESS)
 	}
 	
 	{
-		i := u32(swapchain_image_index)
+		i := u32(ctx.swapchain_image_index)
 		info := vk.PresentInfoKHR{
 			sType = .PRESENT_INFO_KHR,
 			waitSemaphoreCount = 1,
@@ -800,7 +931,7 @@ update :: proc() {
 			pSwapchains = &ctx.swapchain,
 			pImageIndices = &i,
 		}
-		result = vk.QueuePresentKHR(ctx.queues[0][ctx.submission_index], &info)
+		result = vk.QueuePresentKHR(ctx.queues[0][0], &info)
 		assert(result == .SUCCESS)
 	}
 

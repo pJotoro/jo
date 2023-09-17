@@ -1,9 +1,10 @@
-//+private
+// +private
 package app
 
 import win32 "core:sys/windows"
 import "core:intrinsics"
 import "core:runtime"
+import "core:fmt"
 import "xinput"
 
 OS_Specific :: struct {
@@ -127,6 +128,7 @@ _init :: proc(loc := #caller_location) {
             ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
             wname = win32.utf8_to_wstring(ctx.name)
         } else {
+            ctx.fullscreen = true
             ctx.window_flags = win32.WS_CAPTION | win32.WS_POPUP | win32.WS_MAXIMIZE
         }
     } else if ctx.configuration == .Tool {
@@ -144,7 +146,19 @@ _init :: proc(loc := #caller_location) {
     }
     if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
 
-    ctx.window = win32.CreateWindowExW(ctx.window_extended_flags, window_class.lpszClassName, wname, ctx.window_flags, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, window_class.hInstance, nil)
+    ctx.window = win32.CreateWindowExW(
+        ctx.window_extended_flags, 
+        window_class.lpszClassName, 
+        wname, 
+        ctx.window_flags, 
+        win32.CW_USEDEFAULT, 
+        win32.CW_USEDEFAULT, 
+        win32.CW_USEDEFAULT, 
+        win32.CW_USEDEFAULT, 
+        nil, 
+        nil, 
+        window_class.hInstance, 
+        nil)
     if ctx.window == nil do panic(loc)
 
     monitor := win32.MonitorFromWindow(ctx.window, .MONITOR_DEFAULTTOPRIMARY)
@@ -152,27 +166,27 @@ _init :: proc(loc := #caller_location) {
     ok := win32.GetMonitorInfoW(monitor, &monitor_info)
     assert(ok == true, "failed to get monitor info", loc)
 
-    window_width, window_height, window_left, window_right, window_top, window_bottom: i32
+    client_width, client_height, client_left, client_right, client_top, client_bottom: i32
 
     if ctx.window_flags & win32.WS_POPUP == 0 {
-        window_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) / 2 : i32(ctx.width)
-        window_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) / 2 : i32(ctx.height)
+        client_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) / 2 : i32(ctx.width)
+        client_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) / 2 : i32(ctx.height)
 
-        window_left = monitor_info.rcMonitor.left + (window_width / 2)
-        window_top = monitor_info.rcMonitor.top + (window_height / 2)
-        window_right = monitor_info.rcMonitor.right - (window_width / 2)
-        window_bottom = monitor_info.rcMonitor.bottom - (window_height / 2)
+        client_left = monitor_info.rcMonitor.left + (client_width / 2)
+        client_top = monitor_info.rcMonitor.top + (client_height / 2)
+        client_right = monitor_info.rcMonitor.right - (client_width / 2)
+        client_bottom = monitor_info.rcMonitor.bottom - (client_height / 2)
     } else {
-        window_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) : i32(ctx.width)
-        window_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) : i32(ctx.height)
+        client_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) : i32(ctx.width)
+        client_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) : i32(ctx.height)
 
-        window_left = 0
-        window_top = 0
-        window_right = window_width
-        window_bottom = window_height
+        client_left = 0
+        client_top = 0
+        client_right = client_width
+        client_bottom = client_height
     }
 
-    window_rect := win32.RECT{window_left, window_top, window_right, window_bottom}
+    window_rect := win32.RECT{client_left, client_top, client_right, client_bottom}
     ok = win32.AdjustWindowRectExForDpi(&window_rect, ctx.window_flags, false, ctx.window_extended_flags, ctx.dpi)
     if !ok do panic(loc)
 
@@ -182,9 +196,9 @@ _init :: proc(loc := #caller_location) {
     rect: win32.RECT = ---
     ok = win32.GetClientRect(ctx.window, &rect)
     if !ok do panic(loc)
-    if ctx.width != 0 do assert(ctx.width == int(rect.right - rect.left), "window width incorrectly set!")
+    if ctx.width != 0 do fmt.assertf(ctx.width == int(rect.right - rect.left), "incorrectly set window width! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
     ctx.width = int(rect.right - rect.left)
-    if ctx.height != 0 do assert(ctx.height == int(rect.bottom - rect.top), "window height incorrectly set!")
+    if ctx.height != 0 do fmt.assertf(ctx.height == int(rect.bottom - rect.top), "incorrectly set window height! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
     ctx.height = int(rect.bottom - rect.top)
 
     ctx.xinput_enabled = xinput.init()

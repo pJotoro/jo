@@ -27,6 +27,8 @@ Context :: struct {
 ctx: Context
 
 init :: proc(title := "", width := 0, height := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, configuration: Configuration = .Game, loc := #caller_location) {
+    assert((width == 0 && height == 0) || (width != 0 && height != 0), "width and height must be set or unset together", loc)
+
     ctx.name = title
     ctx.width = width
     ctx.height = height
@@ -63,4 +65,8 @@ name :: proc "contextless" () -> string {
 
 fullscreen :: proc "contextless" () -> bool {
     return ctx.fullscreen
+}
+
+visible :: proc "contextless" () -> bool {
+    return ctx.visible == 1 ? true : false
 }

@@ -1,4 +1,4 @@
-//+private
+// +private
 package gdr
 
 import vk "vendor:vulkan"
