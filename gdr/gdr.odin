@@ -16,9 +16,9 @@ import "core:mem"
 import "core:reflect"
 
 vertices := [?]f32{
-	-0.5, -0.5, 0.0,
-	0.5, -0.5, 0.0,
-	0.0, 0.5, 0.0,
+	-0.5, 0.5, 0.0,
+	0.5, 0.5, 0.0,
+	0.0, -0.5, 0.0,
 }
 
 init :: proc() -> bool {
@@ -776,6 +776,7 @@ present :: proc() {
 			{
 				sType = .BUFFER_MEMORY_BARRIER_2,
 				srcStageMask = {.TRANSFER},
+				srcAccessMask = {.TRANSFER_WRITE},
 				dstAccessMask = {.VERTEX_ATTRIBUTE_READ},
 				dstStageMask = {.VERTEX_INPUT},
 				buffer = ctx.vertex_buffer,
@@ -895,6 +896,9 @@ present :: proc() {
 		offset = 0,
 	}
 	vk.CmdSetVertexInputEXT(command_buffer, 1, &binding, 1, &attribute)
+
+	buffer_offset := vk.DeviceSize(0)
+	vk.CmdBindVertexBuffers(command_buffer, 0, 1, &ctx.vertex_buffer, &buffer_offset)
 
 	vk.CmdBindPipeline(command_buffer, .GRAPHICS, ctx.pipeline)
 	vk.CmdDraw(command_buffer, 3, 1, 0, 0)

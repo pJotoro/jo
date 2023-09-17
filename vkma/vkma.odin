@@ -31,8 +31,6 @@ Allocator :: struct {
 
 import "core:fmt"
 
-// NOTE(pJotoro): Tomorrow when you continue to debug this, just know for some strange reason, the memory types array is changing behind your back before the alloc procedure gets called.
-
 create_allocator :: proc(physical_device: vk.PhysicalDevice, device: vk.Device, host_allocator := context.allocator) -> (allocator: Allocator) {
 	allocator.host_allocator = host_allocator
 	context.allocator = host_allocator
