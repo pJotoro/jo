@@ -29,8 +29,6 @@ Allocator :: struct {
 	host_allocator: mem.Allocator,
 }
 
-import "core:fmt"
-
 create_allocator :: proc(physical_device: vk.PhysicalDevice, device: vk.Device, host_allocator := context.allocator) -> (allocator: Allocator) {
 	allocator.host_allocator = host_allocator
 	context.allocator = host_allocator

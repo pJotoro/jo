@@ -30,12 +30,6 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
     result := win32.LRESULT(0)
     
     switch message {
-        case win32.WM_ACTIVATE:
-            activated := b32(w_param)
-            LWA_ALPHA :: 0x00000002
-            if activated do win32.SetLayeredWindowAttributes(ctx.window, 0, 255, LWA_ALPHA)
-            else do win32.SetLayeredWindowAttributes(ctx.window, 0, 150, LWA_ALPHA)
-
         /*
         case win32.WM_SIZE:
             ctx.width = int(l_param & 0xFFFF)
@@ -123,8 +117,6 @@ _init :: proc(loc := #caller_location) {
 
     if ctx.configuration == .Game {
         when ODIN_DEBUG {
-            ctx.window_class_flags = win32.CS_DROPSHADOW
-            ctx.window_extended_flags = win32.WS_EX_LAYERED | win32.WS_EX_TOPMOST
             ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
             wname = win32.utf8_to_wstring(ctx.name)
         } else {
@@ -174,8 +166,8 @@ _init :: proc(loc := #caller_location) {
 
         client_left = monitor_info.rcMonitor.left + (client_width / 2)
         client_top = monitor_info.rcMonitor.top + (client_height / 2)
-        client_right = monitor_info.rcMonitor.right - (client_width / 2)
-        client_bottom = monitor_info.rcMonitor.bottom - (client_height / 2)
+        client_right = client_left + client_width
+        client_bottom = client_top + client_height
     } else {
         client_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) : i32(ctx.width)
         client_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) : i32(ctx.height)
@@ -196,14 +188,14 @@ _init :: proc(loc := #caller_location) {
     rect: win32.RECT = ---
     ok = win32.GetClientRect(ctx.window, &rect)
     if !ok do panic(loc)
-    if ctx.width != 0 do fmt.assertf(ctx.width == int(rect.right - rect.left), "incorrectly set window width! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
+    if ctx.width != 0 do fmt.assertf(ctx.width == int(rect.right - rect.left), "incorrectly set client width! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
     ctx.width = int(rect.right - rect.left)
-    if ctx.height != 0 do fmt.assertf(ctx.height == int(rect.bottom - rect.top), "incorrectly set window height! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
+    if ctx.height != 0 do fmt.assertf(ctx.height == int(rect.bottom - rect.top), "incorrectly set client height! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
     ctx.height = int(rect.bottom - rect.top)
 
     ctx.xinput_enabled = xinput.init()
     ctx.next_gamepad_id = 4
-    for gamepad in &ctx.gamepads {
+    for &gamepad in ctx.gamepads {
         gamepad.id = INVALID_GAMEPAD
     }
 }
