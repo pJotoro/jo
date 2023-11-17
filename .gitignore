@@ -4,3 +4,6 @@ shader.frag
 shader.vert
 vert.spv
 frag.spv
+jo.exe
+jo.pdb
+ols.json
