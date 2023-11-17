@@ -14,12 +14,26 @@ import "core:fmt"
 import "core:os"
 import "core:mem"
 import "core:reflect"
+import "core:image"
+import "core:image/png"
+
+indices := [?]u32{
+	0, 1, 3,
+	1, 2, 3,
+}
 
 vertices := [?]f32{
-	-0.5, 0.5, 0,
-	0.5, 0.5, 0,
-	0, -0.5, 0,
+	0.5, 0.5, 0.0,
+	0.5, -0.5, 0.0,
+	-0.5, -0.5, 0.0,
+	-0.5, 0.5, 0.0,
 }
+
+vertex_buffer_size: int
+sprite_image_size: int
+staging_buffer_size: int
+
+sprite_image_width, sprite_image_height: int
 
 init :: proc() -> bool {
 	using ctx
@@ -173,9 +187,9 @@ init :: proc() -> bool {
 	}
 
 	desired_device_extensions := [?]cstring{
-		"VK_EXT_extended_dynamic_state3", 
+		//"VK_EXT_extended_dynamic_state3", 
 		"VK_EXT_vertex_input_dynamic_state", 
-		"VK_EXT_descriptor_buffer",
+		//"VK_EXT_descriptor_buffer",
 		//"VK_EXT_full_screen_exclusive",
 	}
 
@@ -540,10 +554,24 @@ init :: proc() -> bool {
 		if result != .SUCCESS do return delete_all()
 	}
 
-	staging_buffer, result = vkma.create_buffer(&allocator, size_of(vertices), {.TRANSFER_SRC}, {.HOST_VISIBLE}, {.DEVICE_LOCAL})
+	img, img_err := png.load("C:/Users/jonas/Desktop/Jonar Sprites/jonar_idle.png")
+	defer image.destroy(img)
+	assert(img_err == nil)
+
+	sprite_image_width = img.width
+	sprite_image_height = img.height
+
+	vertex_buffer, result = create_buffer(size_of(f32) * 12, {.TRANSFER_DST, .VERTEX_BUFFER}, {.DEVICE_LOCAL}, {.HOST_VISIBLE})
 	if result != .SUCCESS do return delete_all()
 
-	vertex_buffer, result = vkma.create_buffer(&allocator, size_of(vertices), {.TRANSFER_DST, .VERTEX_BUFFER}, {.DEVICE_LOCAL}, {.HOST_VISIBLE})
+	sprite_image, result = create_image(img, 1, 1, {._1}, {.TRANSFER_DST, .SAMPLED}, .UNDEFINED, {.DEVICE_LOCAL}, {.HOST_VISIBLE})
+	if result != .SUCCESS do return delete_all()
+
+	vertex_buffer_size = size_of(f32) * 12
+	sprite_image_size = img.width * img.height
+	staging_buffer_size = vertex_buffer_size + sprite_image_size
+
+	staging_buffer, result = create_buffer(vk.DeviceSize(staging_buffer_size), {.TRANSFER_SRC}, {.HOST_VISIBLE, .HOST_COHERENT}, {.DEVICE_LOCAL})
 	if result != .SUCCESS do return delete_all()
 
 	if vkma.alloc(&allocator) != .SUCCESS do return delete_all()
@@ -567,10 +595,29 @@ init :: proc() -> bool {
 	}
 
 	{
-		data, result := vkma.map_memory(&allocator, staging_buffer, 0, size_of(vertices), {})
+		data, result := vkma.map_memory(&allocator, staging_buffer, 0, vk.DeviceSize(staging_buffer_size))
 		if result != .SUCCESS do return delete_all()
-		copy(data, slice.to_bytes(vertices[:]))
+		copy(data[:vertex_buffer_size], slice.to_bytes(vertices[:]))
+		copy(data[vertex_buffer_size:], slice.to_bytes(img.pixels.buf[:]))
 		vkma.unmap_memory(&allocator, staging_buffer)
+	}
+
+	{
+		info := vk.ImageViewCreateInfo{
+			sType = .IMAGE_VIEW_CREATE_INFO,
+			image = sprite_image,
+			viewType = .D2,
+			format = .R8G8B8A8_UINT,
+			components = {.IDENTITY, .IDENTITY, .IDENTITY, .IDENTITY},
+			subresourceRange = {
+				aspectMask = {.COLOR},
+				levelCount = 1,
+				layerCount = 1,
+			},
+		}
+		result = vk.CreateImageView(ctx.device, &info, nil, &sprite_image_view)
+		if result != .SUCCESS do return delete_all()
+		append(&deletion_queue, sprite_image_view)
 	}
 
 	{
@@ -772,24 +819,28 @@ present :: proc() {
 		assert(result == .SUCCESS)
 	}
 	{
-		buffer_barriers := [?]vk.BufferMemoryBarrier2{
-			{
-				sType = .BUFFER_MEMORY_BARRIER_2,
-				srcStageMask = {.TRANSFER},
-				srcAccessMask = {.TRANSFER_WRITE},
-				dstAccessMask = {.VERTEX_ATTRIBUTE_READ},
-				dstStageMask = {.VERTEX_INPUT},
-				buffer = ctx.vertex_buffer,
-				offset = 0,
-				size = size_of(vertices),
-			},
-		}
+		buffer_barriers := make([dynamic]vk.BufferMemoryBarrier2, 0, 8, context.temp_allocator)
+		image_barriers := make([dynamic]vk.ImageMemoryBarrier2, 0, 8, context.temp_allocator)
 
 		@(static)
 		copy_staging_buffer := true
 
-		image_barriers := [?]vk.ImageMemoryBarrier2{
-			{
+		if copy_staging_buffer {
+			barrier := vk.BufferMemoryBarrier2{
+				sType = .BUFFER_MEMORY_BARRIER_2,
+				srcStageMask = {.COPY},
+				srcAccessMask = {.TRANSFER_WRITE},
+				dstAccessMask = {.VERTEX_ATTRIBUTE_READ},
+				dstStageMask = {.VERTEX_ATTRIBUTE_INPUT},
+				buffer = ctx.vertex_buffer,
+				offset = 0,
+				size = size_of(vertices),
+			}
+			append(&buffer_barriers, barrier)
+		}
+
+		{
+			layout_color_attachment_barrier := vk.ImageMemoryBarrier2{
 				sType = .IMAGE_MEMORY_BARRIER_2,
 				dstAccessMask = {.COLOR_ATTACHMENT_WRITE},
 				dstStageMask = {.COLOR_ATTACHMENT_OUTPUT},
@@ -801,8 +852,8 @@ present :: proc() {
 					levelCount = 1,
 					layerCount = 1,
 				},
-			},
-			{
+			}
+			layout_present_src_barrier := vk.ImageMemoryBarrier2{
 				sType = .IMAGE_MEMORY_BARRIER_2,
 				srcAccessMask = {.COLOR_ATTACHMENT_WRITE},
 				srcStageMask = {.COLOR_ATTACHMENT_OUTPUT},
@@ -815,23 +866,78 @@ present :: proc() {
 					levelCount = 1,
 					layerCount = 1,
 				},
-			},
+			}
+			append(&image_barriers, layout_color_attachment_barrier, layout_present_src_barrier)
 		}
+
+		if copy_staging_buffer {
+			barrier := vk.ImageMemoryBarrier2{
+				sType = .IMAGE_MEMORY_BARRIER_2,
+				srcAccessMask = {.TRANSFER_WRITE},
+				srcStageMask = {.COPY},
+				dstAccessMask = {.COLOR_ATTACHMENT_WRITE},
+				oldLayout = .UNDEFINED,
+				newLayout = .COLOR_ATTACHMENT_OPTIMAL,
+				image = ctx.sprite_image,
+				subresourceRange = {
+					aspectMask = {.COLOR},
+					levelCount = 1,
+					layerCount = 1,
+				},
+			}
+			append(&image_barriers, barrier)
+		}
+		
 		
 		info := vk.DependencyInfo{
 			sType = .DEPENDENCY_INFO,
-			bufferMemoryBarrierCount = copy_staging_buffer ? u32(len(buffer_barriers)) : 0,
-			pBufferMemoryBarriers = copy_staging_buffer ? raw_data(&buffer_barriers) : nil,
+			bufferMemoryBarrierCount = u32(len(buffer_barriers)),
+			pBufferMemoryBarriers = len(buffer_barriers) > 0 ? raw_data(buffer_barriers) : nil,
 			imageMemoryBarrierCount = u32(len(image_barriers)),
-			pImageMemoryBarriers = raw_data(&image_barriers),
+			pImageMemoryBarriers = len(image_barriers) > 0 ? raw_data(image_barriers) : nil,
 		}
 		vk.CmdPipelineBarrier2(command_buffer, &info)
 
 		if copy_staging_buffer {
 			copy_staging_buffer = false
 
-			region := vk.BufferCopy{0, 0, size_of(vertices)}
-			vk.CmdCopyBuffer(command_buffer, ctx.staging_buffer, ctx.vertex_buffer, 1, &region)
+			{
+				region := vk.BufferCopy2{
+					sType = .BUFFER_COPY_2,
+					size = vk.DeviceSize(vertex_buffer_size),
+				}
+				info := vk.CopyBufferInfo2{
+					sType = .COPY_BUFFER_INFO_2,
+					srcBuffer = ctx.staging_buffer,
+					dstBuffer = ctx.vertex_buffer,
+					regionCount = 1,
+					pRegions = &region,
+				}
+				vk.CmdCopyBuffer2(command_buffer, &info)
+			}
+
+			{
+				region := vk.BufferImageCopy2{
+					sType = .BUFFER_IMAGE_COPY_2,
+					bufferOffset = vk.DeviceSize(vertex_buffer_size),
+					bufferRowLength = u32(sprite_image_width),
+					bufferImageHeight = u32(sprite_image_height),
+					imageSubresource = {
+						aspectMask = {.COLOR},
+						layerCount = 1,
+					},
+					imageExtent = {u32(sprite_image_width), u32(sprite_image_height), 1},
+				}
+				info := vk.CopyBufferToImageInfo2{
+					sType = .COPY_BUFFER_TO_IMAGE_INFO_2,
+					srcBuffer = ctx.staging_buffer,
+					dstImage = ctx.sprite_image,
+					dstImageLayout = .COLOR_ATTACHMENT_OPTIMAL,
+					regionCount = 1,
+					pRegions = &region,
+				}
+				vk.CmdCopyBufferToImage2(command_buffer, &info)
+			}
 		}
 	}
 
@@ -895,13 +1001,13 @@ present :: proc() {
 		format = .R32G32B32_SFLOAT,
 		offset = 0,
 	}
-	vk.CmdSetVertexInputEXT(command_buffer, 1, &binding, 1, &attribute)
+	//vk.CmdSetVertexInputEXT(command_buffer, 1, &binding, 1, &attribute)
 
-	buffer_offset := vk.DeviceSize(0)
-	vk.CmdBindVertexBuffers(command_buffer, 0, 1, &ctx.vertex_buffer, &buffer_offset)
+	//buffer_offset := vk.DeviceSize(0)
+	//vk.CmdBindVertexBuffers(command_buffer, 0, 1, &ctx.vertex_buffer, &buffer_offset)
 
-	vk.CmdBindPipeline(command_buffer, .GRAPHICS, ctx.pipeline)
-	vk.CmdDraw(command_buffer, 3, 1, 0, 0)
+	//vk.CmdBindPipeline(command_buffer, .GRAPHICS, ctx.pipeline)
+	//vk.CmdDraw(command_buffer, 3, 1, 0, 0)
 	
 	vk.CmdEndRendering(command_buffer)
 	result = vk.EndCommandBuffer(command_buffer)

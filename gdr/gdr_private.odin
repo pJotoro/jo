@@ -10,6 +10,9 @@ import "core:log"
 import "core:slice"
 import "core:bytes"
 import "core:io"
+import "core:image"
+import "core:fmt"
+import "../misc"
 
 Context :: struct {
 	// ----- instance -----
@@ -83,13 +86,17 @@ Context :: struct {
 	// ----------------
 
 	// ----- subject to change -----
-	staging_buffer, vertex_buffer: vk.Buffer,
+	staging_buffer: vk.Buffer,
+	vertex_buffer: vk.Buffer,
 	pipeline_cache: vk.PipelineCache,
 	vertex_shader_module: vk.ShaderModule,
 	fragment_shader_module: vk.ShaderModule,
 	descriptor_set_layout: vk.DescriptorSetLayout,
 	pipeline_layout: vk.PipelineLayout,
 	pipeline: vk.Pipeline,
+
+	sprite_image: vk.Image,
+	sprite_image_view: vk.ImageView,
 	// -----------------------------
 }
 ctx: Context
@@ -98,9 +105,8 @@ delete_all :: proc() -> bool {
 	using ctx
 
 	for {
-		deletion, ok := pop_safe(&deletion_queue)
+		deletion, ok := pop_safe(&deletion_queue);
 		if !ok do break
-
 		switch object in deletion {
 			case dynlib.Library:
 				dynlib.unload_library(object)
@@ -155,7 +161,7 @@ delete_all :: proc() -> bool {
 }
 
 create_shader_module :: proc(filename: string, loc := #caller_location) -> (shader_module: vk.ShaderModule, result: vk.Result) {
-	binary, ok := read_entire_file_aligned(filename, align_of(u32), context.temp_allocator)
+	binary, ok := misc.read_entire_file_aligned(filename, align_of(u32), context.temp_allocator)
 	assert(ok, "file does not exist", loc)
 
 	info := vk.ShaderModuleCreateInfo{
@@ -166,6 +172,33 @@ create_shader_module :: proc(filename: string, loc := #caller_location) -> (shad
 	result = vk.CreateShaderModule(ctx.device, &info, nil, &shader_module)
 	return
 }
+
+create_buffer :: proc(size: vk.DeviceSize, usage: vk.BufferUsageFlags, memory_properties_include, memory_properties_exclude: vk.MemoryPropertyFlags) -> (buffer: vk.Buffer, result: vk.Result) {
+	return vkma.create_buffer(&ctx.allocator, size, usage, memory_properties_include, memory_properties_exclude)
+}
+
+create_image_raw :: proc(format: vk.Format, width, height, depth, mip_levels, array_layers: u32, samples: vk.SampleCountFlags, usage: vk.ImageUsageFlags, initial_layout: vk.ImageLayout, memory_properties_include, memory_properties_exclude: vk.MemoryPropertyFlags) -> (image: vk.Image, result: vk.Result) {
+	return vkma.create_image(&ctx.allocator, format, width, height, depth, mip_levels, array_layers, samples, usage, initial_layout, memory_properties_include, memory_properties_exclude)
+}
+
+create_image_from_image :: proc(img: ^image.Image, mip_levels, array_layers: u32, samples: vk.SampleCountFlags, usage: vk.ImageUsageFlags, initial_layout: vk.ImageLayout, memory_properties_include, memory_properties_exclude: vk.MemoryPropertyFlags) -> (image: vk.Image, result: vk.Result) {
+	format: vk.Format
+	switch {
+		case img.channels == 3 && img.depth == 8:
+			format = .R8G8B8_UINT
+		case img.channels == 3 && img.depth == 16:
+			format = .R16G16B16_UINT
+		case img.channels == 4 && img.depth == 8:
+			format = .R8G8B8A8_UINT
+		case img.channels == 4 && img.depth == 16:
+			format = .R16G16B16A16_UINT
+		case:
+			fmt.panicf("Unknown channels and depth combination! channels: %v, depth: %v\n", img.channels, img.depth)
+	}
+	return create_image_raw(format, u32(img.width), u32(img.height), 1, mip_levels, array_layers, samples, usage, initial_layout, memory_properties_include, memory_properties_exclude)
+}
+
+create_image :: proc{create_image_raw, create_image_from_image}
 
 // https://github.com/baldurk/renderdoc/blob/v1.x/renderdoc/driver/vulkan/extension_support.md
 render_doc_unsupported_extensions := [?]cstring{

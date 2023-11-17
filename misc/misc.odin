@@ -1,9 +1,7 @@
-package gdr
+package misc
 
 import "core:os"
 import "core:runtime"
-
-// NOTE(pJotoro): These are identical to the ones in ngl. Should I just shove these into jo/app?
 
 read_entire_file_aligned_from_filename :: proc(name: string, alignment: int, allocator := context.allocator, loc := #caller_location) -> (data: []byte, success: bool) {
 	context.allocator = allocator

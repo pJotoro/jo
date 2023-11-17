@@ -404,20 +404,20 @@ get_memory_image :: proc "contextless" (using allocator: ^Allocator, image: vk.I
 
 get_memory :: proc{get_memory_buffer, get_memory_image}
 
-map_memory_buffer :: proc(using allocator: ^Allocator, buffer: vk.Buffer, offset, size: vk.DeviceSize, flags: vk.MemoryMapFlags, loc := #caller_location) -> (data: []byte, result: vk.Result) {
+map_memory_buffer :: proc(using allocator: ^Allocator, buffer: vk.Buffer, offset, size: vk.DeviceSize, loc := #caller_location) -> (data: []byte, result: vk.Result) {
 	memory, ok := get_memory(allocator, buffer)
 	assert(ok, "Failed to get buffer memory", loc)
 	raw := mem.Raw_Slice{len = int(size)}
-	result = vk.MapMemory(device, memory, offset, size, flags, &raw.data)
+	result = vk.MapMemory(device, memory, offset, size, {}, &raw.data)
 	data = transmute([]byte)raw
 	return
 }
 
-map_memory_image :: proc(using allocator: ^Allocator, image: vk.Image, offset, size: vk.DeviceSize, flags: vk.MemoryMapFlags, loc := #caller_location) -> (data: []byte, result: vk.Result) {
+map_memory_image :: proc(using allocator: ^Allocator, image: vk.Image, offset, size: vk.DeviceSize, loc := #caller_location) -> (data: []byte, result: vk.Result) {
 	memory, ok := get_memory(allocator, image)
 	assert(ok, "Failed to get image memory", loc)
 	raw := mem.Raw_Slice{len = int(size)}
-	result = vk.MapMemory(device, memory, offset, size, flags, &raw.data)
+	result = vk.MapMemory(device, memory, offset, size, {}, &raw.data)
 	data = transmute([]byte)raw
 	return
 }

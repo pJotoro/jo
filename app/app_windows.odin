@@ -6,6 +6,7 @@ import "core:intrinsics"
 import "core:runtime"
 import "core:fmt"
 import "xinput"
+import "../misc"
 
 OS_Specific :: struct {
     visible: int, // -1 and 0 mean invisible, 1 means visible
@@ -92,16 +93,6 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
     return result
 }
 
-panic :: proc(loc := #caller_location) {
-    when !ODIN_DISABLE_ASSERT {
-        error := win32.GetLastError()
-        buf: [1024]u16 = ---
-        win32.FormatMessageW(win32.FORMAT_MESSAGE_FROM_SYSTEM, nil, error, 0, raw_data(buf[:]), size_of(buf), nil)
-        message, _ := win32.wstring_to_utf8(raw_data(buf[:]), len(buf))
-        runtime.panic(message, loc)
-    }
-}
-
 foreign import user32 "system:User32.lib"
 
 @(default_calling_convention="stdcall")
@@ -136,7 +127,7 @@ _init :: proc(loc := #caller_location) {
         hInstance = win32.HANDLE(win32.GetModuleHandleW(nil)),
         lpszClassName = L("app_class_name"),
     }
-    if win32.RegisterClassExW(&window_class) == 0 do panic(loc)
+    if win32.RegisterClassExW(&window_class) == 0 do misc.panic(loc)
 
     ctx.window = win32.CreateWindowExW(
         ctx.window_extended_flags, 
@@ -151,7 +142,7 @@ _init :: proc(loc := #caller_location) {
         nil, 
         window_class.hInstance, 
         nil)
-    if ctx.window == nil do panic(loc)
+    if ctx.window == nil do misc.panic(loc)
 
     monitor := win32.MonitorFromWindow(ctx.window, .MONITOR_DEFAULTTOPRIMARY)
     monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
@@ -180,14 +171,14 @@ _init :: proc(loc := #caller_location) {
 
     window_rect := win32.RECT{client_left, client_top, client_right, client_bottom}
     ok = win32.AdjustWindowRectExForDpi(&window_rect, ctx.window_flags, false, ctx.window_extended_flags, ctx.dpi)
-    if !ok do panic(loc)
+    if !ok do misc.panic(loc)
 
     ok = win32.SetWindowPos(ctx.window, nil, window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0)
-    if !ok do panic(loc)
+    if !ok do misc.panic(loc)
 
     rect: win32.RECT = ---
     ok = win32.GetClientRect(ctx.window, &rect)
-    if !ok do panic(loc)
+    if !ok do misc.panic(loc)
     if ctx.width != 0 do fmt.assertf(ctx.width == int(rect.right - rect.left), "incorrectly set client width! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
     ctx.width = int(rect.right - rect.left)
     if ctx.height != 0 do fmt.assertf(ctx.height == int(rect.bottom - rect.top), "incorrectly set client height! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)

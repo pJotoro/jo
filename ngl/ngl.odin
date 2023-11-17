@@ -2,6 +2,7 @@ package ngl
 
 import gl "vendor:OpenGL"
 import "core:strings"
+import "../misc"
 
 viewport :: gl.Viewport
 clear_color :: gl.ClearColor
@@ -122,7 +123,7 @@ create_shader_from_binary :: proc(binary: []byte, type: Shader_Type, entry := "m
 }
 
 create_shader_from_file :: proc(filename: string, type: Shader_Type, entry := "main", loc := #caller_location) -> (Shader, bool) #optional_ok {
-	binary, ok := read_entire_file_aligned(filename, align_of(u32))
+	binary, ok := misc.read_entire_file_aligned(filename, align_of(u32))
 	assert(condition = ok, loc = loc)
 	return create_shader_from_binary(binary, type, entry, loc)
 }
