@@ -62,8 +62,8 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             }
 
         case win32.WM_LBUTTONDOWN:
-            if !ctx.mouse_left do ctx.mouse_left_pressed = true
-            ctx.mouse_left = true
+            if !ctx.left_mouse_down do ctx.left_mouse_pressed = true
+            ctx.left_mouse_down = true
 
             if ctx.event_callback != nil {
                 x := i32(l_param & 0xFFFFFFFF)
@@ -76,8 +76,8 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             }
             
         case win32.WM_LBUTTONUP:
-            ctx.mouse_left = false
-            ctx.mouse_left_released = true
+            ctx.left_mouse_down= false
+            ctx.left_mouse_released = true
 
             if ctx.event_callback != nil {
                 x := i32(l_param & 0xFFFFFFFF)
@@ -90,7 +90,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             }
             
         case win32.WM_LBUTTONDBLCLK:
-            ctx.mouse_left_double_click = true
+            ctx.left_mouse_double_click = true
 
             if ctx.event_callback != nil {
                 x := i32(l_param & 0xFFFFFFFF)
@@ -103,8 +103,8 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             }
 
         case win32.WM_RBUTTONDOWN:
-            if !ctx.mouse_right do ctx.mouse_right_pressed = true
-            ctx.mouse_right = true
+            if !ctx.right_mouse_down do ctx.right_mouse_pressed = true
+            ctx.right_mouse_down = true
 
             if ctx.event_callback != nil {
                 x := i32(l_param & 0xFFFFFFFF)
@@ -117,8 +117,8 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             }
 
         case win32.WM_RBUTTONUP:
-            ctx.mouse_right = false
-            ctx.mouse_right_released = true
+            ctx.right_mouse_down = false
+            ctx.right_mouse_released = true
 
             if ctx.event_callback != nil  {
                 x := i32(l_param & 0xFFFFFFFF)
@@ -131,7 +131,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             }
 
         case win32.WM_RBUTTONDBLCLK:
-            ctx.mouse_right_double_click = true
+            ctx.right_mouse_double_click = true
 
             if ctx.event_callback != nil  {
                 x := i32(l_param & 0xFFFFFFFF)
@@ -144,8 +144,8 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             }
 
         case win32.WM_MBUTTONDOWN:
-            if !ctx.mouse_middle do ctx.mouse_middle_pressed = true
-            ctx.mouse_middle = true
+            if !ctx.middle_mouse_down do ctx.middle_mouse_pressed = true
+            ctx.middle_mouse_down = true
 
             if ctx.event_callback != nil  {
                 x := i32(l_param & 0xFFFFFFFF)
@@ -158,8 +158,8 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             }
 
         case win32.WM_MBUTTONUP:
-            ctx.mouse_middle = false
-            ctx.mouse_middle_released = true
+            ctx.middle_mouse_down = false
+            ctx.middle_mouse_released = true
 
             if ctx.event_callback != nil  {
                 x := i32(l_param & 0xFFFFFFFF)
@@ -172,7 +172,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             }
 
         case win32.WM_MBUTTONDBLCLK:
-            ctx.mouse_middle_double_click = true
+            ctx.middle_mouse_double_click = true
 
             if ctx.event_callback != nil  {
                 x := i32(l_param & 0xFFFFFFFF)
@@ -306,12 +306,12 @@ _init :: proc(loc := #caller_location) {
 _should_close :: proc() -> bool {
     for &k in ctx.keyboard_keys_pressed do k = false
     for &k in ctx.keyboard_keys_released do k = false
-    ctx.mouse_left_pressed = false
-    ctx.mouse_left_released = false
-    ctx.mouse_right_pressed = false
-    ctx.mouse_right_released = false
-    ctx.mouse_middle_pressed = false
-    ctx.mouse_middle_released = false
+    ctx.left_mouse_pressed = false
+    ctx.left_mouse_released = false
+    ctx.right_mouse_pressed = false
+    ctx.right_mouse_released = false
+    ctx.middle_mouse_pressed = false
+    ctx.middle_mouse_released = false
 
     ctx.mouse_wheel_rotation = 0
 
