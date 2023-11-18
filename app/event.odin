@@ -2,30 +2,71 @@ package app
 
 Event_Key_Down :: struct {
     key: Keyboard_Key,
-    repeat_count: u16,
-    oem_scan_code: u8,
+    repeat_count: int,
     already_down: bool,
 }
 
 Event_Key_Up :: struct {
     key: Keyboard_Key,
-    oem_scan_code: u8,
 }
 
-Event_Size :: struct {
-    minimized: bool,
-    maximized: bool,
+Event_Left_Mouse_Down :: struct {
+    x, y: int,
 }
 
-Event_Activate :: struct {}
-Event_Deactivate :: struct {}
+Event_Left_Mouse_Up :: struct {
+    x, y: int,
+}
+
+Event_Left_Mouse_Double_Click :: struct {
+    x, y: int,
+}
+
+Event_Right_Mouse_Down :: struct {
+    x, y: int,
+}
+
+Event_Right_Mouse_Up :: struct {
+    x, y: int,
+}
+
+Event_Right_Mouse_Double_Click :: struct {
+    x, y: int,
+}
+
+Event_Middle_Mouse_Down :: struct {
+    x, y: int,
+}
+
+Event_Middle_Mouse_Up :: struct {
+    x, y: int,
+}
+
+Event_Middle_Mouse_Double_Click :: struct {
+    x, y: int,
+}
+
+Event_Mouse_Wheel :: struct {
+    amount: int,
+}
 
 Event :: union {
     Event_Key_Down,
     Event_Key_Up,
-    Event_Size,
-    Event_Activate,
-    Event_Deactivate,
+
+    Event_Left_Mouse_Down,
+    Event_Left_Mouse_Up,
+    Event_Left_Mouse_Double_Click,
+
+    Event_Right_Mouse_Down,
+    Event_Right_Mouse_Up,
+    Event_Right_Mouse_Double_Click,
+
+    Event_Middle_Mouse_Down,
+    Event_Middle_Mouse_Up,
+    Event_Middle_Mouse_Double_Click,
+    
+    Event_Mouse_Wheel,
 }
 
 Event_Callback :: #type proc(event: Event, user_data: rawptr)

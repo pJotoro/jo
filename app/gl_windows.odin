@@ -3,6 +3,7 @@ package app
 
 import gl "vendor:OpenGL"
 import win32 "core:sys/windows"
+import "../misc"
 
 when USING_OPENGL {
     _gl_init :: proc(major, minor: int, loc := #caller_location) -> bool {
@@ -103,7 +104,7 @@ when USING_OPENGL {
     }
 
     _gl_swap_buffers :: proc(loc := #caller_location) {
-        if !win32.SwapBuffers(ctx.gl_hdc) do panic(loc)
+        if !win32.SwapBuffers(ctx.gl_hdc) do misc.panic(loc)
         if !ctx.gl_vsync {
             // TODO(pJotoro): Would it make sense to base this amount of milliseconds on how long the frame took? The problem is, the smallest the number of milliseconds can be is 1, and it has to be an integer, so it's highly inaccurate. Beyond that, I'm pretty sure most gamers nowadays use GPUs and monitors with vsync, so it's hard to imagine this being an issue anyway.
             win32.timeBeginPeriod(1)
