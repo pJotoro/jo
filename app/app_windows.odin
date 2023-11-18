@@ -298,3 +298,9 @@ _render :: proc(bitmap: []u32, loc := #caller_location) {
     win32.ReleaseDC(ctx.window, hdc)
 }
 
+_mouse_position :: proc(loc := #caller_location) -> (x, y: int) {
+    point: win32.POINT = ---
+    ok := win32.GetCursorPos(&point)
+    if !ok do misc.panic(loc)
+    return int(point.x), int(point.y)
+}

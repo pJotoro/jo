@@ -70,3 +70,7 @@ fullscreen :: proc "contextless" () -> bool {
 visible :: proc "contextless" () -> bool {
     return ctx.visible == 1 ? true : false
 }
+
+mouse_position :: proc() -> (x, y: int) {
+    return _mouse_position()
+}
