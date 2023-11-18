@@ -81,7 +81,7 @@ gamepad_get_input :: proc(gamepad: ^Gamepad_Desc, xinput_gamepad: xinput.GAMEPAD
 }
 
 _gamepads_get_input :: proc() {
-    for gamepad, i in &ctx.gamepads {
+    for &gamepad, i in ctx.gamepads {
         if gamepad.id != INVALID_GAMEPAD {
             state: xinput.STATE = ---
             result := xinput.GetState(win32.DWORD(i), &state)

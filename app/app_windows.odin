@@ -258,8 +258,8 @@ _init :: proc(loc := #caller_location) {
 }
 
 _should_close :: proc() -> bool {
-    for k in &ctx.keyboard_keys_pressed do k = false
-    for k in &ctx.keyboard_keys_released do k = false
+    for &k in ctx.keyboard_keys_pressed do k = false
+    for &k in ctx.keyboard_keys_released do k = false
 
     if ctx.visible == -1 do ctx.visible += 1
     else if ctx.visible == 0 {
