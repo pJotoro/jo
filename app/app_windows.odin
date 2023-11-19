@@ -358,5 +358,5 @@ _mouse_position :: proc(loc := #caller_location) -> (x, y: int) {
     if !ok do misc.panic(loc)
     ok = win32.ScreenToClient(ctx.window, &point)
     if !ok do misc.panic(loc)
-    return int(point.x), -int(point.y) + height()
+    return int(point.x), -int(point.y) + height() // TODO(pJotoro): Do the same for the events which return a y-position on the window
 }
