@@ -41,12 +41,6 @@ try_connect_gamepad :: proc "contextless" (gamepad_index: int, loc := #caller_lo
 	return _try_connect_gamepad(gamepad_index, loc)
 }
 
-gamepads_get_input :: proc "contextless" () {
-    for &gamepad, gamepad_index in ctx.gamepads {
-        if gamepad.active do try_connect_gamepad(gamepad_index)
-    }
-}
-
 gamepad_connected :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> bool {
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].active

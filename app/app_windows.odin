@@ -299,6 +299,7 @@ _init :: proc(loc := #caller_location) {
     ctx.height = int(rect.bottom - rect.top)
 
     ctx.can_connect_gamepad = xinput.init()
+
     for gamepad_index in 0..<len(ctx.gamepads) {
         try_connect_gamepad(gamepad_index)
     }
@@ -333,7 +334,9 @@ _should_close :: proc() -> bool {
         break
     }
 
-    gamepads_get_input()
+    for gamepad_index in 0..<len(ctx.gamepads) {
+        if gamepad_connected(gamepad_index) do try_connect_gamepad(gamepad_index)
+    }
     
     return ctx.should_close
 }
