@@ -46,6 +46,8 @@ Context :: struct {
 
     mouse_wheel_rotation: int,
 
+    can_connect_gamepad: bool,
+
     fullscreen: bool,
 
     event_callback: Event_Callback,

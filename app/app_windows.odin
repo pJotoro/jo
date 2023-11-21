@@ -16,9 +16,7 @@ OS_Specific :: struct {
     window_extended_flags: u32,
     window_flags: u32,
 
-    xinput_enabled: bool,
     gamepads: [4]Gamepad_Desc,
-    next_gamepad_id: Gamepad,
 
     gl_hdc: win32.HDC,
     gl_vsync: bool,
@@ -300,10 +298,9 @@ _init :: proc(loc := #caller_location) {
     if ctx.height != 0 do fmt.assertf(ctx.height == int(rect.bottom - rect.top), "incorrectly set client height! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
     ctx.height = int(rect.bottom - rect.top)
 
-    ctx.xinput_enabled = xinput.init()
-    ctx.next_gamepad_id = 4
-    for &gamepad in ctx.gamepads {
-        gamepad.id = INVALID_GAMEPAD
+    ctx.can_connect_gamepad = xinput.init()
+    for gamepad_index in 0..<len(ctx.gamepads) {
+        try_connect_gamepad(gamepad_index)
     }
 }
 

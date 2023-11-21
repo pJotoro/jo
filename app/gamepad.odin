@@ -1,5 +1,7 @@
 package app
 
+import "core:runtime"
+
 Gamepad_Button :: enum u16 {
 	Dpad_Up,
 	Dpad_Down,
@@ -19,11 +21,6 @@ Gamepad_Button :: enum u16 {
 
 Gamepad_Buttons :: distinct bit_set[Gamepad_Button; u16]
 
-Gamepad_Type :: enum {
-	Xbox_One,
-	Xbox_360,
-}
-
 @(private)
 Gamepad_Desc :: struct {
 	buttons: Gamepad_Buttons,
@@ -32,98 +29,71 @@ Gamepad_Desc :: struct {
 	right_trigger: f32,
 	left_stick: [2]f32,
 	right_stick: [2]f32,
-
-	id: Gamepad,
-	type: Gamepad_Type,
+	active: bool,
 }
 
-Gamepad :: distinct int
-
-INVALID_GAMEPAD : Gamepad : -1
-
-XBOX_360_LEFT_THUMB_DEADZONE  :: 7849
-XBOX_360_RIGHT_THUMB_DEADZONE :: 8689
-XBOX_360_TRIGGER_THRESHOLD    :: 30
-
-//XBOX_ONE_LEFT_THUMB_DEADZONE :: 2193
-//XBOX_ONE_RIGHT_THUMB_DEADZONE :: 3480
-//XBOX_ONE_TRIGGER_THRESHOLD :: 0
-
-gamepad :: proc(index: int, loc := #caller_location) -> Gamepad {
-	return _gamepad(index, loc)
+can_connect_gamepad :: proc "contextless" () -> bool {
+	return _can_connect_gamepad()
 }
 
-gamepad_index :: proc(id: Gamepad) -> int {
-	for gamepad, i in ctx.gamepads {
-		if gamepad.id == id do return i
-	}
-	return -1
+try_connect_gamepad :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> bool {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return _try_connect_gamepad(gamepad_index, loc)
 }
 
-gamepad_connected :: proc(id: Gamepad, loc := #caller_location) -> bool {
-	i := gamepad_index(id)
-	if i == -1 do return false
-	//assert(condition = ctx.gamepads[i].id != -1, loc = loc)
-	return true
+gamepads_get_input :: proc "contextless" () {
+    for &gamepad, gamepad_index in ctx.gamepads {
+        if gamepad.active do try_connect_gamepad(gamepad_index)
+    }
 }
 
-gamepad_button_down :: proc(id: Gamepad, button: Gamepad_Button) -> bool {
-	i := gamepad_index(id)
-	if i == -1 do return false
-
-	return button in ctx.gamepads[i].buttons
+gamepad_connected :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> bool {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return ctx.gamepads[gamepad_index].active
 }
 
-gamepad_buttons_down :: proc(id: Gamepad, buttons: Gamepad_Buttons) -> bool {
-	i := gamepad_index(id)
-	if i == -1 do return false
-	
-	return buttons <= ctx.gamepads[i].buttons
+gamepad_button_down :: proc "contextless" (gamepad_index: int, button: Gamepad_Button, loc := #caller_location) -> bool {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return button in ctx.gamepads[gamepad_index].buttons
 }
 
-gamepad_button_pressed :: proc(id: Gamepad, button: Gamepad_Button) -> bool {
-	i := gamepad_index(id)
-	if i == -1 do return false
-
-	return button in ctx.gamepads[i].buttons && button not_in ctx.gamepads[i].buttons_previous
+gamepad_buttons_down :: proc "contextless" (gamepad_index: int, buttons: Gamepad_Buttons, loc := #caller_location) -> bool {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return buttons <= ctx.gamepads[gamepad_index].buttons
 }
 
-gamepad_button_released :: proc(id: Gamepad, button: Gamepad_Button) -> bool {
-	i := gamepad_index(id)
-	if i == -1 do return false
-
-	return button not_in ctx.gamepads[i].buttons && button in ctx.gamepads[i].buttons_previous
+gamepad_button_pressed :: proc "contextless" (gamepad_index: int, button: Gamepad_Button, loc := #caller_location) -> bool {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return button in ctx.gamepads[gamepad_index].buttons && button not_in ctx.gamepads[gamepad_index].buttons_previous
 }
 
-gamepad_left_trigger :: proc(id: Gamepad) -> f32 {
-	i := gamepad_index(id)
-	if i == -1 do return 0
-	return ctx.gamepads[i].left_trigger
+gamepad_button_released :: proc "contextless" (gamepad_index: int, button: Gamepad_Button, loc := #caller_location) -> bool {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return button not_in ctx.gamepads[gamepad_index].buttons && button in ctx.gamepads[gamepad_index].buttons_previous
 }
 
-gamepad_right_trigger :: proc(id: Gamepad) -> f32 {
-	i := gamepad_index(id)
-	if i == -1 do return 0
-	return ctx.gamepads[i].right_trigger
+gamepad_left_trigger :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> f32 {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return ctx.gamepads[gamepad_index].left_trigger
 }
 
-gamepad_left_stick :: proc(id: Gamepad) -> [2]f32 {
-	i := gamepad_index(id)
-	if i == -1 do return {}
-	return ctx.gamepads[i].left_stick
+gamepad_right_trigger :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> f32 {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return ctx.gamepads[gamepad_index].right_trigger
 }
 
-gamepad_right_stick :: proc(id: Gamepad) -> [2]f32 {
-	i := gamepad_index(id)
-	if i == -1 do return {}
-	return ctx.gamepads[i].right_stick
+gamepad_left_stick :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> [2]f32 {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return ctx.gamepads[gamepad_index].left_stick
 }
 
-gamepad_set_vibration :: proc(id: Gamepad, left_motor, right_motor: f32, loc := #caller_location) {
-	_gamepad_set_vibration(id, left_motor, right_motor, loc)
+gamepad_right_stick :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> [2]f32 {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return ctx.gamepads[gamepad_index].right_stick
 }
 
-// NOTE(pJotoro): 99% of the time, there is no reason for the user to call this. It already gets called in `should_close`.
-gamepads_get_input :: proc() {
-	_gamepads_get_input()
+gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	assert(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1, "motors out of range 0..1", loc)
+	_gamepad_set_vibration(gamepad_index, left_motor, right_motor, loc)
 }
