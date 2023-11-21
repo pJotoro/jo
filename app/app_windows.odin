@@ -28,17 +28,21 @@ L :: intrinsics.constant_utf16_cstring
 
 @(private="file")
 window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
+    context = runtime.default_context()
+    context.allocator = ctx.allocator
     result := win32.LRESULT(0)
     
     switch message {
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
             key := Keyboard_Key(w_param)
+            if int(key) > len(ctx.keyboard_keys) do return result
             if !ctx.keyboard_keys[key] do ctx.keyboard_keys_pressed[key] = true
             ctx.keyboard_keys[key] = true
 
+            append(&ctx.keyboard_keys_pressed_queue, Keyboard_Key_Pressed{key, key_down(.Shift)})
+
             if ctx.event_callback != nil {
                 repeat_count  := (l_param & 0x0000FFFF)
-                oem_scan_code := (l_param & 0x00FF0000) >> 16
                 already_down  := (l_param & 0x40000000) >> 30
                 event := Event_Key_Down{
                     key = key,
@@ -50,11 +54,11 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
 
         case win32.WM_KEYUP, win32.WM_SYSKEYUP:
             key := Keyboard_Key(w_param)
+            if int(key) > len(ctx.keyboard_keys) do return result
             ctx.keyboard_keys[key] = false
             ctx.keyboard_keys_released[key] = true
 
             if ctx.event_callback != nil {
-                oem_scan_code := (l_param & 0x00FF0000) >> 16
                 event := Event_Key_Up{
                     key = key,
                 }
@@ -306,6 +310,8 @@ _init :: proc(loc := #caller_location) {
 _should_close :: proc() -> bool {
     for &k in ctx.keyboard_keys_pressed do k = false
     for &k in ctx.keyboard_keys_released do k = false
+    clear(&ctx.keyboard_keys_pressed_queue)
+
     ctx.left_mouse_pressed = false
     ctx.left_mouse_released = false
     ctx.right_mouse_pressed = false

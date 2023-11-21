@@ -1,12 +1,22 @@
 package app
 
+import "core:runtime"
+
 Configuration :: enum {
     Game,
     Tool,
 }
 
+// TODO(pJotoro): Find a better place to put this.
+Keyboard_Key_Pressed :: struct {
+    keyboard_key: Keyboard_Key,
+    shift_down: bool,
+}
+
 @(private)
 Context :: struct {
+    allocator: runtime.Allocator,
+
     name: string,
     width, height: int,
     user_data: rawptr,
@@ -17,6 +27,7 @@ Context :: struct {
     keyboard_keys: #sparse [Keyboard_Key]bool,
     keyboard_keys_pressed: #sparse [Keyboard_Key]bool,
     keyboard_keys_released: #sparse [Keyboard_Key]bool,
+    keyboard_keys_pressed_queue: [dynamic]Keyboard_Key_Pressed,
 
     left_mouse_down: bool,
     left_mouse_pressed: bool,
@@ -44,8 +55,9 @@ Context :: struct {
 @(private)
 ctx: Context
 
-init :: proc(title := "", width := 0, height := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, configuration: Configuration = .Game, loc := #caller_location) {
+init :: proc(title := "", width := 0, height := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, configuration: Configuration = .Game, allocator := context.allocator, loc := #caller_location) {
     assert((width == 0 && height == 0) || (width != 0 && height != 0), "width and height must be set or unset together", loc)
+    ctx.allocator = allocator
 
     ctx.name = title
     ctx.width = width
