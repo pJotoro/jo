@@ -7,3 +7,5 @@ frag.spv
 jo.exe
 jo.pdb
 ols.json
+build.bat
+debug.rdgb
