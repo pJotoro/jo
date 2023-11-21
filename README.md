@@ -5,14 +5,12 @@ A stupidly easy to use alternative to SDL, GLFW, Raylib, and others.
 ```odin
 package app_example
 
-import "jo/app"
+import "jo:app"
 import "core:image/png"
 import "core:mem"
 
 main :: proc() {
 	app.init()
-
-	gamepad := app.gamepad(0)
 	
 	bitmap := make([]u32, app.width() * app.height())
 	awesomeface, _ := png.load("awesomeface.png")
@@ -24,8 +22,8 @@ main :: proc() {
 	for !app.should_close() {
 		mem.zero_slice(bitmap)
 
-		if gamepad != app.INVALID_GAMEPAD {
-			pos += app.gamepad_left_stick(gamepad)
+		if app.gamepad_connected(0) {
+			pos += app.gamepad_left_stick(0)
 		} else {
 			if app.key_down(.Left)  do pos.x -= 1
 			if app.key_down(.Right) do pos.x += 1
