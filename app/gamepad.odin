@@ -33,7 +33,7 @@ Gamepad_Desc :: struct {
 }
 
 can_connect_gamepad :: proc "contextless" () -> bool {
-	return _can_connect_gamepad()
+	return ctx.can_connect_gamepad
 }
 
 try_connect_gamepad :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> bool {

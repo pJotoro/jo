@@ -7,28 +7,32 @@ Configuration :: enum {
     Tool,
 }
 
-// TODO(pJotoro): Find a better place to put this.
-Keyboard_Key_Pressed :: struct {
-    keyboard_key: Keyboard_Key,
-    shift_down: bool,
-}
-
 @(private)
 Context :: struct {
     allocator: runtime.Allocator,
 
+    // ----- init -----
     name: string,
     width, height: int,
     user_data: rawptr,
     configuration: Configuration,
+    event_callback: Event_Callback,
 
+    can_connect_gamepad: bool,
+    // ----------------
+
+    // ----- running -----
     should_close: bool,
+    fullscreen: bool,
+    // -------------------
     
+    // ----- keyboard -----
     keyboard_keys: #sparse [Keyboard_Key]bool,
     keyboard_keys_pressed: #sparse [Keyboard_Key]bool,
     keyboard_keys_released: #sparse [Keyboard_Key]bool,
-    keyboard_keys_pressed_queue: [dynamic]Keyboard_Key_Pressed,
+    // --------------------
 
+    // ----- mouse -----
     left_mouse_down: bool,
     left_mouse_pressed: bool,
     left_mouse_released: bool,
@@ -45,12 +49,7 @@ Context :: struct {
     middle_mouse_double_click: bool,
 
     mouse_wheel_rotation: int,
-
-    can_connect_gamepad: bool,
-
-    fullscreen: bool,
-
-    event_callback: Event_Callback,
+    // -----------------
 
     using os_specific: OS_Specific,
 }

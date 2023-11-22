@@ -26,8 +26,6 @@ L :: intrinsics.constant_utf16_cstring
 
 @(private="file")
 window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
-    context = runtime.default_context()
-    context.allocator = ctx.allocator
     result := win32.LRESULT(0)
     
     switch message {
@@ -37,13 +35,25 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             if !ctx.keyboard_keys[key] do ctx.keyboard_keys_pressed[key] = true
             ctx.keyboard_keys[key] = true
 
-            append(&ctx.keyboard_keys_pressed_queue, Keyboard_Key_Pressed{key, key_down(.Shift)})
-
             if ctx.event_callback != nil {
                 repeat_count  := (l_param & 0x0000FFFF)
                 already_down  := (l_param & 0x40000000) >> 30
                 event := Event_Key_Down{
                     key = key,
+                    repeat_count = repeat_count,
+                    already_down = bool(already_down),
+                }
+                ctx.event_callback(event, ctx.user_data)
+            }
+
+        case win32.WM_CHAR:
+            char := rune(w_param)
+
+            if ctx.event_callback != nil {
+                repeat_count  := (l_param & 0x0000FFFF)
+                already_down  := (l_param & 0x40000000) >> 30
+                event := Event_Char{
+                    char = char,
                     repeat_count = repeat_count,
                     already_down = bool(already_down),
                 }
@@ -308,7 +318,6 @@ _init :: proc(loc := #caller_location) {
 _should_close :: proc() -> bool {
     for &k in ctx.keyboard_keys_pressed do k = false
     for &k in ctx.keyboard_keys_released do k = false
-    clear(&ctx.keyboard_keys_pressed_queue)
 
     ctx.left_mouse_pressed = false
     ctx.left_mouse_released = false
@@ -337,7 +346,7 @@ _should_close :: proc() -> bool {
     for gamepad_index in 0..<len(ctx.gamepads) {
         if gamepad_connected(gamepad_index) do try_connect_gamepad(gamepad_index)
     }
-    
+
     return ctx.should_close
 }
 

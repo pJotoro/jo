@@ -6,6 +6,12 @@ Event_Key_Down :: struct {
     already_down: bool,
 }
 
+Event_Char :: struct {
+    char: rune,
+    repeat_count: int,
+    already_down: bool,
+}
+
 Event_Key_Up :: struct {
     key: Keyboard_Key,
 }
@@ -52,6 +58,7 @@ Event_Mouse_Wheel :: struct {
 
 Event :: union {
     Event_Key_Down,
+    Event_Char,
     Event_Key_Up,
 
     Event_Left_Mouse_Down,

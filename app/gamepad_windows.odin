@@ -4,10 +4,6 @@ package app
 import win32 "core:sys/windows"
 import "xinput"
 
-_can_connect_gamepad :: proc "contextless" () -> bool {
-	return ctx.can_connect_gamepad
-}
-
 _try_connect_gamepad :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> bool {
 	state: xinput.STATE = ---
 	result := xinput.GetState(win32.DWORD(gamepad_index), &state)

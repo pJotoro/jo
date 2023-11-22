@@ -12,15 +12,6 @@ key_released :: proc "contextless" (key: Keyboard_Key) -> bool {
     return ctx.keyboard_keys_released[key]
 }
 
-get_key_pressed :: proc(shift_down: ^bool = nil) -> (key: Keyboard_Key, ok: bool) {
-    keyboard_key_pressed: Keyboard_Key_Pressed
-    keyboard_key_pressed, ok = pop_front_safe(&ctx.keyboard_keys_pressed_queue)
-    if !ok do return
-    if shift_down != nil do shift_down^ = keyboard_key_pressed.shift_down
-    key = keyboard_key_pressed.keyboard_key
-    return
-}
-
 Keyboard_Key :: enum rune {
     Left_Mouse = 0x01,
     Right_Mouse,
