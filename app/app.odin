@@ -48,7 +48,7 @@ Context :: struct {
     middle_mouse_released: bool,
     middle_mouse_double_click: bool,
 
-    mouse_wheel_rotation: int,
+    mouse_wheel: int,
     // -----------------
 
     using os_specific: OS_Specific,
@@ -154,6 +154,6 @@ middle_mouse_double_click :: proc "contextless" () -> bool {
     return ctx.middle_mouse_double_click
 }
 
-mouse_wheel_rotation :: proc "contextless" () -> int {
-    return ctx.mouse_wheel_rotation
+mouse_wheel :: proc "contextless" () -> int {
+    return ctx.mouse_wheel
 }

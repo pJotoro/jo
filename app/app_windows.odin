@@ -198,7 +198,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
 
         case win32.WM_MOUSEWHEEL:
             amount := i32(w_param >> 32)
-            ctx.mouse_wheel_rotation += int(amount) * win32.WHEEL_DELTA
+            ctx.mouse_wheel += int(amount) * win32.WHEEL_DELTA
 
             if ctx.event_callback != nil  {
                 event := Event_Mouse_Wheel{
@@ -326,7 +326,7 @@ _should_close :: proc() -> bool {
     ctx.middle_mouse_pressed = false
     ctx.middle_mouse_released = false
 
-    ctx.mouse_wheel_rotation = 0
+    ctx.mouse_wheel = 0
 
     if ctx.visible == -1 do ctx.visible += 1
     else if ctx.visible == 0 {
