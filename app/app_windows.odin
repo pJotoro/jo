@@ -231,7 +231,7 @@ _init :: proc(loc := #caller_location) {
     wname: win32.LPWSTR
 
     if ctx.configuration == .Game {
-        when ODIN_DEBUG {
+        if ODIN_DEBUG || ctx.width != 0 || ctx.height != 0 {
             ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
             wname = win32.utf8_to_wstring(ctx.name)
         } else {
