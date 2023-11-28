@@ -20,6 +20,7 @@ main :: proc() {
 	pos.y = f32((app.height() - awesomeface.height) / 2)
 	
 	for !app.should_close() {
+        if app.key_pressed(.Escape) do return
 		mem.zero_slice(bitmap)
 
 		if app.gamepad_connected(0) {
@@ -35,7 +36,7 @@ main :: proc() {
 
 		draw_image(bitmap, awesomeface, pos)
 
-		app.render(bitmap)
+        app.render(bitmap)
 	}
 }
 
@@ -44,7 +45,6 @@ image_pixel :: proc(img: ^png.Image, x, y: int) -> u32 {
 	i := (x+reversed_y*img.width) * 4
 	pixel: [4]byte = ---
 	copy(pixel[:], img.pixels.buf[i:i+4])
-	pixel[0], pixel[2] = pixel[2], pixel[0]
 	return transmute(u32)pixel
 }
 
@@ -71,7 +71,7 @@ You can also create an OpenGL context with just one procedure call:
 ```odin
 package app_gl_example
 
-import "jo/app"
+import "jo:app"
 import gl "vendor:OpenGL"
 
 main :: proc() {
@@ -79,6 +79,8 @@ main :: proc() {
 	app.gl_init(4, 6)
 
 	for !app.should_close() {
+        if app.key_pressed(.Escape) do return
+
 		gl.ClearColor(0.123, 0.456, 0.789, 1)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		app.gl_swap_buffers()
@@ -106,13 +108,13 @@ A stupidly easy to use wrapper over OpenGL 4.6.
 ```odin
 package ngl_hello_triangle
 
-import "jo/app"
-import gl "jo/ngl"
+import "jo:app"
+import gl "jo:ngl"
 import "core:slice"
 
 main :: proc() {
 	app.init(width = 800, height = 600)
-	assert(app.gl_init(4, 6))
+	app.gl_init(4, 6)
 
 	vertex_shader := gl.create_shader("vert.spv", .Vertex)
 	fragment_shader := gl.create_shader("frag.spv", .Fragment)
@@ -134,6 +136,8 @@ main :: proc() {
 	gl.vertex_array_attrib_binding(vertex_array, 0, 0)
 	
 	for !app.should_close() {
+		if app.key_pressed(.Escape) do return
+
 		gl.clear_color(0.2, 0.3, 0.3, 1.0)
 		gl.clear({.Color})
 
@@ -142,8 +146,6 @@ main :: proc() {
 		gl.draw_arrays(.Triangles, 0, 3)
 
 		app.gl_swap_buffers()
-
-		free_all(context.temp_allocator)
 	}
 }
 ```

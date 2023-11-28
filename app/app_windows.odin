@@ -236,7 +236,7 @@ _init :: proc(loc := #caller_location) {
             wname = win32.utf8_to_wstring(ctx.name)
         } else {
             ctx.fullscreen = true
-            ctx.window_flags = win32.WS_CAPTION | win32.WS_POPUP | win32.WS_MAXIMIZE
+            ctx.window_flags = win32.WS_POPUP
         }
     } else if ctx.configuration == .Tool {
         ctx.window_extended_flags = win32.WS_EX_ACCEPTFILES | win32.WS_EX_CLIENTEDGE | win32.WS_EX_WINDOWEDGE
@@ -351,8 +351,12 @@ _should_close :: proc() -> bool {
 }
 
 _render :: proc(bitmap: []u32, loc := #caller_location) {
+    // TODO(pJotoro): render should resize the bitmap if it is too small.
     if len(bitmap) < ctx.width * ctx.height do runtime.panic("bitmap too small", loc)
     if len(bitmap) > ctx.width * ctx.height do runtime.panic("bitmap too big", loc)
+    for &pixel in bitmap {
+        pixel = rgba_to_bgr(pixel)
+    }
     hdc := win32.GetDC(ctx.window)
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
@@ -365,6 +369,41 @@ _render :: proc(bitmap: []u32, loc := #caller_location) {
     }
     win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(bitmap), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
     win32.ReleaseDC(ctx.window, hdc)
+
+    rgba_to_bgr_u8 :: #force_inline proc "contextless" (r, g, b, a: u8) -> (bgr: u32) {
+        src_r := r != 0 ? f32(r) / 255 : 0
+        src_g := g != 0 ? f32(g) / 255 : 0
+        src_b := b != 0 ? f32(b) / 255 : 0
+        src_a := a != 0 ? f32(a) / 255 : 0
+    
+        /*
+        Target.R = 1 - Source.A + (Source.A * Source.R)
+        Target.G = 1 - Source.A + (Source.A * Source.G)
+        Target.B = 1 - Source.A + (Source.A * Source.B)
+        */
+    
+        dst_r := 1 - src_a + (src_a * src_r)
+        dst_g := 1 - src_a + (src_a * src_g)
+        dst_b := 1 - src_a + (src_a * src_b)
+    
+        dst_r_u32 := u32(dst_r * 255)
+        dst_g_u32 := u32(dst_g * 255)
+        dst_b_u32 := u32(dst_b * 255)
+    
+        bgr = (dst_r_u32 << 16) | (dst_g_u32 << 8) | (dst_b_u32)
+        return
+    }
+    
+    rgba_to_bgr_u32 :: #force_inline proc "contextless" (rgba: u32) -> (bgr: u32) {
+        r := u8((rgba & 0x000000FF) >> 0)
+        g := u8((rgba & 0x0000FF00) >> 8)
+        b := u8((rgba & 0x00FF0000) >> 16)
+        a := u8((rgba & 0xFF000000) >> 24)
+        bgr = rgba_to_bgr_u8(r, g, b, a)
+        return
+    }
+    
+    rgba_to_bgr :: proc{rgba_to_bgr_u8, rgba_to_bgr_u32}
 }
 
 _mouse_position :: proc(loc := #caller_location) -> (x, y: int) {
