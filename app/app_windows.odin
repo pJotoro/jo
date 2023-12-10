@@ -355,7 +355,7 @@ _render :: proc(bitmap: []u32, loc := #caller_location) {
     if len(bitmap) < ctx.width * ctx.height do runtime.panic("bitmap too small", loc)
     if len(bitmap) > ctx.width * ctx.height do runtime.panic("bitmap too big", loc)
     for &pixel in bitmap {
-        pixel = rgba_to_bgr(pixel)
+        if pixel != 0 do pixel = rgba_to_bgr(pixel)
     }
     hdc := win32.GetDC(ctx.window)
     bitmap_info: win32.BITMAPINFO
