@@ -92,7 +92,7 @@ gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, 
 	left_motor := left_motor
 	right_motor := right_motor
 	if !(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1) {
-		log.warnf("Motors must be in range [0.0, 1.0]. Got %v and %v.")
+		log.warnf("Motors must be in range [0.0, 1.0]. Got %v and %v.", left_motor, right_motor)
 		left_motor = clamp(left_motor, 0.0, 1.0)
 		right_motor = clamp(right_motor, 0.0, 1.0)
 	}
