@@ -159,5 +159,3 @@ OpenGL 4.6 is great; unfortunately, there isn't a 500 page book on how to use it
 # IMPORTANT:
 
 jo is still early in development. For now, it is Windows only.
-
-Also gdr isn't a library, it's just me trying to learn Vulkan.
