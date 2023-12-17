@@ -49,7 +49,7 @@ Context :: struct {
 
     // ----- gamepad -----
     can_connect_gamepad: bool,
-    gamepad_debug: bool,
+    gamepad_debug_flags: Gamepad_Debug_Flags,
     // -------------------
 
     using os_specific: OS_Specific,
@@ -97,9 +97,6 @@ should_close :: proc() -> bool {
             for gamepad_index in 0..<len(ctx.gamepads) {
                 if gamepad_connected(gamepad_index) {
                     try_connect_gamepad(gamepad_index)
-                    if gamepad_connected(gamepad_index) && ctx.gamepad_debug {
-                        gamepad_debug(gamepad_index)
-                    }
                 }
             }
         }

@@ -16,9 +16,31 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 	if !ctx.gamepads[gamepad_index].active do log.infof("Gamepad %v connected.", gamepad_index)
 	ctx.gamepads[gamepad_index].active = true
 	if ctx.gamepads[gamepad_index].packet_number != state.dwPacketNumber {
+		// TODO(pJotoro): We could make gamepad input delta be in the crossplatform code, considering that it doesn't use any Windows procedures. I might do that eventually. The only reason
+		// I haven't is because I'm not sure if other gamepad input APIs already calculate the input delta for you.
+
+		left_trigger_previous := ctx.gamepads[gamepad_index].left_trigger
+		right_trigger_previous := ctx.gamepads[gamepad_index].right_trigger
+		left_stick_previous := ctx.gamepads[gamepad_index].left_stick
+		right_stick_previous := ctx.gamepads[gamepad_index].right_stick
+
 		get_input(&ctx.gamepads[gamepad_index], state.Gamepad)
+
+		ctx.gamepads[gamepad_index].left_trigger_delta = ctx.gamepads[gamepad_index].left_trigger - left_trigger_previous
+		ctx.gamepads[gamepad_index].right_trigger_delta = ctx.gamepads[gamepad_index].right_trigger - right_trigger_previous
+		ctx.gamepads[gamepad_index].left_stick_delta = ctx.gamepads[gamepad_index].left_stick - left_stick_previous
+		ctx.gamepads[gamepad_index].right_stick_delta = ctx.gamepads[gamepad_index].right_stick - right_stick_previous
+
+		// NOTE(pJotoro): If the gamepad's state hasn't changed at all, debug info about it doesn't get outputted. This is nice because it prevents the console from getting flooded. The only
+		// issue is if you press buttons not enabled for debug output, debug output will still happen anyway. I don't think it's worth it to fix this.
+		gamepad_debug(gamepad_index)
 	} else {
 		ctx.gamepads[gamepad_index].buttons_previous = ctx.gamepads[gamepad_index].buttons
+		
+		ctx.gamepads[gamepad_index].left_trigger_delta = 0.0
+		ctx.gamepads[gamepad_index].right_trigger_delta = 0.0
+		ctx.gamepads[gamepad_index].left_stick_delta = {0.0, 0.0}
+		ctx.gamepads[gamepad_index].right_stick_delta = {0.0, 0.0}
 	}
 	ctx.gamepads[gamepad_index].packet_number = state.dwPacketNumber
 	
@@ -41,7 +63,7 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 		gamepad.left_stick.y = f32(xinput_gamepad.sThumbLY) / LEFT_THUMB_MAX
 		gamepad.right_stick.x = f32(xinput_gamepad.sThumbRX) / RIGHT_THUMB_MAX
 		gamepad.right_stick.y = f32(xinput_gamepad.sThumbRY) / RIGHT_THUMB_MAX
-	
+
 		cut_deadzones :: proc "contextless" (xinput_gamepad: ^xinput.GAMEPAD) {
 			xinput_gamepad.bLeftTrigger -= xinput_gamepad.bLeftTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) ? win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) : xinput_gamepad.bLeftTrigger
 			xinput_gamepad.bRightTrigger -= xinput_gamepad.bRightTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) ? win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) : xinput_gamepad.bRightTrigger

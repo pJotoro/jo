@@ -30,6 +30,12 @@ Gamepad_Desc :: struct {
 	right_trigger: f32,
 	left_stick: [2]f32,
 	right_stick: [2]f32,
+
+	left_trigger_delta: f32,
+	right_trigger_delta: f32,
+	left_stick_delta: [2]f32,
+	right_stick_delta: [2]f32,
+
 	packet_number: u32, // TODO(pJotoro): Do other platforms have a similar concept? I'm assuming they do.
 	active: bool,
 }
@@ -98,4 +104,24 @@ gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, 
 		right_motor = clamp(right_motor, 0.0, 1.0)
 	}
 	_gamepad_set_vibration(gamepad_index, left_motor, right_motor)
+}
+
+gamepad_left_trigger_delta :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> f32 {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return ctx.gamepads[gamepad_index].left_trigger_delta
+}
+
+gamepad_right_trigger_delta :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> f32 {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return ctx.gamepads[gamepad_index].right_trigger_delta
+}
+
+gamepad_left_stick_delta :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> [2]f32 {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return ctx.gamepads[gamepad_index].left_stick_delta
+}
+
+gamepad_right_stick_delta :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> [2]f32 {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return ctx.gamepads[gamepad_index].right_stick_delta
 }
