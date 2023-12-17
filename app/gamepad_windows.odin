@@ -3,14 +3,17 @@ package app
 
 import win32 "core:sys/windows"
 import "xinput"
+import "core:log"
 
-_try_connect_gamepad :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> bool {
+_try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 	state: xinput.STATE = ---
 	result := xinput.GetState(win32.DWORD(gamepad_index), &state)
 	if result != win32.ERROR_SUCCESS {
+		log.infof("Gamepad %v disconnected.", gamepad_index)
 		ctx.gamepads[gamepad_index].active = false
 		return false
 	}
+	if !ctx.gamepads[gamepad_index].active do log.infof("Gamepad %v connected.", gamepad_index)
 	ctx.gamepads[gamepad_index].active = true
 	get_input(&ctx.gamepads[gamepad_index], state.Gamepad)
 	return true
@@ -56,11 +59,13 @@ _try_connect_gamepad :: proc "contextless" (gamepad_index: int, loc := #caller_l
 	}
 }
 
-_gamepad_set_vibration :: proc "contextless" (gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
+_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32) {
 	if !ctx.gamepads[gamepad_index].active do return
 
 	xinput_vibration: xinput.VIBRATION
 	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f32(max(u16)))
 	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f32(max(u16)))
-	xinput.SetState(win32.DWORD(gamepad_index), &xinput_vibration)
+	result := xinput.SetState(win32.DWORD(gamepad_index), &xinput_vibration)
+	if result != win32.ERROR_SUCCESS do log.errorf("Failed to set vibration for gamepad %v.", gamepad_index)
+	else do log.infof("Succeeded to set vibration for gamepad %v.", gamepad_index)
 }

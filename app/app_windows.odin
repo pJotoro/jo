@@ -3,8 +3,8 @@ package app
 
 import win32 "core:sys/windows"
 import "core:intrinsics"
-import "core:runtime"
-import "core:fmt"
+import "core:log"
+
 import "xinput"
 import "../misc"
 
@@ -244,14 +244,19 @@ _init :: proc(loc := #caller_location) {
         wname = win32.utf8_to_wstring(ctx.name)
     }
 
+    module_handle := win32.HANDLE(win32.GetModuleHandleW(nil))
+    if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
+    log.info("Succeeded to get module handle.")
+
     window_class := win32.WNDCLASSEXW{
         cbSize = size_of(win32.WNDCLASSEXW),
         style = ctx.window_class_flags,
         lpfnWndProc = window_proc,
-        hInstance = win32.HANDLE(win32.GetModuleHandleW(nil)),
+        hInstance = module_handle,
         lpszClassName = L("app_class_name"),
     }
-    if win32.RegisterClassExW(&window_class) == 0 do misc.panic(loc)
+    if win32.RegisterClassExW(&window_class) == 0 do log.panicf("Failed to register window class. %v", misc.get_last_error_message())
+    log.info("Succeeded to register window class.")
 
     ctx.window = win32.CreateWindowExW(
         ctx.window_extended_flags, 
@@ -266,70 +271,66 @@ _init :: proc(loc := #caller_location) {
         nil, 
         window_class.hInstance, 
         nil)
-    if ctx.window == nil do misc.panic(loc)
+    if ctx.window == nil do log.panicf("Failed to create window. %v", misc.get_last_error_message())
+    log.info("Succeeded to create window.")
 
     monitor := win32.MonitorFromWindow(ctx.window, .MONITOR_DEFAULTTOPRIMARY)
     monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
     ok := win32.GetMonitorInfoW(monitor, &monitor_info)
-    assert(ok == true, "failed to get monitor info", loc)
+    if !ok do log.errorf("Failed to get monitor info. %v", misc.get_last_error_message())
+    else {
+        log.info("Succeeded to get monitor info.")
 
-    client_width, client_height, client_left, client_right, client_top, client_bottom: i32
+        client_width, client_height, client_left, client_right, client_top, client_bottom: i32
 
-    if ctx.window_flags & win32.WS_POPUP == 0 {
-        client_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) / 2 : i32(ctx.width)
-        client_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) / 2 : i32(ctx.height)
+        if ctx.window_flags & win32.WS_POPUP == 0 {
+            client_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) / 2 : i32(ctx.width)
+            client_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) / 2 : i32(ctx.height)
 
-        client_left = monitor_info.rcMonitor.left + (client_width / 2)
-        client_top = monitor_info.rcMonitor.top + (client_height / 2)
-        client_right = client_left + client_width
-        client_bottom = client_top + client_height
-    } else {
-        client_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) : i32(ctx.width)
-        client_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) : i32(ctx.height)
+            client_left = monitor_info.rcMonitor.left + (client_width / 2)
+            client_top = monitor_info.rcMonitor.top + (client_height / 2)
+            client_right = client_left + client_width
+            client_bottom = client_top + client_height
+        } else {
+            client_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) : i32(ctx.width)
+            client_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) : i32(ctx.height)
 
-        client_left = 0
-        client_top = 0
-        client_right = client_width
-        client_bottom = client_height
+            client_left = 0
+            client_top = 0
+            client_right = client_width
+            client_bottom = client_height
+        }
+
+        window_rect := win32.RECT{client_left, client_top, client_right, client_bottom}
+        ok = win32.AdjustWindowRectExForDpi(&window_rect, ctx.window_flags, false, ctx.window_extended_flags, ctx.dpi)
+        if !ok do log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+        else {
+            log.info("Succeeded to adjust window rectangle.")
+
+            ok = win32.SetWindowPos(ctx.window, nil, window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0)
+            if !ok do log.errorf("Failed to set window position. %v", misc.get_last_error_message())
+            else {
+                log.info("Succeeded to set window position.")
+
+                rect: win32.RECT = ---
+                ok = win32.GetClientRect(ctx.window, &rect)
+                if !ok do log.errorf("Failed to get client rectangle. %v", misc.get_last_error_message())
+                else {
+                    log.info("Succeeded to get client rectangle.")
+                    ctx.width = int(rect.right - rect.left)
+                    ctx.height = int(rect.bottom - rect.top)
+                }
+            }
+        }
     }
-
-    window_rect := win32.RECT{client_left, client_top, client_right, client_bottom}
-    ok = win32.AdjustWindowRectExForDpi(&window_rect, ctx.window_flags, false, ctx.window_extended_flags, ctx.dpi)
-    if !ok do misc.panic(loc)
-
-    ok = win32.SetWindowPos(ctx.window, nil, window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0)
-    if !ok do misc.panic(loc)
-
-    rect: win32.RECT = ---
-    ok = win32.GetClientRect(ctx.window, &rect)
-    if !ok do misc.panic(loc)
-    if ctx.width != 0 do fmt.assertf(ctx.width == int(rect.right - rect.left), "incorrectly set client width! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
-    ctx.width = int(rect.right - rect.left)
-    if ctx.height != 0 do fmt.assertf(ctx.height == int(rect.bottom - rect.top), "incorrectly set client height! window_rect = %v, client_rect = %v, ctx.width = %v, ctx.height = %v", window_rect, rect, ctx.width, ctx.height)
-    ctx.height = int(rect.bottom - rect.top)
 
     ctx.can_connect_gamepad = xinput.init()
-
-    for gamepad_index in 0..<len(ctx.gamepads) {
-        try_connect_gamepad(gamepad_index)
-    }
 }
 
 _should_close :: proc() -> bool {
-    for &k in ctx.keyboard_keys_pressed do k = false
-    for &k in ctx.keyboard_keys_released do k = false
-
-    ctx.left_mouse_pressed = false
-    ctx.left_mouse_released = false
-    ctx.right_mouse_pressed = false
-    ctx.right_mouse_released = false
-    ctx.middle_mouse_pressed = false
-    ctx.middle_mouse_released = false
-
-    ctx.mouse_wheel = 0
-
     if ctx.visible == -1 do ctx.visible += 1
     else if ctx.visible == 0 {
+        log.info("Window shown.")
         ctx.visible += 1
         win32.ShowWindow(ctx.window, win32.SW_SHOW)
     }
@@ -343,21 +344,16 @@ _should_close :: proc() -> bool {
         break
     }
 
-    for gamepad_index in 0..<len(ctx.gamepads) {
-        if gamepad_connected(gamepad_index) do try_connect_gamepad(gamepad_index)
-    }
-
     return ctx.should_close
 }
 
-_render :: proc(bitmap: []u32, loc := #caller_location) {
-    // TODO(pJotoro): render should change ctx.width and/or ctx.height if the bitmap is too small.
-    if len(bitmap) < ctx.width * ctx.height do runtime.panic("bitmap too small", loc)
-    if len(bitmap) > ctx.width * ctx.height do runtime.panic("bitmap too big", loc)
+_render :: proc(bitmap: []u32) {
+    // TODO(pJotoro): find a more efficient way to do this.
     for &pixel in bitmap {
         if pixel != 0 do pixel = rgba_to_bgr(pixel)
     }
     hdc := win32.GetDC(ctx.window)
+    if hdc == nil do log.panic("Failed to get window device context.")
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
         biSize = size_of(win32.BITMAPINFOHEADER),
@@ -367,8 +363,10 @@ _render :: proc(bitmap: []u32, loc := #caller_location) {
         biBitCount = 32,
         biCompression = win32.BI_RGB,
     }
-    win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(bitmap), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
-    win32.ReleaseDC(ctx.window, hdc)
+    result := win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(bitmap), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
+    if result == 0 do log.panic("Failed to render bitmap.")
+    result = win32.ReleaseDC(ctx.window, hdc)
+    if result == 0 do log.panic("Failed to release window device context.")
 
     rgba_to_bgr_u8 :: #force_inline proc "contextless" (r, g, b, a: u8) -> (bgr: u32) {
         src_r := r != 0 ? f32(r) / 255 : 0
@@ -407,10 +405,17 @@ _render :: proc(bitmap: []u32, loc := #caller_location) {
 }
 
 _mouse_position :: proc(loc := #caller_location) -> (x, y: int) {
-    point: win32.POINT = ---
+    @static point: win32.POINT
+    p := point
     ok := win32.GetCursorPos(&point)
-    if !ok do misc.panic(loc)
+    if !ok {
+        log.error("Failed to get cursor position. Returning last cursor position instead.")
+        return int(p.x), -int(p.y) + height()
+    }
     ok = win32.ScreenToClient(ctx.window, &point)
-    if !ok do misc.panic(loc)
+    if !ok {
+        log.error("Failed to convert cursor screen position to client position. Returning last cursor position instead.")
+        return int(p.x), -int(p.y) + height()
+    }
     return int(point.x), -int(point.y) + height() // TODO(pJotoro): Do the same for the events which return a y-position on the window
 }

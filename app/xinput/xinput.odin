@@ -2,6 +2,7 @@ package xinput
 
 import win32 "core:sys/windows"
 import "core:dynlib"
+import "core:log"
 
 BOOL :: win32.BOOL
 DWORD :: win32.DWORD
@@ -53,16 +54,32 @@ init :: proc() -> bool {
 	ok: bool
 	library, ok = dynlib.load_library("XINPUT1_4.DLL")
 	if !ok {
+		log.info("Failed to load XInput 1.4, now trying XInput 9.1.0.")
 		library, ok = dynlib.load_library("XINPUT9_1_0.DLL")
 		if !ok {
+			log.info("Failed to load XInput 9.1.0, now trying XInput 1.3.")
 			library, ok = dynlib.load_library("XINPUT1_3.DLL")
-			if !ok do return false
+			if !ok {
+				log.info("Failed to load XInput 1.3.")
+				return false
+			}
+			else do log.info("Succeeded to load XInput 1.3.")
 		}
+		else do log.info("Succeeded to load XInput 9.1.0.")
 	}
+	else do log.info("Succeeded to load XInput 1.4.")
 	GetState = auto_cast dynlib.symbol_address(library, "XInputGetState")
-	if GetState == nil do GetState = GetState_stub
+	if GetState == nil {
+		log.info("Failed to load XInputGetState.")
+		GetState = GetState_stub
+	}
+	else do log.info("Succeeded to load XInputGetState.")
 	SetState = auto_cast dynlib.symbol_address(library, "XInputSetState")
-	if SetState == nil do SetState = SetState_stub
-
+	if SetState == nil {
+		log.info("Failed to load XInputSetState.")
+		SetState = SetState_stub
+	}
+	else do log.info("Succeeded to load XInputSetState.")
+	
 	return true
 }

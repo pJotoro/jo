@@ -1,6 +1,7 @@
 package app
 
 import "core:runtime"
+import "core:log"
 
 Gamepad_Button :: enum u16 {
 	Dpad_Up,
@@ -36,9 +37,9 @@ can_connect_gamepad :: proc "contextless" () -> bool {
 	return ctx.can_connect_gamepad
 }
 
-try_connect_gamepad :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> bool {
+try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
-	return _try_connect_gamepad(gamepad_index, loc)
+	return _try_connect_gamepad(gamepad_index)
 }
 
 gamepad_connected :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> bool {
@@ -88,6 +89,9 @@ gamepad_right_stick :: proc "contextless" (gamepad_index: int, loc := #caller_lo
 
 gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
-	assert(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1, "motors out of range 0..1", loc)
-	_gamepad_set_vibration(gamepad_index, left_motor, right_motor, loc)
+	if !(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1) {
+		log.warnf("Motors must be in range [0.0, 1.0]. Got %v and %v.")
+		return
+	}
+	_gamepad_set_vibration(gamepad_index, left_motor, right_motor)
 }

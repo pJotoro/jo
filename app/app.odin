@@ -1,6 +1,7 @@
 package app
 
 import "core:runtime"
+import "core:log"
 
 Configuration :: enum {
     Game,
@@ -68,14 +69,46 @@ init :: proc(title := "", width := 0, height := 0, event_callback: Event_Callbac
     ctx.configuration = configuration
 
     _init(loc)
+
+    if can_connect_gamepad() {
+        for gamepad_index in 0..<len(ctx.gamepads) {
+            try_connect_gamepad(gamepad_index)
+        }
+    }
 }
 
 should_close :: proc() -> bool {
-    return _should_close()
+    for &k in ctx.keyboard_keys_pressed do k = false
+    for &k in ctx.keyboard_keys_released do k = false
+
+    ctx.left_mouse_pressed = false
+    ctx.left_mouse_released = false
+    ctx.right_mouse_pressed = false
+    ctx.right_mouse_released = false
+    ctx.middle_mouse_pressed = false
+    ctx.middle_mouse_released = false
+
+    ctx.mouse_wheel = 0
+
+    if _should_close() {
+        if can_connect_gamepad() {
+            for gamepad_index in 0..<len(ctx.gamepads) {
+                if gamepad_connected(gamepad_index) do try_connect_gamepad(gamepad_index)
+            }
+        }
+
+        return true
+    }
+
+    return false
 }
 
-render :: proc(bitmap: []u32, loc := #caller_location) {
-    _render(bitmap, loc)
+render :: proc(bitmap: []u32) {
+    // TODO(pJotoro): render should change ctx.width and/or ctx.height if the bitmap is too small.
+    if len(bitmap) < width() * height() do log.panic("bitmap too small")
+    if len(bitmap) > width() * height() do log.panic("bitmap too big")
+
+    _render(bitmap)
 }
 
 window :: proc "contextless" () -> rawptr {
