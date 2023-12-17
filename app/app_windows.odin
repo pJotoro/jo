@@ -410,12 +410,14 @@ _mouse_position :: proc() -> (x, y: int) {
     ok := win32.GetCursorPos(&point)
     if !ok {
         log.error("Failed to get cursor position. Returning last cursor position instead.")
-        return int(p.x), -int(p.y) + height()
+        point = p
+        return int(point.x), -int(point.y) + height()
     }
     ok = win32.ScreenToClient(ctx.window, &point)
     if !ok {
         log.error("Failed to convert cursor screen position to client position. Returning last cursor position instead.")
-        return int(p.x), -int(p.y) + height()
+        point = p
+        return int(point.x), -int(point.y) + height()
     }
     return int(point.x), -int(point.y) + height() // TODO(pJotoro): Do the same for the events which return a y-position on the window
 }
