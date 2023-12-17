@@ -1,6 +1,5 @@
 package app
 
-import "core:runtime"
 import "core:log"
 
 Configuration :: enum {
@@ -10,8 +9,6 @@ Configuration :: enum {
 
 @(private)
 Context :: struct {
-    allocator: runtime.Allocator,
-
     // ----- init -----
     name: string,
     width, height: int,
@@ -57,18 +54,20 @@ Context :: struct {
 @(private)
 ctx: Context
 
-init :: proc(title := "", width := 0, height := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, configuration: Configuration = .Game, allocator := context.allocator, loc := #caller_location) {
-    assert((width == 0 && height == 0) || (width != 0 && height != 0), "width and height must be set or unset together", loc)
-    ctx.allocator = allocator
+init :: proc(title := "", width := 0, height := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, configuration: Configuration = .Game, loc := #caller_location) {
+    if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
+        log.warn("Width and height must be set or unset together.")
+    } else {
+        ctx.width = width
+        ctx.height = height
+    }
 
     ctx.name = title
-    ctx.width = width
-    ctx.height = height
     ctx.event_callback = event_callback
     ctx.user_data = user_data
     ctx.configuration = configuration
 
-    _init(loc)
+    _init()
 
     if can_connect_gamepad() {
         for gamepad_index in 0..<len(ctx.gamepads) {
