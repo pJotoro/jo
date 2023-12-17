@@ -20,7 +20,7 @@ main :: proc() {
 	pos.y = f32((app.height() - awesomeface.height) / 2)
 	
 	for !app.should_close() {
-        if app.key_pressed(.Escape) do return
+		if app.key_pressed(.Escape) do return
 		mem.zero_slice(bitmap)
 
 		if app.gamepad_connected(0) {
@@ -36,7 +36,7 @@ main :: proc() {
 
 		draw_image(bitmap, awesomeface, pos)
 
-        app.render(bitmap)
+		app.render(bitmap)
 	}
 }
 
@@ -79,7 +79,7 @@ main :: proc() {
 	app.gl_init(4, 6)
 
 	for !app.should_close() {
-        if app.key_pressed(.Escape) do return
+		if app.key_pressed(.Escape) do return
 
 		gl.ClearColor(0.123, 0.456, 0.789, 1)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
