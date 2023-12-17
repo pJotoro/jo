@@ -15,8 +15,6 @@ Context :: struct {
     user_data: rawptr,
     configuration: Configuration,
     event_callback: Event_Callback,
-
-    can_connect_gamepad: bool,
     // ----------------
 
     // ----- running -----
@@ -48,6 +46,11 @@ Context :: struct {
 
     mouse_wheel: int,
     // -----------------
+
+    // ----- gamepad -----
+    can_connect_gamepad: bool,
+    gamepad_debug: bool,
+    // -------------------
 
     using os_specific: OS_Specific,
 }
@@ -89,17 +92,22 @@ should_close :: proc() -> bool {
 
     ctx.mouse_wheel = 0
 
-    if _should_close() {
+    if !_should_close() {
         if can_connect_gamepad() {
             for gamepad_index in 0..<len(ctx.gamepads) {
-                if gamepad_connected(gamepad_index) do try_connect_gamepad(gamepad_index)
+                if gamepad_connected(gamepad_index) {
+                    try_connect_gamepad(gamepad_index)
+                    if gamepad_connected(gamepad_index) && ctx.gamepad_debug {
+                        gamepad_debug(gamepad_index)
+                    }
+                }
             }
         }
 
-        return true
+        return false
     }
 
-    return false
+    return true
 }
 
 render :: proc(bitmap: []u32) {

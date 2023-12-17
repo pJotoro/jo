@@ -15,16 +15,22 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 	}
 	if !ctx.gamepads[gamepad_index].active do log.infof("Gamepad %v connected.", gamepad_index)
 	ctx.gamepads[gamepad_index].active = true
-	get_input(&ctx.gamepads[gamepad_index], state.Gamepad)
+	if ctx.gamepads[gamepad_index].packet_number != state.dwPacketNumber {
+		get_input(&ctx.gamepads[gamepad_index], state.Gamepad)
+	} else {
+		ctx.gamepads[gamepad_index].buttons_previous = ctx.gamepads[gamepad_index].buttons
+	}
+	ctx.gamepads[gamepad_index].packet_number = state.dwPacketNumber
+	
 	return true
 
 	get_input :: proc "contextless" (gamepad: ^Gamepad_Desc, xinput_gamepad: xinput.GAMEPAD) {
 		xinput_gamepad := xinput_gamepad
 		cut_deadzones(&xinput_gamepad)
 	
-		TRIGGER_MAX := f32(max(win32.BYTE) - win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD))
-		LEFT_THUMB_MAX := f32(max(win32.SHORT) - xinput.GAMEPAD_LEFT_THUMB_DEADZONE)
-		RIGHT_THUMB_MAX := f32(max(win32.SHORT) - xinput.GAMEPAD_RIGHT_THUMB_DEADZONE)
+		@static TRIGGER_MAX := f32(max(win32.BYTE) - win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD))
+		@static LEFT_THUMB_MAX := f32(max(win32.SHORT) - xinput.GAMEPAD_LEFT_THUMB_DEADZONE)
+		@static RIGHT_THUMB_MAX := f32(max(win32.SHORT) - xinput.GAMEPAD_RIGHT_THUMB_DEADZONE)
 	
 		gamepad.buttons_previous = gamepad.buttons
 		gamepad.buttons = transmute(Gamepad_Buttons)xinput_gamepad.wButtons

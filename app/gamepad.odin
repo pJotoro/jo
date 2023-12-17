@@ -30,6 +30,7 @@ Gamepad_Desc :: struct {
 	right_trigger: f32,
 	left_stick: [2]f32,
 	right_stick: [2]f32,
+	packet_number: u32, // TODO(pJotoro): Do other platforms have a similar concept? I'm assuming they do.
 	active: bool,
 }
 
