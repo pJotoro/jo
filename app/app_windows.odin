@@ -246,7 +246,7 @@ _init :: proc() {
 
     module_handle := win32.HANDLE(win32.GetModuleHandleW(nil))
     if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
-    log.info("Succeeded to get module handle.")
+    log.debug("Succeeded to get module handle.")
 
     window_class := win32.WNDCLASSEXW{
         cbSize = size_of(win32.WNDCLASSEXW),
@@ -256,7 +256,7 @@ _init :: proc() {
         lpszClassName = L("app_class_name"),
     }
     if win32.RegisterClassExW(&window_class) == 0 do log.panicf("Failed to register window class. %v", misc.get_last_error_message())
-    log.info("Succeeded to register window class.")
+    log.debug("Succeeded to register window class.")
 
     ctx.window = win32.CreateWindowExW(
         ctx.window_extended_flags, 
@@ -272,14 +272,14 @@ _init :: proc() {
         window_class.hInstance, 
         nil)
     if ctx.window == nil do log.panicf("Failed to create window. %v", misc.get_last_error_message())
-    log.info("Succeeded to create window.")
+    log.debug("Succeeded to create window.")
 
     monitor := win32.MonitorFromWindow(ctx.window, .MONITOR_DEFAULTTOPRIMARY)
     monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
     ok := win32.GetMonitorInfoW(monitor, &monitor_info)
     if !ok do log.errorf("Failed to get monitor info. %v", misc.get_last_error_message())
     else {
-        log.info("Succeeded to get monitor info.")
+        log.debug("Succeeded to get monitor info.")
 
         client_width, client_height, client_left, client_right, client_top, client_bottom: i32
 
@@ -305,18 +305,18 @@ _init :: proc() {
         ok = win32.AdjustWindowRectExForDpi(&window_rect, ctx.window_flags, false, ctx.window_extended_flags, ctx.dpi)
         if !ok do log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
         else {
-            log.info("Succeeded to adjust window rectangle.")
+            log.debug("Succeeded to adjust window rectangle.")
 
             ok = win32.SetWindowPos(ctx.window, nil, window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0)
             if !ok do log.errorf("Failed to set window position. %v", misc.get_last_error_message())
             else {
-                log.info("Succeeded to set window position.")
+                log.debug("Succeeded to set window position.")
 
                 rect: win32.RECT = ---
                 ok = win32.GetClientRect(ctx.window, &rect)
                 if !ok do log.errorf("Failed to get client rectangle. %v", misc.get_last_error_message())
                 else {
-                    log.info("Succeeded to get client rectangle.")
+                    log.debug("Succeeded to get client rectangle.")
                     ctx.width = int(rect.right - rect.left)
                     ctx.height = int(rect.bottom - rect.top)
                 }
@@ -330,9 +330,9 @@ _init :: proc() {
 _should_close :: proc() -> bool {
     if ctx.visible == -1 do ctx.visible += 1
     else if ctx.visible == 0 {
-        log.info("Window shown.")
         ctx.visible += 1
         win32.ShowWindow(ctx.window, win32.SW_SHOW)
+        log.debug("Window shown.")
     }
     for {
         message: win32.MSG

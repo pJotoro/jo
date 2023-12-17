@@ -67,5 +67,5 @@ _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32)
 	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f32(max(u16)))
 	result := xinput.SetState(win32.DWORD(gamepad_index), &xinput_vibration)
 	if result != win32.ERROR_SUCCESS do log.errorf("Failed to set vibration for gamepad %v.", gamepad_index)
-	else do log.infof("Succeeded to set vibration for gamepad %v.", gamepad_index)
+	else do log.debugf("Succeeded to set vibration for gamepad %v.", gamepad_index)
 }

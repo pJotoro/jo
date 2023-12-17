@@ -12,7 +12,7 @@ _gl_init :: proc(major, minor: int) -> bool {
             log.errorf("OpenGL: failed to create dummy window. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to create dummy window.")
+        log.debug("OpenGL: succeeded to create dummy window.")
         defer win32.DestroyWindow(dummy)
 
         hdc := win32.GetDC(dummy)
@@ -20,7 +20,7 @@ _gl_init :: proc(major, minor: int) -> bool {
             log.error("OpenGL: failed to get dummy window device context.")
             return false
         }
-        log.info("OpenGL: succeeded to get dummy window device context.")
+        log.debug("OpenGL: succeeded to get dummy window device context.")
         defer win32.ReleaseDC(dummy, hdc)
 
         desc := win32.PIXELFORMATDESCRIPTOR{
@@ -35,31 +35,31 @@ _gl_init :: proc(major, minor: int) -> bool {
             log.errorf("OpenGL: failed to choose pixel format for dummy window. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to choose pixel format for dummy window.")
+        log.debug("OpenGL: succeeded to choose pixel format for dummy window.")
         if win32.DescribePixelFormat(hdc, format, size_of(desc), &desc) == 0 {
             log.errorf("OpenGL: failed to describe pixel format for dummy window. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to describe pixel format for dummy window.")
+        log.debug("OpenGL: succeeded to describe pixel format for dummy window.")
         if !win32.SetPixelFormat(hdc, format, &desc) {
             log.errorf("OpenGL: failed to set pixel format for dummy window. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to set pixel format for dummy window.")
+        log.debug("OpenGL: succeeded to set pixel format for dummy window.")
 
         rc := win32.wglCreateContext(hdc)
         if rc == nil {
             log.errorf("OpenGL: failed to create dummy context. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to create dummy context.")
+        log.debug("OpenGL: succeeded to create dummy context.")
         defer win32.wglDeleteContext(rc)
         
         if !win32.wglMakeCurrent(hdc, rc) {
             log.errorf("OpenGL: failed to make dummy context current. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to make dummy context current.")
+        log.debug("OpenGL: succeeded to make dummy context current.")
         defer win32.wglMakeCurrent(nil, nil)
 
         win32.wglChoosePixelFormatARB = win32.ChoosePixelFormatARBType(win32.wglGetProcAddress("wglChoosePixelFormatARB"))
@@ -67,18 +67,19 @@ _gl_init :: proc(major, minor: int) -> bool {
             log.errorf("OpenGL: failed to load wglChoosePixelFormatARB. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to load wglChoosePixelFormatARB.")
+        log.debug("OpenGL: succeeded to load wglChoosePixelFormatARB.")
         win32.wglCreateContextAttribsARB = win32.CreateContextAttribsARBType(win32.wglGetProcAddress("wglCreateContextAttribsARB"))
         if win32.wglCreateContextAttribsARB == nil {
             log.errorf("OpenGL: failed to load wglCreateContextAttribsARB. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to load wglCreateContextAttribsARB.")
+        log.debug("OpenGL: succeeded to load wglCreateContextAttribsARB.")
         win32.wglSwapIntervalEXT = win32.SwapIntervalEXTType(win32.wglGetProcAddress("wglSwapIntervalEXT"))
         if win32.wglSwapIntervalEXT == nil {
-            log.infof("OpenGL: failed to load wglSwapIntervalEXT. VSync disabled. %v", misc.get_last_error_message())
+            log.debugf("OpenGL: failed to load wglSwapIntervalEXT. %v", misc.get_last_error_message())
+            log.info("OpenGL: VSync disabled.")
         } else {
-            log.info("OpenGL: succeeded to load wglSwapIntervalEXT.")
+            log.debug("OpenGL: succeeded to load wglSwapIntervalEXT.")
             ctx.gl_vsync = true
         }
     }
@@ -88,7 +89,7 @@ _gl_init :: proc(major, minor: int) -> bool {
         log.error("OpenGL: failed to get window device context.")
         return false
     }
-    log.info("OpenGL: succeeded to get window device context.")
+    log.debug("OpenGL: succeeded to get window device context.")
     
     {
         attrib := [?]i32{
@@ -108,7 +109,7 @@ _gl_init :: proc(major, minor: int) -> bool {
             log.error("OpenGL: failed to choose pixel format.")
             return false
         }
-        log.info("OpenGL: succeeded to choose pixel format.")
+        log.debug("OpenGL: succeeded to choose pixel format.")
         desc := win32.PIXELFORMATDESCRIPTOR{
             nSize = size_of(win32.PIXELFORMATDESCRIPTOR),
         }
@@ -116,12 +117,12 @@ _gl_init :: proc(major, minor: int) -> bool {
             log.errorf("OpenGL: failed to describe pixel format. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to describe pixel format.")
+        log.debug("OpenGL: succeeded to describe pixel format.")
         if !win32.SetPixelFormat(ctx.gl_hdc, format, &desc) {
             log.errorf("OpenGL: failed to set pixel format. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to set pixel format.")
+        log.debug("OpenGL: succeeded to set pixel format.")
     }
     
     {
@@ -150,20 +151,24 @@ _gl_init :: proc(major, minor: int) -> bool {
             log.errorf("OpenGL: failed to create context.")
             return false
         }
-        log.info("OpenGL: succeeded to create context.")
+        log.debug("OpenGL: succeeded to create context.")
         if !win32.wglMakeCurrent(ctx.gl_hdc, rc) {
             log.errorf("OpenGL: failed to make context current. %v", misc.get_last_error_message())
             return false
         }
-        log.info("OpenGL: succeeded to make context current.")
+        log.debug("OpenGL: succeeded to make context current.")
     }
 
     if ctx.gl_vsync {
         if !win32.wglSwapIntervalEXT(1) {
-            log.info("OpenGL: failed to set swap interval. VSync disabled.")
+            log.debug("OpenGL: failed to set swap interval.")
+            log.info("OpenGL: VSync disabled.")
             ctx.gl_vsync = false
         }
-        else do log.info("OpenGL: succeeded to set swap interval. VSync enabled.")
+        else {
+            log.debug("OpenGL: succeeded to set swap interval.")
+            log.info("OpenGL: VSync enabled.")
+        }
     }
 
     return true

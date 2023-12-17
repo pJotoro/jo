@@ -89,9 +89,12 @@ gamepad_right_stick :: proc "contextless" (gamepad_index: int, loc := #caller_lo
 
 gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	left_motor := left_motor
+	right_motor := right_motor
 	if !(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1) {
 		log.warnf("Motors must be in range [0.0, 1.0]. Got %v and %v.")
-		return
+		left_motor = clamp(left_motor, 0.0, 1.0)
+		right_motor = clamp(right_motor, 0.0, 1.0)
 	}
 	_gamepad_set_vibration(gamepad_index, left_motor, right_motor)
 }
