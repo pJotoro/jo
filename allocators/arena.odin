@@ -1,6 +1,7 @@
 package allocators
 
 import win32 "core:sys/windows"
+import "core:os"
 import "core:mem"
 
 Arena :: struct {
@@ -14,7 +15,7 @@ arena_init :: proc(arena: ^Arena, reserved: uint = mem.Gigabyte) -> bool {
     arena.reserved = reserved
     arena.memory = win32.VirtualAlloc(nil, arena.reserved, win32.MEM_RESERVE, win32.PAGE_READWRITE)
     if arena.memory == nil do return false
-    arena.committed = 4096
+    arena.committed = uint(os.get_page_size())
     arena.memory = win32.VirtualAlloc(arena.memory, arena.committed, win32.MEM_COMMIT, win32.PAGE_READWRITE)
     if arena.memory == nil do return false
     arena.offset = 0
@@ -38,7 +39,7 @@ arena_proc :: proc(data: rawptr, mode: mem.Allocator_Mode, size, alignment: int,
             if offset > arena.reserved do return nil, .Out_Of_Memory
             if offset > arena.committed {
                 arena.committed = offset
-                arena.committed = mem.align_forward_uint(arena.committed, 4096)
+                arena.committed = mem.align_forward_uint(arena.committed, uint(os.get_page_size()))
                 arena.memory = win32.VirtualAlloc(arena.memory, arena.committed, win32.MEM_COMMIT, win32.PAGE_READWRITE)
                 if arena.memory == nil do return nil, .Out_Of_Memory
             }

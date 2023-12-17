@@ -351,7 +351,7 @@ _should_close :: proc() -> bool {
 }
 
 _render :: proc(bitmap: []u32, loc := #caller_location) {
-    // TODO(pJotoro): render should resize the bitmap if it is too small.
+    // TODO(pJotoro): render should change ctx.width and/or ctx.height if the bitmap is too small.
     if len(bitmap) < ctx.width * ctx.height do runtime.panic("bitmap too small", loc)
     if len(bitmap) > ctx.width * ctx.height do runtime.panic("bitmap too big", loc)
     for &pixel in bitmap {
