@@ -14,7 +14,6 @@ Context :: struct {
     width, height: int,
     user_data: rawptr,
     configuration: Configuration,
-    event_callback: Event_Callback,
     // ----------------
 
     // ----- running -----
@@ -52,12 +51,17 @@ Context :: struct {
     gamepad_debug_flags: Gamepad_Debug_Flags,
     // -------------------
 
+    // ----- events -----
+    events: [dynamic]Event,
+    event_index: int,
+    // ------------------
+
     using os_specific: OS_Specific,
 }
 @(private)
 ctx: Context
 
-init :: proc(title := "", width := 0, height := 0, event_callback: Event_Callback = nil, user_data: rawptr = nil, configuration: Configuration = .Game, loc := #caller_location) {
+init :: proc(title := "", width := 0, height := 0, user_data: rawptr = nil, configuration: Configuration = .Game, allocator := context.allocator) {
     if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
         log.warn("Width and height must be set or unset together.")
     } else {
@@ -66,9 +70,10 @@ init :: proc(title := "", width := 0, height := 0, event_callback: Event_Callbac
     }
 
     ctx.name = title
-    ctx.event_callback = event_callback
     ctx.user_data = user_data
     ctx.configuration = configuration
+
+    ctx.events = make([dynamic]Event, allocator)
 
     _init()
 
@@ -92,12 +97,13 @@ should_close :: proc() -> bool {
 
     ctx.mouse_wheel = 0
 
+    clear(&ctx.events)
+    ctx.event_index = 0
+
     if !_should_close() {
         if can_connect_gamepad() {
             for gamepad_index in 0..<len(ctx.gamepads) {
-                if gamepad_connected(gamepad_index) {
-                    try_connect_gamepad(gamepad_index)
-                }
+                if gamepad_connected(gamepad_index) do try_connect_gamepad(gamepad_index)
             }
         }
 
@@ -193,4 +199,12 @@ middle_mouse_double_click :: proc "contextless" () -> bool {
 
 mouse_wheel :: proc "contextless" () -> int {
     return ctx.mouse_wheel
+}
+
+get_event :: proc "contextless" () -> (event: Event, ok: bool) {
+    if ctx.event_index >= len(ctx.events) do return
+    event = ctx.events[ctx.event_index]
+    ctx.event_index += 1
+    ok = true
+    return
 }

@@ -1,6 +1,7 @@
 // +private
 package app
 
+import "core:runtime"
 import win32 "core:sys/windows"
 import "core:intrinsics"
 import "core:log"
@@ -26,6 +27,7 @@ L :: intrinsics.constant_utf16_cstring
 
 @(private="file")
 window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
+    context = runtime.default_context()
     result := win32.LRESULT(0)
     
     switch message {
@@ -35,30 +37,26 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             if !ctx.keyboard_keys[key] do ctx.keyboard_keys_pressed[key] = true
             ctx.keyboard_keys[key] = true
 
-            if ctx.event_callback != nil {
-                repeat_count  := (l_param & 0x0000FFFF)
-                already_down  := (l_param & 0x40000000) >> 30
-                event := Event_Key_Down{
-                    key = key,
-                    repeat_count = repeat_count,
-                    already_down = bool(already_down),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            repeat_count  := (l_param & 0x0000FFFF)
+            already_down  := (l_param & 0x40000000) >> 30
+            event := Event_Key_Down{
+                key = key,
+                repeat_count = repeat_count,
+                already_down = bool(already_down),
             }
+            append(&ctx.events, event)
 
         case win32.WM_CHAR:
             char := rune(w_param)
 
-            if ctx.event_callback != nil {
-                repeat_count  := (l_param & 0x0000FFFF)
-                already_down  := (l_param & 0x40000000) >> 30
-                event := Event_Char{
-                    char = char,
-                    repeat_count = repeat_count,
-                    already_down = bool(already_down),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            repeat_count  := (l_param & 0x0000FFFF)
+            already_down  := (l_param & 0x40000000) >> 30
+            event := Event_Char{
+                char = char,
+                repeat_count = repeat_count,
+                already_down = bool(already_down),
             }
+            append(&ctx.events, event)
 
         case win32.WM_KEYUP, win32.WM_SYSKEYUP:
             key := Keyboard_Key(w_param)
@@ -66,146 +64,124 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             ctx.keyboard_keys[key] = false
             ctx.keyboard_keys_released[key] = true
 
-            if ctx.event_callback != nil {
-                event := Event_Key_Up{
-                    key = key,
-                }
-                ctx.event_callback(event, ctx.user_data)
+            event := Event_Key_Up{
+                key = key,
             }
+            append(&ctx.events, event)
 
         case win32.WM_LBUTTONDOWN:
             if !ctx.left_mouse_down do ctx.left_mouse_pressed = true
             ctx.left_mouse_down = true
 
-            if ctx.event_callback != nil {
-                x := i32(l_param & 0xFFFFFFFF)
-                y := i32(l_param >> 32)
-                event := Event_Left_Mouse_Down{
-                    x = int(x),
-                    y = int(y),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            x := i32(l_param & 0xFFFFFFFF)
+            y := i32(l_param >> 32)
+            event := Event_Left_Mouse_Down{
+                x = int(x),
+                y = int(y),
             }
+            append(&ctx.events, event)
             
         case win32.WM_LBUTTONUP:
             ctx.left_mouse_down= false
             ctx.left_mouse_released = true
 
-            if ctx.event_callback != nil {
-                x := i32(l_param & 0xFFFFFFFF)
-                y := i32(l_param >> 32)
-                event := Event_Left_Mouse_Up{
-                    x = int(x),
-                    y = int(y),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            x := i32(l_param & 0xFFFFFFFF)
+            y := i32(l_param >> 32)
+            event := Event_Left_Mouse_Up{
+                x = int(x),
+                y = int(y),
             }
+            append(&ctx.events, event)
             
         case win32.WM_LBUTTONDBLCLK:
             ctx.left_mouse_double_click = true
 
-            if ctx.event_callback != nil {
-                x := i32(l_param & 0xFFFFFFFF)
-                y := i32(l_param >> 32)
-                event := Event_Left_Mouse_Up{
-                    x = int(x),
-                    y = int(y),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            x := i32(l_param & 0xFFFFFFFF)
+            y := i32(l_param >> 32)
+            event := Event_Left_Mouse_Up{
+                x = int(x),
+                y = int(y),
             }
+            append(&ctx.events, event)
 
         case win32.WM_RBUTTONDOWN:
             if !ctx.right_mouse_down do ctx.right_mouse_pressed = true
             ctx.right_mouse_down = true
 
-            if ctx.event_callback != nil {
-                x := i32(l_param & 0xFFFFFFFF)
-                y := i32(l_param >> 32)
-                event := Event_Right_Mouse_Down{
-                    x = int(x),
-                    y = int(y),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            x := i32(l_param & 0xFFFFFFFF)
+            y := i32(l_param >> 32)
+            event := Event_Right_Mouse_Down{
+                x = int(x),
+                y = int(y),
             }
+            append(&ctx.events, event)
 
         case win32.WM_RBUTTONUP:
             ctx.right_mouse_down = false
             ctx.right_mouse_released = true
 
-            if ctx.event_callback != nil  {
-                x := i32(l_param & 0xFFFFFFFF)
-                y := i32(l_param >> 32)
-                event := Event_Right_Mouse_Up{
-                    x = int(x),
-                    y = int(y),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            x := i32(l_param & 0xFFFFFFFF)
+            y := i32(l_param >> 32)
+            event := Event_Right_Mouse_Up{
+                x = int(x),
+                y = int(y),
             }
+            append(&ctx.events, event)
 
         case win32.WM_RBUTTONDBLCLK:
             ctx.right_mouse_double_click = true
 
-            if ctx.event_callback != nil  {
-                x := i32(l_param & 0xFFFFFFFF)
-                y := i32(l_param >> 32)
-                event := Event_Right_Mouse_Up{
-                    x = int(x),
-                    y = int(y),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            x := i32(l_param & 0xFFFFFFFF)
+            y := i32(l_param >> 32)
+            event := Event_Right_Mouse_Up{
+                x = int(x),
+                y = int(y),
             }
+            append(&ctx.events, event)
 
         case win32.WM_MBUTTONDOWN:
             if !ctx.middle_mouse_down do ctx.middle_mouse_pressed = true
             ctx.middle_mouse_down = true
 
-            if ctx.event_callback != nil  {
-                x := i32(l_param & 0xFFFFFFFF)
-                y := i32(l_param >> 32)
-                event := Event_Middle_Mouse_Down{
-                    x = int(x),
-                    y = int(y),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            x := i32(l_param & 0xFFFFFFFF)
+            y := i32(l_param >> 32)
+            event := Event_Middle_Mouse_Down{
+                x = int(x),
+                y = int(y),
             }
+            append(&ctx.events, event)
 
         case win32.WM_MBUTTONUP:
             ctx.middle_mouse_down = false
             ctx.middle_mouse_released = true
 
-            if ctx.event_callback != nil  {
-                x := i32(l_param & 0xFFFFFFFF)
-                y := i32(l_param >> 32)
-                event := Event_Middle_Mouse_Up{
-                    x = int(x),
-                    y = int(y),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            x := i32(l_param & 0xFFFFFFFF)
+            y := i32(l_param >> 32)
+            event := Event_Middle_Mouse_Up{
+                x = int(x),
+                y = int(y),
             }
+            append(&ctx.events, event)
 
         case win32.WM_MBUTTONDBLCLK:
             ctx.middle_mouse_double_click = true
 
-            if ctx.event_callback != nil  {
-                x := i32(l_param & 0xFFFFFFFF)
-                y := i32(l_param >> 32)
-                event := Event_Middle_Mouse_Up{
-                    x = int(x),
-                    y = int(y),
-                }
-                ctx.event_callback(event, ctx.user_data)
+            x := i32(l_param & 0xFFFFFFFF)
+            y := i32(l_param >> 32)
+            event := Event_Middle_Mouse_Up{
+                x = int(x),
+                y = int(y),
             }
+            append(&ctx.events, event)
 
         case win32.WM_MOUSEWHEEL:
             amount := i32(w_param >> 32)
             ctx.mouse_wheel += int(amount) * win32.WHEEL_DELTA
 
-            if ctx.event_callback != nil  {
-                event := Event_Mouse_Wheel{
-                    amount = int(amount) * win32.WHEEL_DELTA,
-                }
-                ctx.event_callback(event, ctx.user_data)
+            event := Event_Mouse_Wheel{
+                amount = int(amount) * win32.WHEEL_DELTA,
             }
+            append(&ctx.events, event)
 
         case win32.WM_CLOSE, win32.WM_DESTROY, win32.WM_QUIT:
             ctx.should_close = true

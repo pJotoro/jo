@@ -75,5 +75,3 @@ Event :: union {
     
     Event_Mouse_Wheel,
 }
-
-Event_Callback :: #type proc(event: Event, user_data: rawptr)
