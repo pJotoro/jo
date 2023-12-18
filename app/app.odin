@@ -105,7 +105,7 @@ should_close :: proc() -> bool {
                 if gamepad_connected(gamepad_index) do try_connect_gamepad(gamepad_index)
             }
         }
-
+ 
         return false
     }
 
