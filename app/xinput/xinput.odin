@@ -54,18 +54,18 @@ init :: proc() -> bool {
 	ok: bool
 	library, ok = dynlib.load_library("XINPUT1_4.DLL")
 	if !ok {
-		log.debug("Failed to load XInput 1.4, now trying XInput 9.1.0.")
-		library, ok = dynlib.load_library("XINPUT9_1_0.DLL")
+		log.debug("Failed to load XInput 1.4, now trying XInput 1.3.")
+		library, ok = dynlib.load_library("XINPUT1_3.DLL")
 		if !ok {
-			log.debug("Failed to load XInput 9.1.0, now trying XInput 1.3.")
-			library, ok = dynlib.load_library("XINPUT1_3.DLL")
+			log.debug("Failed to load XInput 1.3., now trying XInput 9.1.0.")
+			library, ok = dynlib.load_library("XINPUT9_1_0.DLL")
 			if !ok {
-				log.debug("Failed to load XInput 1.3.")
+				log.debug("Failed to load XInput 9.1.0.")
 				return false
 			}
-			else do log.debug("Succeeded to load XInput 1.3.")
+			else do log.debug("Succeeded to load XInput 9.1.0.")
 		}
-		else do log.debug("Succeeded to load XInput 9.1.0.")
+		else do log.debug("Succeeded to load XInput 1.3.")
 	}
 	else do log.debug("Succeeded to load XInput 1.4.")
 	GetState = auto_cast dynlib.symbol_address(library, "XInputGetState")
