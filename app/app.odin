@@ -2,18 +2,12 @@ package app
 
 import "core:log"
 
-Configuration :: enum {
-    Game,
-    Tool,
-}
-
 @(private)
 Context :: struct {
     // ----- init -----
     name: string,
     width, height: int,
-    user_data: rawptr,
-    configuration: Configuration,
+    fullscreen_mode: Fullscreen_Mode,
     // ----------------
 
     // ----- running -----
@@ -61,7 +55,13 @@ Context :: struct {
 @(private)
 ctx: Context
 
-init :: proc(title := "", width := 0, height := 0, user_data: rawptr = nil, configuration: Configuration = .Game, allocator := context.allocator) {
+Fullscreen_Mode :: enum {
+    Auto,
+    Off,
+    On,
+}
+
+init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, allocator := context.allocator) {
     if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
         log.warn("Width and height must be set or unset together.")
     } else {
@@ -70,8 +70,7 @@ init :: proc(title := "", width := 0, height := 0, user_data: rawptr = nil, conf
     }
 
     ctx.name = title
-    ctx.user_data = user_data
-    ctx.configuration = configuration
+    ctx.fullscreen_mode = fullscreen
 
     ctx.events = make([dynamic]Event, allocator)
 

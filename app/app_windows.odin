@@ -202,102 +202,114 @@ foreign user32 {
 
 _init :: proc() {
     ctx.visible = -1
-    ctx.dpi = GetDpiForSystem()
+    
+    {
+        ctx.dpi = GetDpiForSystem()
+        ok := win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE)
+        if !ok do log.error("Failed to make process DPI aware.")
+        else do log.debug("Succeeded to make process DPI aware.")
+    }
+    
+    monitor_width, monitor_height: int
+    {
+        monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
+        monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
+        ok := win32.GetMonitorInfoW(monitor, &monitor_info)
+        if !ok do log.panicf("Failed to get monitor info. %v", misc.get_last_error_message()) // TODO(pJotoro): Does this have to panic?
+        else do log.debug("Succeeded to get monitor info.")
 
-    wname: win32.LPWSTR
-
-    if ctx.configuration == .Game {
-        if ODIN_DEBUG || ctx.width != 0 || ctx.height != 0 {
-            ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
-            wname = win32.utf8_to_wstring(ctx.name)
-        } else {
-            ctx.fullscreen = true
-            ctx.window_flags = win32.WS_POPUP
-        }
-    } else if ctx.configuration == .Tool {
-        ctx.window_extended_flags = win32.WS_EX_ACCEPTFILES | win32.WS_EX_CLIENTEDGE | win32.WS_EX_WINDOWEDGE
-        ctx.window_flags = win32.WS_BORDER | win32.WS_MAXIMIZE | win32.WS_OVERLAPPEDWINDOW
-        wname = win32.utf8_to_wstring(ctx.name)
+        monitor_width = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
+        monitor_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
     }
 
-    module_handle := win32.HANDLE(win32.GetModuleHandleW(nil))
-    if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
-    log.debug("Succeeded to get module handle.")
-
-    window_class := win32.WNDCLASSEXW{
-        cbSize = size_of(win32.WNDCLASSEXW),
-        style = ctx.window_class_flags,
-        lpfnWndProc = window_proc,
-        hInstance = module_handle,
-        lpszClassName = L("app_class_name"),
-    }
-    if win32.RegisterClassExW(&window_class) == 0 do log.panicf("Failed to register window class. %v", misc.get_last_error_message())
-    log.debug("Succeeded to register window class.")
-
-    ctx.window = win32.CreateWindowExW(
-        ctx.window_extended_flags, 
-        window_class.lpszClassName, 
-        wname, 
-        ctx.window_flags, 
-        win32.CW_USEDEFAULT, 
-        win32.CW_USEDEFAULT, 
-        win32.CW_USEDEFAULT, 
-        win32.CW_USEDEFAULT, 
-        nil, 
-        nil, 
-        window_class.hInstance, 
-        nil)
-    if ctx.window == nil do log.panicf("Failed to create window. %v", misc.get_last_error_message())
-    log.debug("Succeeded to create window.")
-
-    monitor := win32.MonitorFromWindow(ctx.window, .MONITOR_DEFAULTTOPRIMARY)
-    monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
-    ok := win32.GetMonitorInfoW(monitor, &monitor_info)
-    if !ok do log.errorf("Failed to get monitor info. %v", misc.get_last_error_message())
-    else {
-        log.debug("Succeeded to get monitor info.")
-
-        client_width, client_height, client_left, client_right, client_top, client_bottom: i32
-
-        if ctx.window_flags & win32.WS_POPUP == 0 {
-            client_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) / 2 : i32(ctx.width)
-            client_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) / 2 : i32(ctx.height)
-
-            client_left = monitor_info.rcMonitor.left + (client_width / 2)
-            client_top = monitor_info.rcMonitor.top + (client_height / 2)
-            client_right = client_left + client_width
-            client_bottom = client_top + client_height
-        } else {
-            client_width = ctx.width == 0 ? (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left) : i32(ctx.width)
-            client_height = ctx.height == 0 ? (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top) : i32(ctx.height)
-
-            client_left = 0
-            client_top = 0
-            client_right = client_width
-            client_bottom = client_height
-        }
-
-        window_rect := win32.RECT{client_left, client_top, client_right, client_bottom}
-        ok = win32.AdjustWindowRectExForDpi(&window_rect, ctx.window_flags, false, ctx.window_extended_flags, ctx.dpi)
-        if !ok do log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
-        else {
-            log.debug("Succeeded to adjust window rectangle.")
-
-            ok = win32.SetWindowPos(ctx.window, nil, window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0)
-            if !ok do log.errorf("Failed to set window position. %v", misc.get_last_error_message())
-            else {
-                log.debug("Succeeded to set window position.")
-
-                rect: win32.RECT = ---
-                ok = win32.GetClientRect(ctx.window, &rect)
-                if !ok do log.errorf("Failed to get client rectangle. %v", misc.get_last_error_message())
-                else {
-                    log.debug("Succeeded to get client rectangle.")
-                    ctx.width = int(rect.right - rect.left)
-                    ctx.height = int(rect.bottom - rect.top)
+    switch ctx.fullscreen_mode {
+        case .Auto:
+            if ctx.width == 0 && ctx.height == 0 {
+                when ODIN_DEBUG {
+                    ctx.width = monitor_width / 2
+                    ctx.height = monitor_height / 2
+                    ctx.fullscreen = false
+                } else {
+                    ctx.width = monitor_width
+                    ctx.height = monitor_height
+                    ctx.fullscreen = true
                 }
             }
+            else if ctx.width == monitor_width && ctx.height == monitor_height do ctx.fullscreen = true
+            else do ctx.fullscreen = false
+        case .Off:
+            if ctx.width == 0 && ctx.height == 0 {
+                ctx.width = monitor_width / 2
+                ctx.height = monitor_height / 2
+            } else if ctx.width == monitor_width && ctx.height == monitor_height {
+                log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, monitor_width / 2, monitor_height / 2)
+                ctx.width = monitor_width / 2
+                ctx.height = monitor_height / 2
+            }
+            ctx.fullscreen = false 
+        case .On:
+            ctx.width = monitor_width
+            ctx.height = monitor_height
+            ctx.fullscreen = true
+    }
+
+    window_flags: u32
+    window_rect: win32.RECT
+
+    if !ctx.fullscreen {
+        window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
+
+        client_left := (monitor_width - ctx.width) / 2
+        client_top := (monitor_height - ctx.height) / 2
+        client_right := client_left + ctx.width
+        client_bottom := client_top + ctx.height
+        window_rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
+        ok := win32.AdjustWindowRectExForDpi(&window_rect, window_flags, false, 0, ctx.dpi)
+        if !ok do log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+        else do log.debug("Succeeded to adjust window rectangle.")
+    } else {
+        window_flags = win32.WS_POPUP
+
+        client_left := 0
+        client_top := 0
+        client_right := monitor_width
+        client_bottom := monitor_height
+        window_rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
+        ok := win32.AdjustWindowRectExForDpi(&window_rect, window_flags, false, 0, ctx.dpi)
+        if !ok do log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+        else do log.debug("Succeeded to adjust window rectangle.")
+    }
+
+    {
+        module_handle := win32.HANDLE(win32.GetModuleHandleW(nil))
+        if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
+        log.debug("Succeeded to get module handle.")
+
+        window_class := win32.WNDCLASSEXW{
+            cbSize = size_of(win32.WNDCLASSEXW),
+            lpfnWndProc = window_proc,
+            hInstance = module_handle,
+            lpszClassName = L("app_class_name"),
         }
+        if win32.RegisterClassExW(&window_class) == 0 do log.panicf("Failed to register window class. %v", misc.get_last_error_message())
+        log.debug("Succeeded to register window class.")
+
+        wname := win32.utf8_to_wstring(ctx.name)
+        ctx.window = win32.CreateWindowExW(
+            0, 
+            window_class.lpszClassName, 
+            !ctx.fullscreen ? wname : nil,
+            window_flags, 
+            window_rect.left, 
+            window_rect.top, 
+            window_rect.right - window_rect.left, 
+            window_rect.bottom - window_rect.top, 
+            nil, 
+            nil, 
+            window_class.hInstance, 
+            nil)
+        if ctx.window == nil do log.panicf("Failed to create window. %v", misc.get_last_error_message())
+        log.debug("Succeeded to create window.")
     }
 
     ctx.can_connect_gamepad = xinput.init()
