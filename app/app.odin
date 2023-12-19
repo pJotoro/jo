@@ -1,6 +1,9 @@
 package app
 
 import "core:log"
+import "core:prof/spall"
+
+SPALL :: #config(JO_SPALL, false)
 
 @(private)
 Context :: struct {
@@ -8,6 +11,9 @@ Context :: struct {
     name: string,
     width, height: int,
     fullscreen_mode: Fullscreen_Mode,
+
+    app_initialized: bool,
+    gl_initialized: bool,
     // ----------------
 
     // ----- running -----
@@ -50,6 +56,11 @@ Context :: struct {
     event_index: int,
     // ------------------
 
+    // ----- profiling -----
+    spall_ctx: ^spall.Context,
+    spall_buffer: ^spall.Buffer,
+    // ---------------------
+
     using os_specific: OS_Specific,
 }
 @(private)
@@ -61,7 +72,23 @@ Fullscreen_Mode :: enum {
     On,
 }
 
-init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, allocator := context.allocator) {
+init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil, allocator := context.allocator) {
+    when SPALL {
+        if spall_ctx == nil || spall_buffer == nil {
+            // NOTE(pJotoro): Assertions are typically turned off when profiling, so it wouldn't make any sense for this to be log.panic.
+            log.fatal("When Spall is enabled, must set spall_ctx and spall_buffer.")
+            return
+        }
+        ctx.spall_ctx = spall_ctx
+        ctx.spall_buffer = spall_buffer
+
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    if ctx.app_initialized {
+        log.panic("App already initialized.")
+    }
+
     if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
         log.warn("Width and height must be set or unset together.")
     } else {
@@ -81,9 +108,19 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
             try_connect_gamepad(gamepad_index)
         }
     }
+
+    ctx.app_initialized = true
 }
 
 should_close :: proc() -> bool {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    if !ctx.app_initialized {
+        log.panic("App not initialized.")
+    }
+
     for &k in ctx.keyboard_keys_pressed do k = false
     for &k in ctx.keyboard_keys_released do k = false
 
@@ -113,6 +150,17 @@ should_close :: proc() -> bool {
 }
 
 render :: proc(bitmap: []u32) {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    if !ctx.app_initialized {
+        log.panic("App not initialized.")
+    }
+    if ctx.gl_initialized {
+        log.panic("Cannot mix software rendering with OpenGL.")
+    }
+
     // TODO(pJotoro): render should change ctx.width and/or ctx.height if the bitmap is too small.
     if len(bitmap) < width() * height() do log.panic("bitmap too small")
     if len(bitmap) > width() * height() do log.panic("bitmap too big")
@@ -145,6 +193,10 @@ visible :: proc "contextless" () -> bool {
 }
 
 mouse_position :: proc() -> (x, y: int) {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
     return _mouse_position()
 }
 
