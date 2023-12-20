@@ -7,7 +7,6 @@ package app_example
 
 import "jo:app"
 import "core:image/png"
-import "core:mem"
 
 main :: proc() {
 	app.init()
@@ -21,7 +20,6 @@ main :: proc() {
 	
 	for !app.should_close() {
 		if app.key_pressed(.Escape) do return
-		mem.zero_slice(bitmap)
 
 		if app.gamepad_connected(0) {
 			pos += app.gamepad_left_stick(0)

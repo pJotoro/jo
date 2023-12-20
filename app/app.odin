@@ -1,6 +1,7 @@
 package app
 
 import "core:log"
+import "core:mem"
 import "core:prof/spall"
 
 SPALL :: #config(JO_SPALL, false)
@@ -166,6 +167,9 @@ render :: proc(bitmap: []u32) {
     if len(bitmap) > width() * height() do log.panic("bitmap too big")
 
     _render(bitmap)
+
+    // _render modifies the bitmap anyway (rgba -> bgr), so we might as well zero it out here.
+    mem.zero_slice(bitmap)
 }
 
 window :: proc "contextless" () -> rawptr {
