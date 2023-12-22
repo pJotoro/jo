@@ -17,6 +17,9 @@ Context :: struct {
     windowed_width, windowed_height: int,
     monitor_width, monitor_height: int,
 
+    minimized: bool,
+    maximized: bool,
+
     app_initialized: bool,
     gl_initialized: bool,
     // ----------------
@@ -214,10 +217,12 @@ set_windowed :: proc() {
         log.warn("Already windowed.")
         return
     }
-    ctx.fullscreen = false
-    ctx.width = ctx.windowed_width
-    ctx.height = ctx.windowed_height
-    _set_windowed()
+    
+    if _set_windowed() {
+        ctx.fullscreen = false
+        ctx.width = ctx.windowed_width
+        ctx.height = ctx.windowed_height
+    }
 }
 
 set_fullscreen :: proc() {
@@ -229,10 +234,12 @@ set_fullscreen :: proc() {
         log.warn("Already fullscreen.")
         return
     }
-    ctx.fullscreen = true
-    ctx.width = ctx.monitor_width
-    ctx.height = ctx.monitor_height
-    _set_fullscreen()
+    
+    if _set_fullscreen() {
+        ctx.fullscreen = true
+        ctx.width = ctx.monitor_width
+        ctx.height = ctx.monitor_height
+    }
 }
 
 toggle_fullscreen :: proc() {
@@ -245,21 +252,63 @@ visible :: proc "contextless" () -> bool {
 }
 
 hide :: proc() {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
     if ctx.visible == 2 {
         log.warn("Already hidden.")
         return
     }
-    ctx.visible = 2
-    _hide()
+    if _hide() {
+        ctx.visible = 2
+    }
 }
 
 show :: proc() {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
     if ctx.visible == 1 {
         log.warn("Already shown.")
         return
     }
-    ctx.visible = 1
-    _show()
+    if _show() {
+        ctx.visible = 1
+    }
+}
+
+minimize :: proc() {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    if ctx.minimized {
+        log.warn("Already minimized.")
+        return
+    }
+    
+    if _minimize() {
+        ctx.minimized = true
+        ctx.maximized = false
+    }
+}
+
+maximize :: proc() {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    if ctx.maximized {
+        log.warn("Already maximized.")
+        return
+    }
+
+    if _maximize() {
+        ctx.maximized = true
+        ctx.minimized = false
+    }
 }
 
 mouse_position :: proc() -> (x, y: int) {

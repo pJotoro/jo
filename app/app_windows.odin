@@ -413,24 +413,24 @@ _mouse_position :: proc() -> (x, y: int) {
     return int(point.x), -int(point.y) + height() // TODO(pJotoro): Do the same for the events which return a y-position on the window
 }
 
-_set_windowed :: proc() {
+_set_windowed :: proc() -> bool {
     if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_CAPTION | win32.WS_SYSMENU)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         log.error("Failed to set windowed.")
-        return
+        return false
     }
     if !win32.SetWindowPos(ctx.window, nil, 
         i32(ctx.windowed_x), i32(ctx.windowed_y), i32(ctx.windowed_width), i32(ctx.windowed_height), 
         win32.SWP_SHOWWINDOW) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         log.error("Failed to set windowed.")
-        return
+        return false
     }
 
-    log.debug("Succeeded to set windowed.")
+    return true
 }
 
-_set_fullscreen :: proc() {
+_set_fullscreen :: proc() -> bool {
     // It's not the end of the world if we don't get the window rectangle. It just means next time we enter windowed mode, the size and
     // position of the window won't be the same as last time.
     rect: win32.RECT = ---
@@ -445,7 +445,7 @@ _set_fullscreen :: proc() {
     if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_POPUP)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         log.error("Failed to set fullscreen.")
-        return
+        return false
     }
     if !win32.SetWindowPos(ctx.window, nil, 
         ctx.fullscreen_rect.left,
@@ -455,16 +455,28 @@ _set_fullscreen :: proc() {
         win32.SWP_SHOWWINDOW) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         log.error("Failed to set fullscreen.")
-        return
+        return false
     }
 
-    log.debug("Succeeded to set fullscreen.")
+    return true
 }
 
-_hide :: proc "contextless" () {
+_hide :: proc "contextless" () -> bool {
     win32.ShowWindow(ctx.window, win32.SW_HIDE)
+    return true
 }
 
-_show :: proc "contextless" () {
+_show :: proc "contextless" () -> bool {
     win32.ShowWindow(ctx.window, win32.SW_SHOW)
+    return true
+}
+
+_minimize :: proc "contextless" () -> bool {
+    win32.ShowWindow(ctx.window, win32.SW_MINIMIZE)
+    return true
+}
+
+_maximize :: proc "contextless" () -> bool {
+    win32.ShowWindow(ctx.window, win32.SW_MAXIMIZE)
+    return true
 }
