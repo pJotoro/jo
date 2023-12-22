@@ -205,6 +205,10 @@ title :: proc "contextless" () -> string {
     return ctx.title
 }
 
+set_title :: proc(title: string) {
+    _set_title(title)
+}
+
 fullscreen :: proc "contextless" () -> bool {
     return ctx.fullscreen
 }

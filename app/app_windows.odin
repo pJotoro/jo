@@ -418,6 +418,13 @@ _mouse_position :: proc() -> (x, y: int) {
     return int(point.x), -int(point.y) + height() // TODO(pJotoro): Do the same for the events which return a y-position on the window
 }
 
+_set_title :: proc(title: string) {
+    wstring := win32.utf8_to_wstring(title)
+    if !win32.SetWindowTextW(ctx.window, wstring) {
+        log.errorf("Failed to set window title to %v. %v", title, misc.get_last_error_message())
+    }
+}
+
 _set_windowed :: proc() -> bool {
     if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_CAPTION | win32.WS_SYSMENU)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
