@@ -10,7 +10,6 @@ import "xinput"
 import "../misc"
 
 OS_Specific :: struct {
-    visible: int, // -1 and 0 mean invisible, 1 means visible
     window: win32.HWND,
     dpi: u32,
     window_class_flags: u32,
@@ -408,4 +407,12 @@ _mouse_position :: proc() -> (x, y: int) {
         return int(point.x), -int(point.y) + height()
     }
     return int(point.x), -int(point.y) + height() // TODO(pJotoro): Do the same for the events which return a y-position on the window
+}
+
+_hide :: proc "contextless" () {
+    win32.ShowWindow(ctx.window, win32.SW_HIDE)
+}
+
+_show :: proc "contextless" () {
+    win32.ShowWindow(ctx.window, win32.SW_SHOW)
 }

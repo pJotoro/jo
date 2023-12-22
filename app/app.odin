@@ -18,6 +18,7 @@ Context :: struct {
     // ----------------
 
     // ----- running -----
+    visible: int, // -1 and 0 mean invisible at first, 1 means visible, and 2 means invisible
     should_close: bool,
     fullscreen: bool,
     // -------------------
@@ -194,6 +195,16 @@ fullscreen :: proc "contextless" () -> bool {
 
 visible :: proc "contextless" () -> bool {
     return ctx.visible == 1 ? true : false
+}
+
+hide :: proc "contextless" () {
+    ctx.visible = 2
+    _hide()
+}
+
+show :: proc "contextless" () {
+    ctx.visible = 1
+    _show()
 }
 
 mouse_position :: proc() -> (x, y: int) {
