@@ -302,7 +302,7 @@ _init :: proc() {
         if win32.RegisterClassExW(&window_class) == 0 do log.panicf("Failed to register window class. %v", misc.get_last_error_message())
         log.debug("Succeeded to register window class.")
 
-        wname := win32.utf8_to_wstring(ctx.name)
+        wname := win32.utf8_to_wstring(ctx.title)
         ctx.window = win32.CreateWindowExW(
             0, 
             window_class.lpszClassName, 

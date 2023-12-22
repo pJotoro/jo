@@ -9,7 +9,7 @@ SPALL :: #config(JO_SPALL, false)
 @(private)
 Context :: struct {
     // ----- init -----
-    name: string,
+    title: string,
     width, height: int,
     fullscreen_mode: Fullscreen_Mode,
 
@@ -106,7 +106,7 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
         ctx.height = height
     }
 
-    ctx.name = title
+    ctx.title = title
     ctx.fullscreen_mode = fullscreen
 
     ctx.events = make([dynamic]Event, allocator)
@@ -201,8 +201,8 @@ height :: proc "contextless" () -> int {
     return ctx.height
 }
 
-name :: proc "contextless" () -> string {
-    return ctx.name
+title :: proc "contextless" () -> string {
+    return ctx.title
 }
 
 fullscreen :: proc "contextless" () -> bool {
