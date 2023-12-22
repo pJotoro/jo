@@ -13,6 +13,10 @@ Context :: struct {
     width, height: int,
     fullscreen_mode: Fullscreen_Mode,
 
+    windowed_x, windowed_y: int,
+    windowed_width, windowed_height: int,
+    monitor_width, monitor_height: int,
+
     app_initialized: bool,
     gl_initialized: bool,
     // ----------------
@@ -105,6 +109,14 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
 
     _init()
 
+    if !ctx.fullscreen {
+        ctx.windowed_width = ctx.width
+        ctx.windowed_height = ctx.height
+    } else {
+        ctx.windowed_width = ctx.width / 2
+        ctx.windowed_height = ctx.height / 2
+    }
+
     if can_connect_gamepad() {
         for gamepad_index in 0..<len(ctx.gamepads) {
             try_connect_gamepad(gamepad_index)
@@ -193,16 +205,59 @@ fullscreen :: proc "contextless" () -> bool {
     return ctx.fullscreen
 }
 
+set_windowed :: proc() {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    if !ctx.fullscreen {
+        log.warn("Already windowed.")
+        return
+    }
+    ctx.fullscreen = false
+    ctx.width = ctx.windowed_width
+    ctx.height = ctx.windowed_height
+    _set_windowed()
+}
+
+set_fullscreen :: proc() {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    if ctx.fullscreen {
+        log.warn("Already fullscreen.")
+        return
+    }
+    ctx.fullscreen = true
+    ctx.width = ctx.monitor_width
+    ctx.height = ctx.monitor_height
+    _set_fullscreen()
+}
+
+toggle_fullscreen :: proc() {
+    if !ctx.fullscreen do set_fullscreen()
+    else do set_windowed()
+}
+
 visible :: proc "contextless" () -> bool {
     return ctx.visible == 1 ? true : false
 }
 
-hide :: proc "contextless" () {
+hide :: proc() {
+    if ctx.visible == 2 {
+        log.warn("Already hidden.")
+        return
+    }
     ctx.visible = 2
     _hide()
 }
 
-show :: proc "contextless" () {
+show :: proc() {
+    if ctx.visible == 1 {
+        log.warn("Already shown.")
+        return
+    }
     ctx.visible = 1
     _show()
 }

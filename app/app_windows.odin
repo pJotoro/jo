@@ -15,6 +15,7 @@ OS_Specific :: struct {
     window_class_flags: u32,
     window_extended_flags: u32,
     window_flags: u32,
+    fullscreen_rect: win32.RECT,
 
     gamepads: [4]Gamepad_Desc,
 
@@ -209,7 +210,6 @@ _init :: proc() {
         else do log.debug("Succeeded to make process DPI aware.")
     }
     
-    monitor_width, monitor_height: int
     {
         monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
         monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
@@ -217,66 +217,70 @@ _init :: proc() {
         if !ok do log.panicf("Failed to get monitor info. %v", misc.get_last_error_message()) // TODO(pJotoro): Does this have to panic?
         else do log.debug("Succeeded to get monitor info.")
 
-        monitor_width = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
-        monitor_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
+        ctx.monitor_width = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
+        ctx.monitor_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
     }
 
     switch ctx.fullscreen_mode {
         case .Auto:
             if ctx.width == 0 && ctx.height == 0 {
                 when ODIN_DEBUG {
-                    ctx.width = monitor_width / 2
-                    ctx.height = monitor_height / 2
+                    ctcx.width = ctx.monitor_width / 2
+                    ctx.height = ctx.monitor_height / 2
                     ctx.fullscreen = false
                 } else {
-                    ctx.width = monitor_width
-                    ctx.height = monitor_height
+                    ctx.width = ctx.monitor_width
+                    ctx.height = ctx.monitor_height
                     ctx.fullscreen = true
                 }
             }
-            else if ctx.width == monitor_width && ctx.height == monitor_height do ctx.fullscreen = true
+            else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height do ctx.fullscreen = true
             else do ctx.fullscreen = false
         case .Off:
             if ctx.width == 0 && ctx.height == 0 {
-                ctx.width = monitor_width / 2
-                ctx.height = monitor_height / 2
-            } else if ctx.width == monitor_width && ctx.height == monitor_height {
-                log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, monitor_width / 2, monitor_height / 2)
-                ctx.width = monitor_width / 2
-                ctx.height = monitor_height / 2
+                ctx.width = ctx.monitor_width / 2
+                ctx.height = ctx.monitor_height / 2
+            } else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
+                log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, ctx.monitor_width / 2, ctx.monitor_height / 2)
+                ctx.width = ctx.monitor_width / 2
+                ctx.height = ctx.monitor_height / 2
             }
             ctx.fullscreen = false 
         case .On:
-            ctx.width = monitor_width
-            ctx.height = monitor_height
+            ctx.width = ctx.monitor_width
+            ctx.height = ctx.monitor_height
             ctx.fullscreen = true
     }
 
     window_flags: u32
     window_rect: win32.RECT
 
+    adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> win32.RECT {
+        window_rect := win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
+        ok := win32.AdjustWindowRectExForDpi(&window_rect, flags, false, 0, ctx.dpi)
+        if !ok do log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+        else do log.debug("Succeeded to adjust window rectangle.")
+        return window_rect
+    }
+
     if !ctx.fullscreen {
-        window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
+        client_left := (ctx.monitor_width - ctx.width) / 2
+        client_top := (ctx.monitor_height - ctx.height) / 2
+        window_rect = adjust_window_rect(win32.WS_CAPTION | win32.WS_SYSMENU, 
+            client_left, 
+            client_top,
+            client_left + ctx.width, 
+            client_top + ctx.height)
+        
+        ctx.windowed_x = int(window_rect.left)
+        ctx.windowed_y = int(window_rect.top)
+    }
 
-        client_left := (monitor_width - ctx.width) / 2
-        client_top := (monitor_height - ctx.height) / 2
-        client_right := client_left + ctx.width
-        client_bottom := client_top + ctx.height
-        window_rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
-        ok := win32.AdjustWindowRectExForDpi(&window_rect, window_flags, false, 0, ctx.dpi)
-        if !ok do log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
-        else do log.debug("Succeeded to adjust window rectangle.")
-    } else {
-        window_flags = win32.WS_POPUP
-
-        client_left := 0
-        client_top := 0
-        client_right := monitor_width
-        client_bottom := monitor_height
-        window_rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
-        ok := win32.AdjustWindowRectExForDpi(&window_rect, window_flags, false, 0, ctx.dpi)
-        if !ok do log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
-        else do log.debug("Succeeded to adjust window rectangle.")
+    ctx.fullscreen_rect = adjust_window_rect(win32.WS_POPUP, 0, 0, ctx.monitor_width, ctx.monitor_height)
+    if ctx.fullscreen {
+        window_rect = ctx.fullscreen_rect
+        ctx.windowed_x = ctx.monitor_width / 4
+        ctx.windowed_y = ctx.monitor_height / 4
     }
 
     {
@@ -407,6 +411,54 @@ _mouse_position :: proc() -> (x, y: int) {
         return int(point.x), -int(point.y) + height()
     }
     return int(point.x), -int(point.y) + height() // TODO(pJotoro): Do the same for the events which return a y-position on the window
+}
+
+_set_windowed :: proc() {
+    if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_CAPTION | win32.WS_SYSMENU)) == 0 {
+        log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
+        log.error("Failed to set windowed.")
+        return
+    }
+    if !win32.SetWindowPos(ctx.window, nil, 
+        i32(ctx.windowed_x), i32(ctx.windowed_y), i32(ctx.windowed_width), i32(ctx.windowed_height), 
+        win32.SWP_SHOWWINDOW) {
+        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
+        log.error("Failed to set windowed.")
+        return
+    }
+
+    log.debug("Succeeded to set windowed.")
+}
+
+_set_fullscreen :: proc() {
+    // It's not the end of the world if we don't get the window rectangle. It just means next time we enter windowed mode, the size and
+    // position of the window won't be the same as last time.
+    rect: win32.RECT = ---
+    if !win32.GetWindowRect(ctx.window, &rect) do log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
+    else {
+        ctx.windowed_x = int(rect.left)
+        ctx.windowed_y = int(rect.top)
+        ctx.windowed_width = int(rect.right - rect.left)
+        ctx.windowed_height = int(rect.bottom - rect.top)
+    }
+
+    if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_POPUP)) == 0 {
+        log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
+        log.error("Failed to set fullscreen.")
+        return
+    }
+    if !win32.SetWindowPos(ctx.window, nil, 
+        ctx.fullscreen_rect.left,
+        ctx.fullscreen_rect.top,
+        ctx.fullscreen_rect.right - ctx.fullscreen_rect.left,
+        ctx.fullscreen_rect.bottom - ctx.fullscreen_rect.top, 
+        win32.SWP_SHOWWINDOW) {
+        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
+        log.error("Failed to set fullscreen.")
+        return
+    }
+
+    log.debug("Succeeded to set fullscreen.")
 }
 
 _hide :: proc "contextless" () {
