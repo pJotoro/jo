@@ -260,13 +260,7 @@ _init :: proc() {
     window_flags: u32
     window_rect: win32.RECT
 
-    adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> win32.RECT {
-        window_rect := win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
-        ok := win32.AdjustWindowRectExForDpi(&window_rect, flags, false, 0, ctx.dpi)
-        if !ok do log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
-        else do log.debug("Succeeded to adjust window rectangle.")
-        return window_rect
-    }
+    ok: bool
 
     if !ctx.fullscreen {
         client_left := (ctx.monitor_width - ctx.width) / 2
@@ -276,7 +270,7 @@ _init :: proc() {
             client_top,
             client_left + ctx.width, 
             client_top + ctx.height)
-        
+
         ctx.windowed_x = int(window_rect.left)
         ctx.windowed_y = int(window_rect.top)
     }
@@ -284,6 +278,7 @@ _init :: proc() {
     ctx.fullscreen_rect = adjust_window_rect(win32.WS_POPUP, 0, 0, ctx.monitor_width, ctx.monitor_height)
     if ctx.fullscreen {
         window_rect = ctx.fullscreen_rect
+
         ctx.windowed_x = ctx.monitor_width / 4
         ctx.windowed_y = ctx.monitor_height / 4
     }
@@ -425,18 +420,43 @@ _set_title :: proc(title: string) {
     }
 }
 
+@(private)
+adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT) {
+    rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
+    if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, ctx.dpi) {
+        // TODO(pJotoro): Could I make this not panic? It is super important that this procedure call succeeds.
+        log.panicf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+    }
+    else {
+        log.debug("Succeeded to adjust window rectangle.")
+    }
+    return
+}
+
 _set_position :: proc(x, y: int) {
-    y := -y
-    rect: win32.RECT = ---
-    if !win32.GetWindowRect(ctx.window, &rect) {
-        log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
+    rect := adjust_window_rect(win32.WS_CAPTION | win32.WS_SYSMENU, x, y, x + width(), y + height())
+    if !win32.SetWindowPos(ctx.window, nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
+        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         log.error("Failed to set position.")
         return
     }
-    if !win32.SetWindowPos(ctx.window, nil, i32(x), i32(y), rect.right - rect.left, rect.bottom - rect.top, 0) {
-        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
-        log.error("Failed to set position.")
+}
+
+_set_size :: proc(width, height: int) {
+    rect: win32.RECT = ---
+    if !win32.GetClientRect(ctx.window, &rect) {
+        log.errorf("Failed to get client rectangle. %v", misc.get_last_error_message())
+        log.error("Failed to set size.")
+        return
     }
+    rect = adjust_window_rect(win32.WS_CAPTION | win32.WS_SYSMENU, int(rect.left), int(rect.top), int(rect.left) + width, int(rect.top) + height)
+    if !win32.SetWindowPos(ctx.window, nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
+        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
+        log.error("Failed to set size.")
+        return
+    }
+    ctx.width = int(rect.right - rect.left)
+    ctx.height = int(rect.bottom - rect.top)
 }
 
 _set_windowed :: proc() -> bool {
