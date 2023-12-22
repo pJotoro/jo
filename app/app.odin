@@ -201,6 +201,14 @@ height :: proc "contextless" () -> int {
     return ctx.height
 }
 
+monitor_width :: proc "contextless" () -> int {
+    return ctx.monitor_width
+}
+
+monitor_height :: proc "contextless" () -> int {
+    return ctx.monitor_height
+}
+
 title :: proc "contextless" () -> string {
     return ctx.title
 }
