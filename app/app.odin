@@ -209,6 +209,14 @@ set_title :: proc(title: string) {
     _set_title(title)
 }
 
+set_position :: proc(x, y: int) {
+    if ctx.fullscreen {
+        log.error("Cannot set position in fullscreen.")
+        return
+    }
+    _set_position(x, y)
+}
+
 fullscreen :: proc "contextless" () -> bool {
     return ctx.fullscreen
 }

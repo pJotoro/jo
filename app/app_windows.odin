@@ -425,6 +425,20 @@ _set_title :: proc(title: string) {
     }
 }
 
+_set_position :: proc(x, y: int) {
+    y := -y
+    rect: win32.RECT = ---
+    if !win32.GetWindowRect(ctx.window, &rect) {
+        log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
+        log.error("Failed to set position.")
+        return
+    }
+    if !win32.SetWindowPos(ctx.window, nil, i32(x), i32(y), rect.right - rect.left, rect.bottom - rect.top, 0) {
+        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
+        log.error("Failed to set position.")
+    }
+}
+
 _set_windowed :: proc() -> bool {
     if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_CAPTION | win32.WS_SYSMENU)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
