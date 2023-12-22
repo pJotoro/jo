@@ -31,6 +31,14 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
     result := win32.LRESULT(0)
     
     switch message {
+        case win32.WM_CLOSE, win32.WM_DESTROY, win32.WM_QUIT:
+            ctx.should_close = true
+
+        case win32.WM_ACTIVATE:
+            ctx.focused = !ctx.focused
+            if ctx.focused do append(&ctx.events, Event_Focus{})
+            else do append(&ctx.events, Event_Unfocus{})
+
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
             key := Keyboard_Key(w_param)
             if int(key) > len(ctx.keyboard_keys) do return result
@@ -182,9 +190,6 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
                 amount = int(amount) * win32.WHEEL_DELTA,
             }
             append(&ctx.events, event)
-
-        case win32.WM_CLOSE, win32.WM_DESTROY, win32.WM_QUIT:
-            ctx.should_close = true
 
         case:
             result = win32.DefWindowProcW(window, message, w_param, l_param)

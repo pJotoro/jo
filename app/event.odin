@@ -56,6 +56,9 @@ Event_Mouse_Wheel :: struct {
     amount: int,
 }
 
+Event_Focus :: struct {}
+Event_Unfocus :: struct {}
+
 Event :: union {
     Event_Key_Down,
     Event_Char,
@@ -74,4 +77,7 @@ Event :: union {
     Event_Middle_Mouse_Double_Click,
     
     Event_Mouse_Wheel,
+
+    Event_Focus,
+    Event_Unfocus,
 }

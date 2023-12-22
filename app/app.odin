@@ -19,6 +19,7 @@ Context :: struct {
 
     minimized: bool,
     maximized: bool,
+    focused: bool,
 
     app_initialized: bool,
     gl_initialized: bool,
@@ -309,6 +310,10 @@ maximize :: proc() {
         ctx.maximized = true
         ctx.minimized = false
     }
+}
+
+focused :: proc "contextless" () -> bool {
+    return ctx.focused
 }
 
 mouse_position :: proc() -> (x, y: int) {
