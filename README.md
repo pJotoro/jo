@@ -1,4 +1,4 @@
-# jo/app
+# jo:app
 
 A stupidly easy to use alternative to SDL, GLFW, Raylib, and others.
 
@@ -99,7 +99,7 @@ So far, these are the principles I've been running with when developing jo/app:
 3. Avoid returning results. Most errors in platform specific code are just that: *errors*. If they happen, it means there's something wrong with the *library*. Where this isn't the case, such as with `app.gl_init`, a boolean result is acceptable. If it fails, it simply means that version of OpenGL isn't present on the user's machine.
 4. NEVER EVER make a procedure like `app.get_last_error`. If the library is being used in a blatantly incorrect way, it should panic with a useful error message. Forcing the user to get an error and print it out themsevles is completely pointless.
 
-# jo/ngl
+# jo:ngl
 
 A stupidly easy to use wrapper over OpenGL 4.6.
 
