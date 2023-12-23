@@ -11,7 +11,6 @@ import "../misc"
 
 OS_Specific :: struct {
     window: win32.HWND,
-    dpi: u32,
     window_class_flags: u32,
     window_extended_flags: u32,
     window_flags: u32,
@@ -209,7 +208,7 @@ _init :: proc() {
     ctx.visible = -1
     
     {
-        ctx.dpi = GetDpiForSystem()
+        ctx.dpi = int(GetDpiForSystem())
         ok := win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE)
         if !ok do log.error("Failed to make process DPI aware.")
         else do log.debug("Succeeded to make process DPI aware.")
@@ -323,7 +322,7 @@ _should_close :: proc() -> bool {
     else if ctx.visible == 0 {
         ctx.visible += 1
         win32.ShowWindow(ctx.window, win32.SW_SHOW)
-        log.debug("Window shown.")
+        log.info("Window shown.")
     }
     for {
         message: win32.MSG
@@ -417,13 +416,15 @@ _set_title :: proc(title: string) {
     wstring := win32.utf8_to_wstring(title)
     if !win32.SetWindowTextW(ctx.window, wstring) {
         log.errorf("Failed to set window title to %v. %v", title, misc.get_last_error_message())
+    } else {
+        log.debugf("Succeeded to set window title to %v.", title)
     }
 }
 
 @(private)
 adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT) {
     rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
-    if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, ctx.dpi) {
+    if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
         // TODO(pJotoro): Could I make this not panic? It is super important that this procedure call succeeds.
         log.panicf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
     }
@@ -433,26 +434,24 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
     return
 }
 
-_set_position :: proc(x, y: int) {
+_set_position :: proc(x, y: int) -> bool {
     rect := adjust_window_rect(win32.WS_CAPTION | win32.WS_SYSMENU, x, y, x + width(), y + height())
     if !win32.SetWindowPos(ctx.window, nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
-        log.error("Failed to set position.")
-        return
+        return false
     }
+    return true
 }
 
 _set_windowed :: proc() -> bool {
     if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_CAPTION | win32.WS_SYSMENU)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
-        log.error("Failed to set windowed.")
         return false
     }
     if !win32.SetWindowPos(ctx.window, nil, 
         i32(ctx.windowed_x), i32(ctx.windowed_y), i32(ctx.windowed_width), i32(ctx.windowed_height), 
         win32.SWP_SHOWWINDOW) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
-        log.error("Failed to set windowed.")
         return false
     }
 
@@ -473,7 +472,6 @@ _set_fullscreen :: proc() -> bool {
 
     if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_POPUP)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
-        log.error("Failed to set fullscreen.")
         return false
     }
     if !win32.SetWindowPos(ctx.window, nil, 
@@ -483,7 +481,6 @@ _set_fullscreen :: proc() -> bool {
         ctx.fullscreen_rect.bottom - ctx.fullscreen_rect.top, 
         win32.SWP_SHOWWINDOW) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
-        log.error("Failed to set fullscreen.")
         return false
     }
 

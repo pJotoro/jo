@@ -13,6 +13,8 @@ Context :: struct {
     width, height: int,
     fullscreen_mode: Fullscreen_Mode,
 
+    dpi: int,
+
     windowed_x, windowed_y: int,
     windowed_width, windowed_height: int,
     monitor_width, monitor_height: int,
@@ -209,6 +211,10 @@ monitor_height :: proc "contextless" () -> int {
     return ctx.monitor_height
 }
 
+dpi :: proc "contextless" () -> int {
+    return ctx.dpi
+}
+
 title :: proc "contextless" () -> string {
     return ctx.title
 }
@@ -222,7 +228,11 @@ set_position :: proc(x, y: int) {
         log.error("Cannot set position in fullscreen.")
         return
     }
-    _set_position(x, y)
+    if !_set_position(x, y) {
+        log.error("Failed to set position.")
+    } else {
+        log.debug("Succeeded to set position.")
+    }
 }
 
 fullscreen :: proc "contextless" () -> bool {
@@ -239,7 +249,10 @@ set_windowed :: proc() {
         return
     }
     
-    if _set_windowed() {
+    if !_set_windowed() {
+        log.error("Failed to set windowed.")
+    } else {
+        log.debug("Succeeded to set windowed.")
         ctx.fullscreen = false
         ctx.width = ctx.windowed_width
         ctx.height = ctx.windowed_height
@@ -256,7 +269,10 @@ set_fullscreen :: proc() {
         return
     }
     
-    if _set_fullscreen() {
+    if !_set_fullscreen() {
+        log.error("Failed to set fullscreen.")
+    } else {
+        log.debug("Succeeded to set fullscreen.")
         ctx.fullscreen = true
         ctx.width = ctx.monitor_width
         ctx.height = ctx.monitor_height
@@ -281,7 +297,10 @@ hide :: proc() {
         log.warn("Already hidden.")
         return
     }
-    if _hide() {
+    if !_hide() {
+        log.error("Failed to hide.")
+    } else {
+        log.debug("Succeeded to hide.")
         ctx.visible = 2
     }
 }
@@ -295,7 +314,10 @@ show :: proc() {
         log.warn("Already shown.")
         return
     }
-    if _show() {
+    if !_show() {
+        log.error("Failed to show.")
+    } else {
+        log.debug("Succeeded to show.")
         ctx.visible = 1
     }
 }
@@ -310,7 +332,10 @@ minimize :: proc() {
         return
     }
     
-    if _minimize() {
+    if !_minimize() {
+        log.error("Failed to minimize.")
+    } else {
+        log.debug("Succeeded to minimize.")
         ctx.minimized = true
         ctx.maximized = false
     }
@@ -326,7 +351,10 @@ maximize :: proc() {
         return
     }
 
-    if _maximize() {
+    if !_maximize() {
+        log.error("Failed to maximize.")
+    } else {
+        log.debug("Succeeded to maximize.")
         ctx.maximized = true
         ctx.minimized = false
     }
