@@ -442,23 +442,6 @@ _set_position :: proc(x, y: int) {
     }
 }
 
-_set_size :: proc(width, height: int) {
-    rect: win32.RECT = ---
-    if !win32.GetClientRect(ctx.window, &rect) {
-        log.errorf("Failed to get client rectangle. %v", misc.get_last_error_message())
-        log.error("Failed to set size.")
-        return
-    }
-    rect = adjust_window_rect(win32.WS_CAPTION | win32.WS_SYSMENU, int(rect.left), int(rect.top), int(rect.left) + width, int(rect.top) + height)
-    if !win32.SetWindowPos(ctx.window, nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
-        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
-        log.error("Failed to set size.")
-        return
-    }
-    ctx.width = int(rect.right - rect.left)
-    ctx.height = int(rect.bottom - rect.top)
-}
-
 _set_windowed :: proc() -> bool {
     if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_CAPTION | win32.WS_SYSMENU)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())

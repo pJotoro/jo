@@ -217,9 +217,6 @@ set_title :: proc(title: string) {
     _set_title(title)
 }
 
-// WARNING(pJotoro): These procedures are still being developed.
-// -----
-
 set_position :: proc(x, y: int) {
     if ctx.fullscreen {
         log.error("Cannot set position in fullscreen.")
@@ -227,22 +224,6 @@ set_position :: proc(x, y: int) {
     }
     _set_position(x, y)
 }
-
-set_size :: proc(width, height: int) {
-    ok := true
-    if ctx.fullscreen {
-        log.error("Cannot set size in fullscreen.")
-        ok = false
-    }
-    if !ok {
-        log.error("Failed to set size.")
-        return
-    }
-    _set_size(width, height)
-}
-
-// -----
-// -------------------------------------------------------------
 
 fullscreen :: proc "contextless" () -> bool {
     return ctx.fullscreen
