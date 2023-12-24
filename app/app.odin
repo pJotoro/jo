@@ -14,6 +14,7 @@ Context :: struct {
     fullscreen_mode: Fullscreen_Mode,
 
     dpi: int,
+    refresh_rate: int,
 
     windowed_x, windowed_y: int,
     windowed_width, windowed_height: int,
@@ -97,6 +98,8 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
         spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
     }
 
+    context.allocator = allocator
+
     if ctx.app_initialized {
         log.panic("App already initialized.")
     }
@@ -111,7 +114,7 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
     ctx.title = title
     ctx.fullscreen_mode = fullscreen
 
-    ctx.events = make([dynamic]Event, allocator)
+    ctx.events = make([dynamic]Event)
 
     _init()
 
@@ -213,6 +216,10 @@ monitor_height :: proc "contextless" () -> int {
 
 dpi :: proc "contextless" () -> int {
     return ctx.dpi
+}
+
+refresh_rate :: proc "contextless" () -> int {
+    return ctx.refresh_rate
 }
 
 title :: proc "contextless" () -> string {

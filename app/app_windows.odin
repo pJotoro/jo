@@ -199,10 +199,22 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
 
 foreign import user32 "system:User32.lib"
 
-@(default_calling_convention="stdcall")
+@(default_calling_convention="stdcall", private="file")
 foreign user32 {
     GetDpiForSystem :: proc() -> win32.UINT ---
 }
+
+@(private="file")
+DISPLAY_DEVICEW :: struct {
+    cb: win32.DWORD,
+    DeviceName: [32]win32.WCHAR,
+    DeviceString: [128]win32.WCHAR,
+    StateFlags: win32.DWORD,
+    DeviceID: [128]win32.WCHAR,
+    DeviceKey: [128]win32.WCHAR,
+}
+@(private="file")
+PDISPLAY_DEVICEW :: ^DISPLAY_DEVICEW
 
 _init :: proc() {
     ctx.visible = -1
@@ -312,6 +324,17 @@ _init :: proc() {
             nil)
         if ctx.window == nil do log.panicf("Failed to create window. %v", misc.get_last_error_message())
         log.debug("Succeeded to create window.")
+    }
+
+    {
+        dev_mode := win32.DEVMODEW{dmSize = size_of(win32.DEVMODEW)}
+        if !win32.EnumDisplaySettingsW(nil, win32.ENUM_CURRENT_SETTINGS, &dev_mode) {
+            log.error("Failed to enumerate display settings.")
+        } else {
+            log.debug("Succeeded to enumerate display settings.")
+            ctx.refresh_rate = int(dev_mode.dmDisplayFrequency)
+            log.infof("Refresh rate: %v.", ctx.refresh_rate)
+        }
     }
 
     ctx.can_connect_gamepad = xinput.init()
