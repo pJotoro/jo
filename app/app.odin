@@ -379,6 +379,42 @@ cursor_position :: proc() -> (x, y: int) {
     return _cursor_position()
 }
 
+cursor_visible :: proc() -> bool {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    return _cursor_visible()
+}
+
+show_cursor :: proc() {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    if cursor_visible() {
+        log.warn("Cursor already visible.")
+        return
+    }
+    
+    if !_show_cursor() do log.error("Failed to show cursor.")
+    else do log.debug("Succeeded to show cursor.")
+}
+
+hide_cursor :: proc() {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
+    if !cursor_visible() {
+        log.warn("Cursor already hidden.")
+        return
+    }
+
+    if !_hide_cursor() do log.error("Failed to hide cursor.")
+    else do log.debug("Succeeded to hide cursor.")
+}
+
 left_mouse_down :: proc "contextless" () -> bool {
     return ctx.left_mouse_down
 }

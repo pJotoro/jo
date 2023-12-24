@@ -5,6 +5,7 @@ import "core:runtime"
 import win32 "core:sys/windows"
 import "core:intrinsics"
 import "core:log"
+import "core:c"
 
 import "xinput"
 import "../misc"
@@ -202,19 +203,17 @@ foreign import user32 "system:User32.lib"
 @(default_calling_convention="stdcall", private="file")
 foreign user32 {
     GetDpiForSystem :: proc() -> win32.UINT ---
+    ShowCursor :: proc(bShow: win32.BOOL) -> c.int ---
+    GetCursorInfo :: proc(pci: ^CURSORINFO) -> win32.BOOL ---
 }
 
 @(private="file")
-DISPLAY_DEVICEW :: struct {
-    cb: win32.DWORD,
-    DeviceName: [32]win32.WCHAR,
-    DeviceString: [128]win32.WCHAR,
-    StateFlags: win32.DWORD,
-    DeviceID: [128]win32.WCHAR,
-    DeviceKey: [128]win32.WCHAR,
+CURSORINFO :: struct {
+    cbSize: win32.DWORD,
+    flags: win32.DWORD,
+    hCursor: win32.HCURSOR,
+    ptScreenPos: win32.POINT,
 }
-@(private="file")
-PDISPLAY_DEVICEW :: ^DISPLAY_DEVICEW
 
 _init :: proc() {
     ctx.visible = -1
@@ -433,6 +432,53 @@ _cursor_position :: proc() -> (x, y: int) {
         return int(point.x), -int(point.y) + height()
     }
     return int(point.x), -int(point.y) + height() // TODO(pJotoro): Do the same for the events which return a y-position on the window
+}
+
+@(private="file")
+CURSOR_SHOWING : win32.DWORD : 0x00000001
+
+_cursor_visible :: proc() -> bool {
+    info := CURSORINFO{cbSize = size_of(CURSORINFO)}
+    if !GetCursorInfo(&info) {
+        log.errorf("Failed to get cursor info. %v", misc.get_last_error_message())
+        return false
+    }
+    return (info.flags & CURSOR_SHOWING) != 0
+}
+
+_show_cursor :: proc() -> bool {
+    /*
+    https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showcursor
+
+    This function sets an internal display counter that determines whether the cursor should be displayed. 
+    The cursor is displayed only if the display count is greater than or equal to 0. 
+    If a mouse is installed, the initial display count is 0. 
+    If no mouse is installed, the display count is –1.
+    */
+
+    // NOTE(pJotoro): I can't believe Microsoft actually designed it this way. Why isn't there a function called SetCursorDisplayCounter? 
+    // If there is something like this, please do a pull request and use that instead of this nonsense.
+
+    display_counter := ShowCursor(true)
+    if display_counter >= 0 do return true
+    if display_counter == -1 {
+        display_counter = ShowCursor(true)
+        if display_counter == -1 {
+            log.error("Cannot show cursor until mouse is installed.")
+            return false
+        }
+    }
+    for display_counter < 0 do display_counter = ShowCursor(true)
+    return true
+}
+
+_hide_cursor :: proc() -> bool {
+    // NOTE(pJotoro): Horrible for the same reason _show_cursor is horrible.
+
+    display_counter := ShowCursor(false)
+    if display_counter < 0 do return true
+    for display_counter >= 0 do display_counter = ShowCursor(false)
+    return true
 }
 
 _set_title :: proc(title: string) {
