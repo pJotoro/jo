@@ -13,8 +13,6 @@ import "../misc"
 OS_Specific :: struct {
     instance: win32.HINSTANCE,
     window: win32.HWND,
-    window_class_flags: u32,
-    window_extended_flags: u32,
     window_flags: u32,
     fullscreen_rect: win32.RECT,
 
@@ -270,17 +268,16 @@ _init :: proc() {
             ctx.fullscreen = true
     }
 
-    window_flags: u32
     window_rect: win32.RECT
 
     ok: bool
 
     if !ctx.fullscreen {
-        window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
+        ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
 
         client_left := (ctx.monitor_width - ctx.width) / 2
         client_top := (ctx.monitor_height - ctx.height) / 2
-        window_rect = adjust_window_rect(window_flags, 
+        window_rect = adjust_window_rect(ctx.window_flags, 
             client_left, 
             client_top,
             client_left + ctx.width, 
@@ -292,7 +289,7 @@ _init :: proc() {
 
     ctx.fullscreen_rect = adjust_window_rect(win32.WS_POPUP, 0, 0, ctx.monitor_width, ctx.monitor_height)
     if ctx.fullscreen {
-        window_flags = win32.WS_POPUP
+        ctx.window_flags = win32.WS_POPUP
 
         window_rect = ctx.fullscreen_rect
 
@@ -320,7 +317,7 @@ _init :: proc() {
             0, 
             window_class.lpszClassName, 
             !ctx.fullscreen ? wname : nil,
-            window_flags, 
+            ctx.window_flags, 
             window_rect.left, 
             window_rect.top, 
             window_rect.right - window_rect.left, 
@@ -340,7 +337,7 @@ _init :: proc() {
         } else {
             log.debug("Succeeded to enumerate display settings.")
             ctx.refresh_rate = int(dev_mode.dmDisplayFrequency)
-            log.infof("Refresh rate: %v.", ctx.refresh_rate)
+            log.infof("Monitor refresh rate: %v.", ctx.refresh_rate)
         }
     }
 
@@ -510,7 +507,7 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
 }
 
 _set_position :: proc(x, y: int) -> bool {
-    rect := adjust_window_rect(win32.WS_CAPTION | win32.WS_SYSMENU, x, y, x + ctx.width, y + ctx.height)
+    rect := adjust_window_rect(ctx.window_flags, x, y, x + ctx.width, y + ctx.height)
     if !win32.SetWindowPos(ctx.window, nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
