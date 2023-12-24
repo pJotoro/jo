@@ -81,11 +81,11 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             if !ctx.left_mouse_down do ctx.left_mouse_pressed = true
             ctx.left_mouse_down = true
 
-            x := i32(l_param & 0xFFFFFFFF)
-            y := i32(l_param >> 32)
+            x := i16(l_param & 0xFFFF)
+            y := i16(l_param >> 16)
             event := Event_Left_Mouse_Down{
                 x = int(x),
-                y = int(y),
+                y = -int(y) + ctx.height,
             }
             append(&ctx.events, event)
             
@@ -93,22 +93,22 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             ctx.left_mouse_down= false
             ctx.left_mouse_released = true
 
-            x := i32(l_param & 0xFFFFFFFF)
-            y := i32(l_param >> 32)
+            x := i16(l_param & 0xFFFF)
+            y := i16(l_param >> 16)
             event := Event_Left_Mouse_Up{
                 x = int(x),
-                y = int(y),
+                y = -int(y) + ctx.height,
             }
             append(&ctx.events, event)
             
         case win32.WM_LBUTTONDBLCLK:
             ctx.left_mouse_double_click = true
 
-            x := i32(l_param & 0xFFFFFFFF)
-            y := i32(l_param >> 32)
+            x := i16(l_param & 0xFFFF)
+            y := i16(l_param >> 16)
             event := Event_Left_Mouse_Up{
                 x = int(x),
-                y = int(y),
+                y = -int(y) + ctx.height,
             }
             append(&ctx.events, event)
 
@@ -116,11 +116,11 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             if !ctx.right_mouse_down do ctx.right_mouse_pressed = true
             ctx.right_mouse_down = true
 
-            x := i32(l_param & 0xFFFFFFFF)
-            y := i32(l_param >> 32)
+            x := i16(l_param & 0xFFFF)
+            y := i16(l_param >> 16)
             event := Event_Right_Mouse_Down{
                 x = int(x),
-                y = int(y),
+                y = -int(y) + ctx.height,
             }
             append(&ctx.events, event)
 
@@ -128,22 +128,22 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             ctx.right_mouse_down = false
             ctx.right_mouse_released = true
 
-            x := i32(l_param & 0xFFFFFFFF)
-            y := i32(l_param >> 32)
+            x := i16(l_param & 0xFFFF)
+            y := i16(l_param >> 16)
             event := Event_Right_Mouse_Up{
                 x = int(x),
-                y = int(y),
+                y = -int(y) + ctx.height,
             }
             append(&ctx.events, event)
 
         case win32.WM_RBUTTONDBLCLK:
             ctx.right_mouse_double_click = true
 
-            x := i32(l_param & 0xFFFFFFFF)
-            y := i32(l_param >> 32)
+            x := i16(l_param & 0xFFFF)
+            y := i16(l_param >> 16)
             event := Event_Right_Mouse_Up{
                 x = int(x),
-                y = int(y),
+                y = -int(y) + ctx.height,
             }
             append(&ctx.events, event)
 
@@ -151,11 +151,11 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             if !ctx.middle_mouse_down do ctx.middle_mouse_pressed = true
             ctx.middle_mouse_down = true
 
-            x := i32(l_param & 0xFFFFFFFF)
-            y := i32(l_param >> 32)
+            x := i16(l_param & 0xFFFF)
+            y := i16(l_param >> 16)
             event := Event_Middle_Mouse_Down{
                 x = int(x),
-                y = int(y),
+                y = -int(y) + ctx.height,
             }
             append(&ctx.events, event)
 
@@ -163,22 +163,22 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             ctx.middle_mouse_down = false
             ctx.middle_mouse_released = true
 
-            x := i32(l_param & 0xFFFFFFFF)
-            y := i32(l_param >> 32)
+            x := i16(l_param & 0xFFFF)
+            y := i16(l_param >> 16)
             event := Event_Middle_Mouse_Up{
                 x = int(x),
-                y = int(y),
+                y = -int(y) + ctx.height,
             }
             append(&ctx.events, event)
 
         case win32.WM_MBUTTONDBLCLK:
             ctx.middle_mouse_double_click = true
 
-            x := i32(l_param & 0xFFFFFFFF)
-            y := i32(l_param >> 32)
+            x := i16(l_param & 0xFFFF)
+            y := i16(l_param >> 16)
             event := Event_Middle_Mouse_Up{
                 x = int(x),
-                y = int(y),
+                y = -int(y) + ctx.height,
             }
             append(&ctx.events, event)
 
@@ -431,7 +431,7 @@ _cursor_position :: proc() -> (x, y: int) {
         point = p
         return int(point.x), -int(point.y) + height()
     }
-    return int(point.x), -int(point.y) + height() // TODO(pJotoro): Do the same for the events which return a y-position on the window
+    return int(point.x), -int(point.y) + height()
 }
 
 @(private="file")
