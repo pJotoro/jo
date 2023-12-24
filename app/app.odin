@@ -227,10 +227,18 @@ title :: proc "contextless" () -> string {
 }
 
 set_title :: proc(title: string) {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+    
     _set_title(title)
 }
 
 set_position :: proc(x, y: int) {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
     if ctx.fullscreen {
         log.error("Cannot set position in fullscreen.")
         return

@@ -6,6 +6,7 @@ import win32 "core:sys/windows"
 import "core:intrinsics"
 import "core:log"
 import "core:c"
+import "core:prof/spall"
 
 import "xinput"
 import "../misc"
@@ -218,6 +219,10 @@ _init :: proc() {
     ctx.visible = -1
     
     {
+        when SPALL {
+            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "set_process_dpi_aware")
+        }
+
         ctx.dpi = int(GetDpiForSystem())
         if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
             log.error("Failed to make process DPI aware.")
@@ -227,6 +232,10 @@ _init :: proc() {
     }
     
     {
+        when SPALL {
+            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "get_monitor_info")
+        }
+
         monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
         monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
         ok := win32.GetMonitorInfoW(monitor, &monitor_info)
@@ -237,100 +246,128 @@ _init :: proc() {
         ctx.monitor_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
     }
 
-    switch ctx.fullscreen_mode {
-        case .Auto:
-            if ctx.width == 0 && ctx.height == 0 {
-                when ODIN_DEBUG {
+    window_rect: win32.RECT
+    {
+        when SPALL {
+            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "init_window_dimensions")
+        }
+
+        switch ctx.fullscreen_mode {
+            case .Auto:
+                if ctx.width == 0 && ctx.height == 0 {
+                    when ODIN_DEBUG {
+                        ctx.width = ctx.monitor_width / 2
+                        ctx.height = ctx.monitor_height / 2
+                        ctx.fullscreen = false
+                    } else {
+                        ctx.width = ctx.monitor_width
+                        ctx.height = ctx.monitor_height
+                        ctx.fullscreen = true
+                    }
+                }
+                else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height do ctx.fullscreen = true
+                else do ctx.fullscreen = false
+            case .Off:
+                if ctx.width == 0 && ctx.height == 0 {
                     ctx.width = ctx.monitor_width / 2
                     ctx.height = ctx.monitor_height / 2
-                    ctx.fullscreen = false
-                } else {
-                    ctx.width = ctx.monitor_width
-                    ctx.height = ctx.monitor_height
-                    ctx.fullscreen = true
+                } else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
+                    log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, ctx.monitor_width / 2, ctx.monitor_height / 2)
+                    ctx.width = ctx.monitor_width / 2
+                    ctx.height = ctx.monitor_height / 2
                 }
-            }
-            else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height do ctx.fullscreen = true
-            else do ctx.fullscreen = false
-        case .Off:
-            if ctx.width == 0 && ctx.height == 0 {
-                ctx.width = ctx.monitor_width / 2
-                ctx.height = ctx.monitor_height / 2
-            } else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
-                log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, ctx.monitor_width / 2, ctx.monitor_height / 2)
-                ctx.width = ctx.monitor_width / 2
-                ctx.height = ctx.monitor_height / 2
-            }
-            ctx.fullscreen = false 
-        case .On:
-            ctx.width = ctx.monitor_width
-            ctx.height = ctx.monitor_height
-            ctx.fullscreen = true
-    }
-
-    window_rect: win32.RECT
-
-    ok: bool
-
-    if !ctx.fullscreen {
-        ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
-
-        client_left := (ctx.monitor_width - ctx.width) / 2
-        client_top := (ctx.monitor_height - ctx.height) / 2
-        window_rect = adjust_window_rect(ctx.window_flags, 
-            client_left, 
-            client_top,
-            client_left + ctx.width, 
-            client_top + ctx.height)
-
-        ctx.windowed_x = int(window_rect.left)
-        ctx.windowed_y = int(window_rect.top)
-    }
-
-    ctx.fullscreen_rect = adjust_window_rect(win32.WS_POPUP, 0, 0, ctx.monitor_width, ctx.monitor_height)
-    if ctx.fullscreen {
-        ctx.window_flags = win32.WS_POPUP
-
-        window_rect = ctx.fullscreen_rect
-
-        ctx.windowed_x = ctx.monitor_width / 4
-        ctx.windowed_y = ctx.monitor_height / 4
-    }
-
-    {
-        module_handle := win32.HANDLE(win32.GetModuleHandleW(nil))
-        if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
-        log.debug("Succeeded to get module handle.")
-        ctx.instance = module_handle
-
-        window_class := win32.WNDCLASSEXW{
-            cbSize = size_of(win32.WNDCLASSEXW),
-            lpfnWndProc = window_proc,
-            hInstance = module_handle,
-            lpszClassName = L("app_class_name"),
+                ctx.fullscreen = false 
+            case .On:
+                ctx.width = ctx.monitor_width
+                ctx.height = ctx.monitor_height
+                ctx.fullscreen = true
         }
-        if win32.RegisterClassExW(&window_class) == 0 do log.panicf("Failed to register window class. %v", misc.get_last_error_message())
-        log.debug("Succeeded to register window class.")
-
-        wname := win32.utf8_to_wstring(ctx.title)
-        ctx.window = win32.CreateWindowExW(
-            0, 
-            window_class.lpszClassName, 
-            !ctx.fullscreen ? wname : nil,
-            ctx.window_flags, 
-            window_rect.left, 
-            window_rect.top, 
-            window_rect.right - window_rect.left, 
-            window_rect.bottom - window_rect.top, 
-            nil, 
-            nil, 
-            window_class.hInstance, 
-            nil)
-        if ctx.window == nil do log.panicf("Failed to create window. %v", misc.get_last_error_message())
-        log.debug("Succeeded to create window.")
+    
+        ok: bool
+    
+        if !ctx.fullscreen {
+            ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
+    
+            client_left := (ctx.monitor_width - ctx.width) / 2
+            client_top := (ctx.monitor_height - ctx.height) / 2
+            window_rect = adjust_window_rect(ctx.window_flags, 
+                client_left, 
+                client_top,
+                client_left + ctx.width, 
+                client_top + ctx.height)
+    
+            ctx.windowed_x = int(window_rect.left)
+            ctx.windowed_y = int(window_rect.top)
+        }
+    
+        ctx.fullscreen_rect = adjust_window_rect(win32.WS_POPUP, 0, 0, ctx.monitor_width, ctx.monitor_height)
+        if ctx.fullscreen {
+            ctx.window_flags = win32.WS_POPUP
+    
+            window_rect = ctx.fullscreen_rect
+    
+            ctx.windowed_x = ctx.monitor_width / 4
+            ctx.windowed_y = ctx.monitor_height / 4
+        }
     }
 
     {
+        {
+            when SPALL {
+                spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "get_module_handle")
+            }
+
+            module_handle := win32.GetModuleHandleW(nil)
+            if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
+            log.debug("Succeeded to get module handle.")
+            ctx.instance = win32.HINSTANCE(module_handle)
+        }
+        
+        window_class: win32.WNDCLASSEXW
+        {
+            when SPALL {
+                spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "register_window_class")
+            }
+
+            window_class = win32.WNDCLASSEXW{
+                cbSize = size_of(win32.WNDCLASSEXW),
+                lpfnWndProc = window_proc,
+                hInstance = win32.HANDLE(ctx.instance),
+                lpszClassName = L("app_class_name"),
+            }
+            if win32.RegisterClassExW(&window_class) == 0 do log.panicf("Failed to register window class. %v", misc.get_last_error_message())
+            log.debug("Succeeded to register window class.")
+        }
+        
+        {
+            when SPALL {
+                spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "create_window")
+            }
+
+            wname := win32.utf8_to_wstring(ctx.title)
+            ctx.window = win32.CreateWindowExW(
+                0, 
+                window_class.lpszClassName, 
+                !ctx.fullscreen ? wname : nil,
+                ctx.window_flags, 
+                window_rect.left, 
+                window_rect.top, 
+                window_rect.right - window_rect.left, 
+                window_rect.bottom - window_rect.top, 
+                nil, 
+                nil, 
+                window_class.hInstance, 
+                nil)
+            if ctx.window == nil do log.panicf("Failed to create window. %v", misc.get_last_error_message())
+            log.debug("Succeeded to create window.")
+        }
+    }
+
+    {
+        when SPALL {
+            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "enumerate_display_settings")
+        }
+
         dev_mode := win32.DEVMODEW{dmSize = size_of(win32.DEVMODEW)}
         if !win32.EnumDisplaySettingsW(nil, win32.ENUM_CURRENT_SETTINGS, &dev_mode) {
             log.error("Failed to enumerate display settings.")
@@ -341,7 +378,13 @@ _init :: proc() {
         }
     }
 
-    ctx.can_connect_gamepad = xinput.init()
+    {
+        when SPALL {
+            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "xinput_init")
+        }
+
+        ctx.can_connect_gamepad = xinput.init()
+    }
 }
 
 _should_close :: proc() -> bool {
@@ -385,7 +428,11 @@ _render :: proc(bitmap: []u32) {
     result = win32.ReleaseDC(ctx.window, hdc)
     if result == 0 do log.panic("Failed to release window device context.")
 
-    rgba_to_bgr_u8 :: #force_inline proc "contextless" (r, g, b, a: u8) -> (bgr: u32) {
+    rgba_to_bgr_u8 :: #force_inline proc(r, g, b, a: u8) -> (bgr: u32) {
+        when SPALL {
+            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+        }
+
         src_r := r != 0 ? f32(r) / 255 : 0
         src_g := g != 0 ? f32(g) / 255 : 0
         src_b := b != 0 ? f32(b) / 255 : 0
@@ -409,7 +456,11 @@ _render :: proc(bitmap: []u32) {
         return
     }
     
-    rgba_to_bgr_u32 :: #force_inline proc "contextless" (rgba: u32) -> (bgr: u32) {
+    rgba_to_bgr_u32 :: #force_inline proc(rgba: u32) -> (bgr: u32) {
+        when SPALL {
+            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+        }
+
         r := u8((rgba & 0x000000FF) >> 0)
         g := u8((rgba & 0x0000FF00) >> 8)
         b := u8((rgba & 0x00FF0000) >> 16)
@@ -495,6 +546,10 @@ _set_title :: proc(title: string) {
 
 @(private)
 adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT) {
+    when SPALL {
+        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
+    }
+
     rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
     if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
         // TODO(pJotoro): Could I make this not panic? It is super important that this procedure call succeeds.
