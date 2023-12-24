@@ -417,7 +417,7 @@ _render :: proc(bitmap: []u32) {
     rgba_to_bgr :: proc{rgba_to_bgr_u8, rgba_to_bgr_u32}
 }
 
-_mouse_position :: proc() -> (x, y: int) {
+_cursor_position :: proc() -> (x, y: int) {
     @static point: win32.POINT
     p := point
     ok := win32.GetCursorPos(&point)

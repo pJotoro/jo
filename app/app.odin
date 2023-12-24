@@ -371,12 +371,12 @@ focused :: proc "contextless" () -> bool {
     return ctx.focused
 }
 
-mouse_position :: proc() -> (x, y: int) {
+cursor_position :: proc() -> (x, y: int) {
     when SPALL {
         spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
     }
 
-    return _mouse_position()
+    return _cursor_position()
 }
 
 left_mouse_down :: proc "contextless" () -> bool {
