@@ -379,6 +379,11 @@ cursor_position :: proc() -> (x, y: int) {
     return _cursor_position()
 }
 
+cursor_on_screen :: proc() -> bool {
+    x, y := cursor_position()
+    return x >= 0 && x < ctx.width && y >= 0 && y < ctx.height
+}
+
 cursor_visible :: proc() -> bool {
     when SPALL {
         spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)

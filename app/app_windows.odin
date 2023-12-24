@@ -474,9 +474,7 @@ _show_cursor :: proc() -> bool {
 
 _hide_cursor :: proc() -> bool {
     // NOTE(pJotoro): Horrible for the same reason _show_cursor is horrible.
-
-    display_counter := ShowCursor(false)
-    if display_counter < 0 do return true
+    display_counter: c.int
     for display_counter >= 0 do display_counter = ShowCursor(false)
     return true
 }
