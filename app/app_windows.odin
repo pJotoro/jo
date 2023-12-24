@@ -17,7 +17,6 @@ OS_Specific :: struct {
     window_extended_flags: u32,
     window_flags: u32,
     fullscreen_rect: win32.RECT,
-    cursor: win32.HCURSOR,
 
     gamepads: [4]Gamepad_Desc,
 
@@ -344,19 +343,6 @@ _init :: proc() {
             log.infof("Refresh rate: %v.", ctx.refresh_rate)
         }
     }
-
-    {
-        flags := u32(win32.LR_DEFAULTSIZE | win32.LR_SHARED)
-        ctx.cursor = win32.HCURSOR(win32.LoadImageW(nil, transmute([^]u16)(win32.IDC_ARROW), win32.IMAGE_CURSOR, 0, 0, flags))
-        if ctx.cursor == nil {
-            log.errorf("Failed to load cursor. %v", misc.get_last_error_message())
-        } else {
-            log.debug("Succeeded to load cursor.")
-
-            win32.SetCursor(ctx.cursor)
-        }
-    }
-    
 
     ctx.can_connect_gamepad = xinput.init()
 }
