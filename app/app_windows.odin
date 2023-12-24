@@ -11,11 +11,13 @@ import "xinput"
 import "../misc"
 
 OS_Specific :: struct {
+    instance: win32.HINSTANCE,
     window: win32.HWND,
     window_class_flags: u32,
     window_extended_flags: u32,
     window_flags: u32,
     fullscreen_rect: win32.RECT,
+    cursor: win32.HCURSOR,
 
     gamepads: [4]Gamepad_Desc,
 
@@ -220,9 +222,11 @@ _init :: proc() {
     
     {
         ctx.dpi = int(GetDpiForSystem())
-        ok := win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE)
-        if !ok do log.error("Failed to make process DPI aware.")
-        else do log.debug("Succeeded to make process DPI aware.")
+        if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
+            log.error("Failed to make process DPI aware.")
+        } else {
+            log.debug("Succeeded to make process DPI aware.")
+        }
     }
     
     {
@@ -240,7 +244,7 @@ _init :: proc() {
         case .Auto:
             if ctx.width == 0 && ctx.height == 0 {
                 when ODIN_DEBUG {
-                    ctcx.width = ctx.monitor_width / 2
+                    ctx.width = ctx.monitor_width / 2
                     ctx.height = ctx.monitor_height / 2
                     ctx.fullscreen = false
                 } else {
@@ -273,9 +277,11 @@ _init :: proc() {
     ok: bool
 
     if !ctx.fullscreen {
+        window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
+
         client_left := (ctx.monitor_width - ctx.width) / 2
         client_top := (ctx.monitor_height - ctx.height) / 2
-        window_rect = adjust_window_rect(win32.WS_CAPTION | win32.WS_SYSMENU, 
+        window_rect = adjust_window_rect(window_flags, 
             client_left, 
             client_top,
             client_left + ctx.width, 
@@ -287,6 +293,8 @@ _init :: proc() {
 
     ctx.fullscreen_rect = adjust_window_rect(win32.WS_POPUP, 0, 0, ctx.monitor_width, ctx.monitor_height)
     if ctx.fullscreen {
+        window_flags = win32.WS_POPUP
+
         window_rect = ctx.fullscreen_rect
 
         ctx.windowed_x = ctx.monitor_width / 4
@@ -297,6 +305,7 @@ _init :: proc() {
         module_handle := win32.HANDLE(win32.GetModuleHandleW(nil))
         if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
         log.debug("Succeeded to get module handle.")
+        ctx.instance = module_handle
 
         window_class := win32.WNDCLASSEXW{
             cbSize = size_of(win32.WNDCLASSEXW),
@@ -335,6 +344,19 @@ _init :: proc() {
             log.infof("Refresh rate: %v.", ctx.refresh_rate)
         }
     }
+
+    {
+        flags := u32(win32.LR_DEFAULTSIZE | win32.LR_SHARED)
+        ctx.cursor = win32.HCURSOR(win32.LoadImageW(nil, transmute([^]u16)(win32.IDC_ARROW), win32.IMAGE_CURSOR, 0, 0, flags))
+        if ctx.cursor == nil {
+            log.errorf("Failed to load cursor. %v", misc.get_last_error_message())
+        } else {
+            log.debug("Succeeded to load cursor.")
+
+            win32.SetCursor(ctx.cursor)
+        }
+    }
+    
 
     ctx.can_connect_gamepad = xinput.init()
 }
@@ -502,7 +524,7 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
 }
 
 _set_position :: proc(x, y: int) -> bool {
-    rect := adjust_window_rect(win32.WS_CAPTION | win32.WS_SYSMENU, x, y, x + width(), y + height())
+    rect := adjust_window_rect(win32.WS_CAPTION | win32.WS_SYSMENU, x, y, x + ctx.width, y + ctx.height)
     if !win32.SetWindowPos(ctx.window, nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
