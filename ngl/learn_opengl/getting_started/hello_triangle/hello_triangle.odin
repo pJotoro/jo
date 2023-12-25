@@ -1,12 +1,13 @@
 package hello_triangle
 
-import "jo/app"
-import gl "jo/ngl"
+import "jo:app"
+import gl "jo:ngl"
 import "core:slice"
 
 main :: proc() {
 	app.init(width = 800, height = 600)
-	assert(app.gl_init(4, 6))
+	ok := app.gl_init(4, 6)
+	assert(ok)
 
 	vertex_shader := gl.create_shader("vert.spv", .Vertex)
 	fragment_shader := gl.create_shader("frag.spv", .Fragment)
@@ -27,7 +28,7 @@ main :: proc() {
 	gl.vertex_array_attrib_format(vertex_array, 0, 3, f32, false, 0)
 	gl.vertex_array_attrib_binding(vertex_array, 0, 0)
 	
-	for !app.should_close() {
+	for app.running() {
 		gl.clear_color(0.2, 0.3, 0.3, 1.0)
 		gl.clear({.Color})
 
