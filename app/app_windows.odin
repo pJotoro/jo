@@ -544,7 +544,7 @@ _set_title :: proc(title: string) {
     }
 }
 
-@(private)
+@(private="file")
 adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT) {
     when SPALL {
         spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
@@ -561,6 +561,7 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
     return
 }
 
+// TODO(pJotoro): This procedure has the y-axis at the top left, at odds with the rest of the library. Change this!
 _set_position :: proc(x, y: int) -> bool {
     rect := adjust_window_rect(ctx.window_flags, x, y, x + ctx.width, y + ctx.height)
     if !win32.SetWindowPos(ctx.window, nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
