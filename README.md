@@ -92,7 +92,7 @@ main :: proc() {
 
 Libraries like SDL, GLFW, Raylib, Sokol, and others aren't good enough for me. 
 
-So far, these are the principles I've been running with when developing jo/app:
+So far, these are the principles I've been running with when developing jo:app:
 
 1. Flexibility isn't always good. Most programs don't need multiple windows, for example. Strategic *inflexibility* can make a library much nicer to use in 99% of cases.
 2. Reduce the number of *necessary* API calls as much as possible.
@@ -152,7 +152,7 @@ main :: proc() {
 
 ## Why wrap over OpenGL? Why not just use it directly?
 
-OpenGL 4.6 is great; unfortunately, there isn't a 500 page book on how to use it, and it isn't at all clear which procedures it deprecates and which procedures it keeps. jo/ngl bans the "deprecated" procedures by simply not providing wrappers over them. This way, you have no choice but to use the procedures you actually want.
+OpenGL 4.6 is great; unfortunately, there isn't a 500 page book on how to use it, and it isn't at all clear which procedures it deprecates and which procedures it keeps. jo:ngl bans the "deprecated" procedures by simply not providing wrappers over them. This way, you have no choice but to use the procedures you actually want.
 
 # IMPORTANT:
 
