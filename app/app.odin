@@ -30,7 +30,7 @@ Context :: struct {
 
     // ----- running -----
     visible: int, // -1 and 0 mean invisible at first, 1 means visible, and 2 means invisible
-    should_close: bool,
+    running: bool,
     fullscreen: bool,
     // -------------------
     
@@ -133,9 +133,15 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
     }
 
     ctx.app_initialized = true
+    ctx.running = true
 }
 
+@(deprecated="use running")
 should_close :: proc() -> bool {
+    return !running()
+}
+
+running :: proc() -> bool {
     when SPALL {
         spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
     }
@@ -159,20 +165,25 @@ should_close :: proc() -> bool {
     clear(&ctx.events)
     ctx.event_index = 0
 
-    if !_should_close() {
+    if _running() {
         if can_connect_gamepad() {
             for gamepad_index in 0..<len(ctx.gamepads) {
                 if gamepad_connected(gamepad_index) do try_connect_gamepad(gamepad_index)
             }
         }
  
-        return false
+        return true
     }
 
-    return true
+    return false
 }
 
-render :: proc(bitmap: []u32) {
+@(deprecated="use swap_buffers")
+render :: proc(buffer: []u32) {
+    swap_buffers(buffer)
+}
+
+swap_buffers :: proc(buffer: []u32) {
     when SPALL {
         spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
     }
@@ -185,13 +196,13 @@ render :: proc(bitmap: []u32) {
     }
 
     // TODO(pJotoro): render should change ctx.width and/or ctx.height if the bitmap is too small.
-    if len(bitmap) < width() * height() do log.panic("bitmap too small")
-    if len(bitmap) > width() * height() do log.panic("bitmap too big")
+    if len(buffer) < width() * height() do log.panic("buffer too small")
+    if len(buffer) > width() * height() do log.panic("buffer too big")
 
-    _render(bitmap)
+    _swap_buffers(buffer)
 
     // _render modifies the bitmap anyway (rgba -> bgr), so we might as well zero it out here.
-    mem.zero_slice(bitmap)
+    mem.zero_slice(buffer)
 }
 
 window :: proc "contextless" () -> rawptr {

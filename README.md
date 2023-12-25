@@ -11,14 +11,14 @@ import "core:image/png"
 main :: proc() {
 	app.init()
 	
-	bitmap := make([]u32, app.width() * app.height())
+	buffer := make([]u32, app.width() * app.height())
 	awesomeface, _ := png.load("awesomeface.png")
 
 	pos: [2]f32 = ---
 	pos.x = f32((app.width() - awesomeface.width) / 2)
 	pos.y = f32((app.height() - awesomeface.height) / 2)
 	
-	for !app.should_close() {
+	for app.running() {
 		if app.key_pressed(.Escape) do return
 
 		if app.gamepad_connected(0) {
@@ -32,9 +32,9 @@ main :: proc() {
 		pos.x = clamp(pos.x, 0, f32(app.width()-1-awesomeface.width))
 		pos.y = clamp(pos.y, 0, f32(app.height()-1-awesomeface.height))
 
-		draw_image(bitmap, awesomeface, pos)
+		draw_image(buffer, awesomeface, pos)
 
-		app.render(bitmap)
+		app.swap_buffers(buffer)
 	}
 }
 
@@ -46,17 +46,17 @@ image_pixel :: proc(img: ^png.Image, x, y: int) -> u32 {
 	return transmute(u32)pixel
 }
 
-draw_pixel :: proc(bitmap: []u32, x, y: int, pixel: u32) {
-	bitmap[x+y*app.width()] = pixel
+draw_pixel :: proc(buffer: []u32, x, y: int, pixel: u32) {
+	buffer[x+y*app.width()] = pixel
 }
 
-draw_image :: proc(bitmap: []u32, img: ^png.Image, pos: [2]f32) {
+draw_image :: proc(buffer: []u32, img: ^png.Image, pos: [2]f32) {
 	x := int(pos.x)
 	y := int(pos.y)
 	for image_x := 0; image_x < img.width && image_x < app.width(); image_x += 1 {
 		for image_y := 0; image_y < img.height && image_y < app.height(); image_y += 1 {
 			pixel := image_pixel(img, image_x, image_y)
-			draw_pixel(bitmap, x + image_x, y + image_y, pixel)
+			draw_pixel(buffer, x + image_x, y + image_y, pixel)
 		}
 	}
 }
@@ -76,7 +76,7 @@ main :: proc() {
 	app.init()
 	app.gl_init(4, 6)
 
-	for !app.should_close() {
+	for app.running() {
 		if app.key_pressed(.Escape) do return
 
 		gl.ClearColor(0.123, 0.456, 0.789, 1)
@@ -133,7 +133,7 @@ main :: proc() {
 	gl.vertex_array_attrib_format(vertex_array, 0, 3, f32, false, 0)
 	gl.vertex_array_attrib_binding(vertex_array, 0, 0)
 	
-	for !app.should_close() {
+	for app.running() {
 		if app.key_pressed(.Escape) do return
 
 		gl.clear_color(0.2, 0.3, 0.3, 1.0)

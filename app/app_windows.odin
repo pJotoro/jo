@@ -32,7 +32,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
     
     switch message {
         case win32.WM_CLOSE, win32.WM_DESTROY, win32.WM_QUIT:
-            ctx.should_close = true
+            ctx.running = false
 
         case win32.WM_ACTIVATE:
             ctx.focused = !ctx.focused
@@ -387,7 +387,7 @@ _init :: proc() {
     }
 }
 
-_should_close :: proc() -> bool {
+_running :: proc() -> bool {
     if ctx.visible == -1 do ctx.visible += 1
     else if ctx.visible == 0 {
         ctx.visible += 1
@@ -404,12 +404,12 @@ _should_close :: proc() -> bool {
         break
     }
 
-    return ctx.should_close
+    return ctx.running
 }
 
-_render :: proc(bitmap: []u32) {
+_swap_buffers :: proc(buffer: []u32) {
     // TODO(pJotoro): find a more efficient way to do this.
-    for &pixel in bitmap {
+    for &pixel in buffer {
         if pixel != 0 do pixel = rgba_to_bgr(pixel)
     }
     hdc := win32.GetDC(ctx.window)
@@ -423,7 +423,7 @@ _render :: proc(bitmap: []u32) {
         biBitCount = 32,
         biCompression = win32.BI_RGB,
     }
-    result := win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(bitmap), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
+    result := win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
     if result == 0 do log.panic("Failed to render bitmap.")
     result = win32.ReleaseDC(ctx.window, hdc)
     if result == 0 do log.panic("Failed to release window device context.")
