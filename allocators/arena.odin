@@ -3,23 +3,17 @@ package allocators
 import win32 "core:sys/windows"
 import "core:os"
 import "core:mem"
+import "core:mem/virtual"
 
 Arena :: struct {
-    memory: rawptr,
-    reserved: uint,
-    committed: uint,
-    offset: uint,
+    data: []byte,
+    end: rawptr,
 }
 
-arena_init :: proc(arena: ^Arena, reserved: uint = mem.Gigabyte) -> bool {
-    arena.reserved = reserved
-    arena.memory = win32.VirtualAlloc(nil, arena.reserved, win32.MEM_RESERVE, win32.PAGE_READWRITE)
-    if arena.memory == nil do return false
-    arena.committed = uint(os.get_page_size())
-    arena.memory = win32.VirtualAlloc(arena.memory, arena.committed, win32.MEM_COMMIT, win32.PAGE_READWRITE)
-    if arena.memory == nil do return false
-    arena.offset = 0
-    return true
+arena_init :: proc(arena: ^Arena, size: uint = mem.Gigabyte) -> mem.Allocator_Error {
+    arena.data = virtual.reserve_and_commit(size) or_return
+    arena.end = raw_data(arena.data)
+    return .None
 }
 
 arena_allocator :: proc(arena: ^Arena) -> mem.Allocator {
@@ -30,32 +24,20 @@ arena_proc :: proc(data: rawptr, mode: mem.Allocator_Mode, size, alignment: int,
     arena := (^Arena)(data)
 
     #partial switch mode {
-        case .Alloc:
-            ptr := rawptr(uintptr(arena.memory) + uintptr(arena.offset))
-            ptr = mem.align_forward(ptr, uintptr(alignment))
-
-            offset := uint(uintptr(ptr) - uintptr(arena.memory))
-            offset += uint(size)
-            if offset > arena.reserved do return nil, .Out_Of_Memory
-            if offset > arena.committed {
-                arena.committed = offset
-                arena.committed = mem.align_forward_uint(arena.committed, uint(os.get_page_size()))
-                arena.memory = win32.VirtualAlloc(arena.memory, arena.committed, win32.MEM_COMMIT, win32.PAGE_READWRITE)
-                if arena.memory == nil do return nil, .Out_Of_Memory
-            }
-            arena.offset = offset
-
+        case .Alloc, .Alloc_Non_Zeroed:
+            arena.end = mem.align_forward(arena.end, uintptr(alignment))
+            ptr := arena.end
+            arena.end = rawptr(uintptr(arena.end) + uintptr(size))
             return ([^]byte)(ptr)[:size], .None
         
         case .Free_All:
-            mem.zero(arena.memory, int(arena.offset))
-            arena.offset = 0
+            arena.end = raw_data(arena.data)
             return nil, .None
             
         case .Query_Features:
             set := (^mem.Allocator_Mode_Set)(old_memory)
             if set != nil {
-                set^ = {.Alloc, .Free_All, .Query_Features}
+                set^ = {.Alloc, .Alloc_Non_Zeroed, .Free_All, .Query_Features}
             }
             return nil, nil
     }
