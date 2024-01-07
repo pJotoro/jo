@@ -16,6 +16,7 @@ Context :: struct {
     dpi: int,
     refresh_rate: int,
 
+    window: rawptr,
     windowed_x, windowed_y: int,
     windowed_width, windowed_height: int,
     monitor_width, monitor_height: int,
@@ -30,7 +31,6 @@ Context :: struct {
 
     // ----- running -----
     visible: int, // -1 and 0 mean invisible at first, 1 means visible, and 2 means invisible
-    running: bool,
     fullscreen: bool,
     // -------------------
     
@@ -62,6 +62,7 @@ Context :: struct {
     // ----- gamepad -----
     can_connect_gamepad: bool,
     gamepad_debug_flags: Gamepad_Debug_Flags,
+    gamepads: [4]Gamepad_Desc,
     // -------------------
 
     // ----- events -----
@@ -133,7 +134,6 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
     }
 
     ctx.app_initialized = true
-    ctx.running = true
 }
 
 @(deprecated="use running")

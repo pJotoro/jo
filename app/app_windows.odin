@@ -13,11 +13,8 @@ import "../misc"
 
 OS_Specific :: struct {
     instance: win32.HINSTANCE,
-    window: win32.HWND,
     window_flags: u32,
     fullscreen_rect: win32.RECT,
-
-    gamepads: [4]Gamepad_Desc,
 
     gl_hdc: win32.HDC,
     gl_vsync: bool,

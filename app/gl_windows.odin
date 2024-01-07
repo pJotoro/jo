@@ -2,6 +2,7 @@
 package app
 
 import win32 "core:sys/windows"
+import gl "vendor:OpenGL"
 import "../misc"
 import "core:log"
 
@@ -170,6 +171,8 @@ _gl_init :: proc(major, minor: int) -> bool {
             log.info("OpenGL: VSync enabled.")
         }
     }
+
+    gl.load_up_to(major, minor, win32.gl_set_proc_address)
 
     return true
 }

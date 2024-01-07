@@ -20,7 +20,6 @@ gl_init :: proc(major, minor: int) -> bool {
     // TODO(pJotoro): Make sure the version of OpenGL chosen is valid. If not it will fail regardless, but it would be better to fail earlier.
 
     if _gl_init(major, minor) {
-        gl.load_up_to(major, minor, win32.gl_set_proc_address)
         log.infof("OpenGL: loaded up to version %v.%v.", major, minor)
         
         gl.Viewport(0, 0, i32(width()), i32(height()))
