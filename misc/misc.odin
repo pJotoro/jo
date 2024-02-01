@@ -1,7 +1,7 @@
 package misc
 
 import "core:os"
-import "core:runtime"
+import "base:runtime"
 
 read_entire_file_aligned_from_filename :: proc(name: string, alignment: int, allocator := context.allocator, loc := #caller_location) -> (data: []byte, success: bool) {
 	context.allocator = allocator

@@ -1,7 +1,6 @@
 package app
 
 import "core:fmt"
-import "core:prof/spall"
 
 Gamepad_Debug_Flag :: enum u32 {
     Navigation,
@@ -28,10 +27,6 @@ gamepad_debug_disable :: proc "contextless" (flags: Gamepad_Debug_Flags) {
 
 @(private)
 gamepad_debug :: proc(gamepad_index: int) {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if .Navigation in ctx.gamepad_debug_flags {
         if .Down in ctx.gamepad_debug_flags {
             fmt.printf("gamepad %v dpad up: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Dpad_Up))

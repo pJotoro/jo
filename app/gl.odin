@@ -3,13 +3,8 @@ package app
 import gl "vendor:OpenGL"
 import "core:log"
 import win32 "core:sys/windows"
-import "core:prof/spall"
 
 gl_init :: proc(major, minor: int) -> bool {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if !ctx.app_initialized {
         log.panic("App not initialized.")
     }
@@ -32,10 +27,6 @@ gl_init :: proc(major, minor: int) -> bool {
 }
 
 gl_swap_buffers :: proc(loc := #caller_location) {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if !ctx.app_initialized {
         log.panic("App not initialized.")
     }

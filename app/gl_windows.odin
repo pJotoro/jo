@@ -85,7 +85,7 @@ _gl_init :: proc(major, minor: int) -> bool {
         }
     }
 
-    ctx.gl_hdc = win32.GetDC(ctx.window)
+    ctx.gl_hdc = win32.GetDC(win32.HWND(ctx.window))
     if ctx.gl_hdc == nil {
         log.error("OpenGL: failed to get window device context.")
         return false

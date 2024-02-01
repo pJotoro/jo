@@ -2,9 +2,6 @@ package app
 
 import "core:log"
 import "core:mem"
-import "core:prof/spall"
-
-SPALL :: #config(JO_SPALL, false)
 
 @(private)
 Context :: struct {
@@ -30,6 +27,7 @@ Context :: struct {
     // ----------------
 
     // ----- running -----
+    running: bool,
     visible: int, // -1 and 0 mean invisible at first, 1 means visible, and 2 means invisible
     fullscreen: bool,
     // -------------------
@@ -70,11 +68,6 @@ Context :: struct {
     event_index: int,
     // ------------------
 
-    // ----- profiling -----
-    spall_ctx: ^spall.Context,
-    spall_buffer: ^spall.Buffer,
-    // ---------------------
-
     using os_specific: OS_Specific,
 }
 @(private)
@@ -86,19 +79,7 @@ Fullscreen_Mode :: enum {
     On,
 }
 
-init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil, allocator := context.allocator) {
-    when SPALL {
-        if spall_ctx == nil || spall_buffer == nil {
-            // NOTE(pJotoro): Assertions are typically turned off when profiling, so it wouldn't make any sense for this to be log.panic.
-            log.fatal("When Spall is enabled, must set spall_ctx and spall_buffer.")
-            return
-        }
-        ctx.spall_ctx = spall_ctx
-        ctx.spall_buffer = spall_buffer
-
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
+init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, allocator := context.allocator) {
     context.allocator = allocator
 
     if ctx.app_initialized {
@@ -134,6 +115,7 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
     }
 
     ctx.app_initialized = true
+    ctx.running = true
 }
 
 @(deprecated="use running")
@@ -142,10 +124,6 @@ should_close :: proc() -> bool {
 }
 
 running :: proc() -> bool {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if !ctx.app_initialized {
         log.panic("App not initialized.")
     }
@@ -184,10 +162,6 @@ render :: proc(buffer: []u32) {
 }
 
 swap_buffers :: proc(buffer: []u32) {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if !ctx.app_initialized {
         log.panic("App not initialized.")
     }
@@ -238,18 +212,10 @@ title :: proc "contextless" () -> string {
 }
 
 set_title :: proc(title: string) {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-    
     _set_title(title)
 }
 
 set_position :: proc(x, y: int) {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if ctx.fullscreen {
         log.error("Cannot set position in fullscreen.")
         return
@@ -266,10 +232,6 @@ fullscreen :: proc "contextless" () -> bool {
 }
 
 set_windowed :: proc() {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if !ctx.fullscreen {
         log.warn("Already windowed.")
         return
@@ -286,10 +248,6 @@ set_windowed :: proc() {
 }
 
 set_fullscreen :: proc() {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if ctx.fullscreen {
         log.warn("Already fullscreen.")
         return
@@ -315,10 +273,6 @@ visible :: proc "contextless" () -> bool {
 }
 
 hide :: proc() {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if ctx.visible == 2 {
         log.warn("Already hidden.")
         return
@@ -332,10 +286,6 @@ hide :: proc() {
 }
 
 show :: proc() {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if ctx.visible == 1 {
         log.warn("Already shown.")
         return
@@ -349,10 +299,6 @@ show :: proc() {
 }
 
 minimize :: proc() {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if ctx.minimized {
         log.warn("Already minimized.")
         return
@@ -368,10 +314,6 @@ minimize :: proc() {
 }
 
 maximize :: proc() {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if ctx.maximized {
         log.warn("Already maximized.")
         return
@@ -391,10 +333,6 @@ focused :: proc "contextless" () -> bool {
 }
 
 cursor_position :: proc() -> (x, y: int) {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     return _cursor_position()
 }
 
@@ -404,18 +342,10 @@ cursor_on_screen :: proc() -> bool {
 }
 
 cursor_visible :: proc() -> bool {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     return _cursor_visible()
 }
 
 show_cursor :: proc() {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if cursor_visible() {
         log.warn("Cursor already visible.")
         return
@@ -426,10 +356,6 @@ show_cursor :: proc() {
 }
 
 hide_cursor :: proc() {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     if !cursor_visible() {
         log.warn("Cursor already hidden.")
         return

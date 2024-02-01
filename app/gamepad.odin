@@ -1,8 +1,7 @@
 package app
 
-import "core:runtime"
+import "base:runtime"
 import "core:log"
-import "core:prof/spall"
 
 Gamepad_Button :: enum u16 {
 	Dpad_Up,
@@ -46,9 +45,6 @@ can_connect_gamepad :: proc "contextless" () -> bool {
 }
 
 try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
-	when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return _try_connect_gamepad(gamepad_index)
 }
@@ -99,9 +95,6 @@ gamepad_right_stick :: proc "contextless" (gamepad_index: int, loc := #caller_lo
 }
 
 gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
-	when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	left_motor := left_motor
 	right_motor := right_motor

@@ -2,7 +2,7 @@
 package misc
 
 import win32 "core:sys/windows"
-import "core:runtime"
+import "base:runtime"
 
 get_last_error_message :: proc() -> (string, runtime.Allocator_Error) #optional_allocator_error {
     error := win32.GetLastError()

@@ -1,12 +1,11 @@
 // +private
 package app
 
-import "core:runtime"
+import "base:runtime"
 import win32 "core:sys/windows"
-import "core:intrinsics"
+import "base:intrinsics"
 import "core:log"
 import "core:c"
-import "core:prof/spall"
 
 import "xinput"
 import "../misc"
@@ -216,10 +215,6 @@ _init :: proc() {
     ctx.visible = -1
     
     {
-        when SPALL {
-            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "set_process_dpi_aware")
-        }
-
         ctx.dpi = int(GetDpiForSystem())
         if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
             log.error("Failed to make process DPI aware.")
@@ -229,10 +224,6 @@ _init :: proc() {
     }
     
     {
-        when SPALL {
-            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "get_monitor_info")
-        }
-
         monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
         monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
         ok := win32.GetMonitorInfoW(monitor, &monitor_info)
@@ -245,10 +236,6 @@ _init :: proc() {
 
     window_rect: win32.RECT
     {
-        when SPALL {
-            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "init_window_dimensions")
-        }
-
         switch ctx.fullscreen_mode {
             case .Auto:
                 if ctx.width == 0 && ctx.height == 0 {
@@ -310,10 +297,6 @@ _init :: proc() {
 
     {
         {
-            when SPALL {
-                spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "get_module_handle")
-            }
-
             module_handle := win32.GetModuleHandleW(nil)
             if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
             log.debug("Succeeded to get module handle.")
@@ -322,10 +305,6 @@ _init :: proc() {
         
         window_class: win32.WNDCLASSEXW
         {
-            when SPALL {
-                spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "register_window_class")
-            }
-
             window_class = win32.WNDCLASSEXW{
                 cbSize = size_of(win32.WNDCLASSEXW),
                 lpfnWndProc = window_proc,
@@ -337,10 +316,6 @@ _init :: proc() {
         }
         
         {
-            when SPALL {
-                spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "create_window")
-            }
-
             wname := win32.utf8_to_wstring(ctx.title)
             ctx.window = win32.CreateWindowExW(
                 0, 
@@ -361,10 +336,6 @@ _init :: proc() {
     }
 
     {
-        when SPALL {
-            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "enumerate_display_settings")
-        }
-
         dev_mode := win32.DEVMODEW{dmSize = size_of(win32.DEVMODEW)}
         if !win32.EnumDisplaySettingsW(nil, win32.ENUM_CURRENT_SETTINGS, &dev_mode) {
             log.error("Failed to enumerate display settings.")
@@ -376,10 +347,6 @@ _init :: proc() {
     }
 
     {
-        when SPALL {
-            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, "xinput_init")
-        }
-
         ctx.can_connect_gamepad = xinput.init()
     }
 }
@@ -388,12 +355,12 @@ _running :: proc() -> bool {
     if ctx.visible == -1 do ctx.visible += 1
     else if ctx.visible == 0 {
         ctx.visible += 1
-        win32.ShowWindow(ctx.window, win32.SW_SHOW)
+        win32.ShowWindow(win32.HWND(ctx.window), win32.SW_SHOW)
         log.info("Window shown.")
     }
     for {
         message: win32.MSG
-        if win32.PeekMessageW(&message, ctx.window, 0, 0, win32.PM_REMOVE) {
+        if win32.PeekMessageW(&message, win32.HWND(ctx.window), 0, 0, win32.PM_REMOVE) {
             win32.TranslateMessage(&message)
             win32.DispatchMessageW(&message)
             continue
@@ -409,7 +376,7 @@ _swap_buffers :: proc(buffer: []u32) {
     for &pixel in buffer {
         if pixel != 0 do pixel = rgba_to_bgr(pixel)
     }
-    hdc := win32.GetDC(ctx.window)
+    hdc := win32.GetDC(win32.HWND(ctx.window))
     if hdc == nil do log.panic("Failed to get window device context.")
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
@@ -422,14 +389,10 @@ _swap_buffers :: proc(buffer: []u32) {
     }
     result := win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
     if result == 0 do log.panic("Failed to render bitmap.")
-    result = win32.ReleaseDC(ctx.window, hdc)
+    result = win32.ReleaseDC(win32.HWND(ctx.window), hdc)
     if result == 0 do log.panic("Failed to release window device context.")
 
     rgba_to_bgr_u8 :: #force_inline proc(r, g, b, a: u8) -> (bgr: u32) {
-        when SPALL {
-            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-        }
-
         src_r := r != 0 ? f32(r) / 255 : 0
         src_g := g != 0 ? f32(g) / 255 : 0
         src_b := b != 0 ? f32(b) / 255 : 0
@@ -454,10 +417,6 @@ _swap_buffers :: proc(buffer: []u32) {
     }
     
     rgba_to_bgr_u32 :: #force_inline proc(rgba: u32) -> (bgr: u32) {
-        when SPALL {
-            spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-        }
-
         r := u8((rgba & 0x000000FF) >> 0)
         g := u8((rgba & 0x0000FF00) >> 8)
         b := u8((rgba & 0x00FF0000) >> 16)
@@ -478,7 +437,7 @@ _cursor_position :: proc() -> (x, y: int) {
         point = p
         return int(point.x), -int(point.y) + height()
     }
-    ok = win32.ScreenToClient(ctx.window, &point)
+    ok = win32.ScreenToClient(win32.HWND(ctx.window), &point)
     if !ok {
         log.error("Failed to convert cursor screen position to client position. Returning last cursor position instead.")
         point = p
@@ -534,7 +493,7 @@ _hide_cursor :: proc() -> bool {
 
 _set_title :: proc(title: string) {
     wstring := win32.utf8_to_wstring(title)
-    if !win32.SetWindowTextW(ctx.window, wstring) {
+    if !win32.SetWindowTextW(win32.HWND(ctx.window), wstring) {
         log.errorf("Failed to set window title to %v. %v", title, misc.get_last_error_message())
     } else {
         log.debugf("Succeeded to set window title to %v.", title)
@@ -543,10 +502,6 @@ _set_title :: proc(title: string) {
 
 @(private="file")
 adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT) {
-    when SPALL {
-        spall.SCOPED_EVENT(ctx.spall_ctx, ctx.spall_buffer, #procedure)
-    }
-
     rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
     if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
         // TODO(pJotoro): Could I make this not panic? It is super important that this procedure call succeeds.
@@ -561,7 +516,7 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
 // TODO(pJotoro): This procedure has the y-axis at the top left, at odds with the rest of the library. Change this!
 _set_position :: proc(x, y: int) -> bool {
     rect := adjust_window_rect(ctx.window_flags, x, y, x + ctx.width, y + ctx.height)
-    if !win32.SetWindowPos(ctx.window, nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
+    if !win32.SetWindowPos(win32.HWND(ctx.window), nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
     }
@@ -569,11 +524,11 @@ _set_position :: proc(x, y: int) -> bool {
 }
 
 _set_windowed :: proc() -> bool {
-    if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_CAPTION | win32.WS_SYSMENU)) == 0 {
+    if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(win32.WS_CAPTION | win32.WS_SYSMENU)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
     }
-    if !win32.SetWindowPos(ctx.window, nil, 
+    if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         i32(ctx.windowed_x), i32(ctx.windowed_y), i32(ctx.windowed_width), i32(ctx.windowed_height), 
         win32.SWP_SHOWWINDOW) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
@@ -587,7 +542,7 @@ _set_fullscreen :: proc() -> bool {
     // It's not the end of the world if we don't get the window rectangle. It just means next time we enter windowed mode, the size and
     // position of the window won't be the same as last time.
     rect: win32.RECT = ---
-    if !win32.GetWindowRect(ctx.window, &rect) do log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
+    if !win32.GetWindowRect(win32.HWND(ctx.window), &rect) do log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
     else {
         ctx.windowed_x = int(rect.left)
         ctx.windowed_y = int(rect.top)
@@ -595,11 +550,11 @@ _set_fullscreen :: proc() -> bool {
         ctx.windowed_height = int(rect.bottom - rect.top)
     }
 
-    if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(win32.WS_POPUP)) == 0 {
+    if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(win32.WS_POPUP)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
     }
-    if !win32.SetWindowPos(ctx.window, nil, 
+    if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         ctx.fullscreen_rect.left,
         ctx.fullscreen_rect.top,
         ctx.fullscreen_rect.right - ctx.fullscreen_rect.left,
@@ -613,21 +568,21 @@ _set_fullscreen :: proc() -> bool {
 }
 
 _hide :: proc "contextless" () -> bool {
-    win32.ShowWindow(ctx.window, win32.SW_HIDE)
+    win32.ShowWindow(win32.HWND(ctx.window), win32.SW_HIDE)
     return true
 }
 
 _show :: proc "contextless" () -> bool {
-    win32.ShowWindow(ctx.window, win32.SW_SHOW)
+    win32.ShowWindow(win32.HWND(ctx.window), win32.SW_SHOW)
     return true
 }
 
 _minimize :: proc "contextless" () -> bool {
-    win32.ShowWindow(ctx.window, win32.SW_MINIMIZE)
+    win32.ShowWindow(win32.HWND(ctx.window), win32.SW_MINIMIZE)
     return true
 }
 
 _maximize :: proc "contextless" () -> bool {
-    win32.ShowWindow(ctx.window, win32.SW_MAXIMIZE)
+    win32.ShowWindow(win32.HWND(ctx.window), win32.SW_MAXIMIZE)
     return true
 }
