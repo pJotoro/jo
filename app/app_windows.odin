@@ -211,6 +211,19 @@ CURSORINFO :: struct {
     ptScreenPos: win32.POINT,
 }
 
+@(private="file")
+adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT, ok: bool) {
+    rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
+    if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
+        log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+    }
+    else {
+        log.debug("Succeeded to adjust window rectangle.")
+        ok = true
+    }
+    return
+}
+
 _init :: proc() {
     ctx.visible = -1
     
@@ -223,79 +236,95 @@ _init :: proc() {
         }
     }
     
-    {
-        monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
-        monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
-        ok := win32.GetMonitorInfoW(monitor, &monitor_info)
-        if !ok do log.panicf("Failed to get monitor info. %v", misc.get_last_error_message()) // TODO(pJotoro): Does this have to panic?
-        else do log.debug("Succeeded to get monitor info.")
+    set_window_rect :: proc() -> (window_rect: win32.RECT, ok: bool) {
+        {
+            monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
+            monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
+            if !win32.GetMonitorInfoW(monitor, &monitor_info) {
+                log.errorf("Failed to get monitor info. %v", misc.get_last_error_message())
+                return
+            }
+            else {
+                log.debug("Succeeded to get monitor info.")
+            }
 
-        ctx.monitor_width = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
-        ctx.monitor_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
-    }
-
-    window_rect: win32.RECT
-    {
-        switch ctx.fullscreen_mode {
-            case .Auto:
-                if ctx.width == 0 && ctx.height == 0 {
-                    when ODIN_DEBUG {
+            ctx.monitor_width = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
+            ctx.monitor_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
+        }
+    
+        {
+            switch ctx.fullscreen_mode {
+                case .Auto:
+                    if ctx.width == 0 && ctx.height == 0 {
+                        when ODIN_DEBUG {
+                            ctx.width = ctx.monitor_width / 2
+                            ctx.height = ctx.monitor_height / 2
+                            ctx.fullscreen = false
+                        } else {
+                            ctx.width = ctx.monitor_width
+                            ctx.height = ctx.monitor_height
+                            ctx.fullscreen = true
+                        }
+                    }
+                    else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height do ctx.fullscreen = true
+                    else do ctx.fullscreen = false
+                case .Off:
+                    if ctx.width == 0 && ctx.height == 0 {
                         ctx.width = ctx.monitor_width / 2
                         ctx.height = ctx.monitor_height / 2
-                        ctx.fullscreen = false
-                    } else {
-                        ctx.width = ctx.monitor_width
-                        ctx.height = ctx.monitor_height
-                        ctx.fullscreen = true
+                    } else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
+                        log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, ctx.monitor_width / 2, ctx.monitor_height / 2)
+                        ctx.width = ctx.monitor_width / 2
+                        ctx.height = ctx.monitor_height / 2
                     }
+                    ctx.fullscreen = false 
+                case .On:
+                    ctx.width = ctx.monitor_width
+                    ctx.height = ctx.monitor_height
+                    ctx.fullscreen = true
+            }
+        
+            if !ctx.fullscreen {
+                ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
+        
+                client_left := (ctx.monitor_width - ctx.width) / 2
+                client_top := (ctx.monitor_height - ctx.height) / 2
+                window_rect, ok = adjust_window_rect(ctx.window_flags, 
+                    client_left, 
+                    client_top,
+                    client_left + ctx.width, 
+                    client_top + ctx.height)
+                if !ok {
+                    return
                 }
-                else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height do ctx.fullscreen = true
-                else do ctx.fullscreen = false
-            case .Off:
-                if ctx.width == 0 && ctx.height == 0 {
-                    ctx.width = ctx.monitor_width / 2
-                    ctx.height = ctx.monitor_height / 2
-                } else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
-                    log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, ctx.monitor_width / 2, ctx.monitor_height / 2)
-                    ctx.width = ctx.monitor_width / 2
-                    ctx.height = ctx.monitor_height / 2
+        
+                ctx.windowed_x = int(window_rect.left)
+                ctx.windowed_y = int(window_rect.top)
+            }
+        
+            ok_fullscreen: bool
+            ctx.fullscreen_rect, ok_fullscreen = adjust_window_rect(win32.WS_POPUP, 0, 0, ctx.monitor_width, ctx.monitor_height)
+            if ctx.fullscreen {
+                if !ok_fullscreen {
+                    return
                 }
-                ctx.fullscreen = false 
-            case .On:
-                ctx.width = ctx.monitor_width
-                ctx.height = ctx.monitor_height
-                ctx.fullscreen = true
+
+                ctx.window_flags = win32.WS_POPUP
+        
+                window_rect = ctx.fullscreen_rect
+        
+                ctx.windowed_x = ctx.monitor_width / 4
+                ctx.windowed_y = ctx.monitor_height / 4
+            }
         }
-    
-        ok: bool
-    
-        if !ctx.fullscreen {
-            ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
-    
-            client_left := (ctx.monitor_width - ctx.width) / 2
-            client_top := (ctx.monitor_height - ctx.height) / 2
-            window_rect = adjust_window_rect(ctx.window_flags, 
-                client_left, 
-                client_top,
-                client_left + ctx.width, 
-                client_top + ctx.height)
-    
-            ctx.windowed_x = int(window_rect.left)
-            ctx.windowed_y = int(window_rect.top)
-        }
-    
-        ctx.fullscreen_rect = adjust_window_rect(win32.WS_POPUP, 0, 0, ctx.monitor_width, ctx.monitor_height)
-        if ctx.fullscreen {
-            ctx.window_flags = win32.WS_POPUP
-    
-            window_rect = ctx.fullscreen_rect
-    
-            ctx.windowed_x = ctx.monitor_width / 4
-            ctx.windowed_y = ctx.monitor_height / 4
-        }
+
+        ok = true
+        return
     }
 
     {
+        window_rect, window_rect_ok := set_window_rect()
+
         {
             module_handle := win32.GetModuleHandleW(nil)
             if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
@@ -317,19 +346,36 @@ _init :: proc() {
         
         {
             wname := win32.utf8_to_wstring(ctx.title)
-            ctx.window = win32.CreateWindowExW(
-                0, 
-                window_class.lpszClassName, 
-                !ctx.fullscreen ? wname : nil,
-                ctx.window_flags, 
-                window_rect.left, 
-                window_rect.top, 
-                window_rect.right - window_rect.left, 
-                window_rect.bottom - window_rect.top, 
-                nil, 
-                nil, 
-                window_class.hInstance, 
-                nil)
+            if window_rect_ok {
+                ctx.window = win32.CreateWindowExW(
+                    0, 
+                    window_class.lpszClassName, 
+                    !ctx.fullscreen ? wname : nil,
+                    ctx.window_flags, 
+                    window_rect.left, 
+                    window_rect.top, 
+                    window_rect.right - window_rect.left, 
+                    window_rect.bottom - window_rect.top, 
+                    nil, 
+                    nil, 
+                    window_class.hInstance, 
+                    nil)
+            } else {
+                ctx.window = win32.CreateWindowExW(
+                    0, 
+                    window_class.lpszClassName, 
+                    !ctx.fullscreen ? wname : nil,
+                    ctx.window_flags,
+                    win32.CW_USEDEFAULT, 
+                    win32.CW_USEDEFAULT, 
+                    win32.CW_USEDEFAULT, 
+                    win32.CW_USEDEFAULT, 
+                    nil, 
+                    nil, 
+                    window_class.hInstance, 
+                    nil)
+            }
+            
             if ctx.window == nil do log.panicf("Failed to create window. %v", misc.get_last_error_message())
             log.debug("Succeeded to create window.")
         }
@@ -500,22 +546,9 @@ _set_title :: proc(title: string) {
     }
 }
 
-@(private="file")
-adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT) {
-    rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
-    if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
-        // TODO(pJotoro): Could I make this not panic? It is super important that this procedure call succeeds.
-        log.panicf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
-    }
-    else {
-        log.debug("Succeeded to adjust window rectangle.")
-    }
-    return
-}
-
 // TODO(pJotoro): This procedure has the y-axis at the top left, at odds with the rest of the library. Change this!
 _set_position :: proc(x, y: int) -> bool {
-    rect := adjust_window_rect(ctx.window_flags, x, y, x + ctx.width, y + ctx.height)
+    rect, ok := adjust_window_rect(ctx.window_flags, x, y, x + ctx.width, y + ctx.height)
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
@@ -528,6 +561,8 @@ _set_windowed :: proc() -> bool {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
     }
+    ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
+
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         i32(ctx.windowed_x), i32(ctx.windowed_y), i32(ctx.windowed_width), i32(ctx.windowed_height), 
         win32.SWP_SHOWWINDOW) {
@@ -554,6 +589,8 @@ _set_fullscreen :: proc() -> bool {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
     }
+    ctx.window_flags = win32.WS_POPUP
+
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         ctx.fullscreen_rect.left,
         ctx.fullscreen_rect.top,
