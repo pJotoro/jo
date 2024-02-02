@@ -32,13 +32,21 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
 
         case win32.WM_ACTIVATE:
             ctx.focused = !ctx.focused
-            if ctx.focused do append(&ctx.events, Event_Focus{})
-            else do append(&ctx.events, Event_Unfocus{})
+            if ctx.focused {
+                append(&ctx.events, Event_Focus{})
+            }
+            else {
+                append(&ctx.events, Event_Unfocus{})
+            }
 
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
             key := Keyboard_Key(w_param)
-            if int(key) > len(ctx.keyboard_keys) do return result
-            if !ctx.keyboard_keys[key] do ctx.keyboard_keys_pressed[key] = true
+            if int(key) > len(ctx.keyboard_keys) {
+                return result
+            }
+            if !ctx.keyboard_keys[key] {
+                ctx.keyboard_keys_pressed[key] = true
+            }
             ctx.keyboard_keys[key] = true
 
             repeat_count  := (l_param & 0x0000FFFF)
@@ -64,7 +72,9 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
 
         case win32.WM_KEYUP, win32.WM_SYSKEYUP:
             key := Keyboard_Key(w_param)
-            if int(key) > len(ctx.keyboard_keys) do return result
+            if int(key) > len(ctx.keyboard_keys) {
+                return result
+            }
             ctx.keyboard_keys[key] = false
             ctx.keyboard_keys_released[key] = true
 
@@ -74,7 +84,9 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             append(&ctx.events, event)
 
         case win32.WM_LBUTTONDOWN:
-            if !ctx.left_mouse_down do ctx.left_mouse_pressed = true
+            if !ctx.left_mouse_down {
+                ctx.left_mouse_pressed = true
+            }
             ctx.left_mouse_down = true
 
             x := i16(l_param & 0xFFFF)
@@ -109,7 +121,9 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             append(&ctx.events, event)
 
         case win32.WM_RBUTTONDOWN:
-            if !ctx.right_mouse_down do ctx.right_mouse_pressed = true
+            if !ctx.right_mouse_down {
+                ctx.right_mouse_pressed = true
+            }
             ctx.right_mouse_down = true
 
             x := i16(l_param & 0xFFFF)
@@ -144,7 +158,9 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
             append(&ctx.events, event)
 
         case win32.WM_MBUTTONDOWN:
-            if !ctx.middle_mouse_down do ctx.middle_mouse_pressed = true
+            if !ctx.middle_mouse_down {
+                ctx.middle_mouse_pressed = true
+            }
             ctx.middle_mouse_down = true
 
             x := i16(l_param & 0xFFFF)
@@ -266,8 +282,11 @@ _init :: proc() {
                             ctx.fullscreen = true
                         }
                     }
-                    else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height do ctx.fullscreen = true
-                    else do ctx.fullscreen = false
+                    else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
+                        ctx.fullscreen = true
+                    } else {
+                        ctx.fullscreen = false
+                    }
                 case .Off:
                     if ctx.width == 0 && ctx.height == 0 {
                         ctx.width = ctx.monitor_width / 2
@@ -327,7 +346,9 @@ _init :: proc() {
 
         {
             module_handle := win32.GetModuleHandleW(nil)
-            if module_handle == nil do log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
+            if module_handle == nil {
+                log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
+            }
             log.debug("Succeeded to get module handle.")
             ctx.instance = win32.HINSTANCE(module_handle)
         }
@@ -340,7 +361,9 @@ _init :: proc() {
                 hInstance = win32.HANDLE(ctx.instance),
                 lpszClassName = L("app_class_name"),
             }
-            if win32.RegisterClassExW(&window_class) == 0 do log.panicf("Failed to register window class. %v", misc.get_last_error_message())
+            if win32.RegisterClassExW(&window_class) == 0 { 
+                log.panicf("Failed to register window class. %v", misc.get_last_error_message())
+            }
             log.debug("Succeeded to register window class.")
         }
         
@@ -376,7 +399,9 @@ _init :: proc() {
                     nil)
             }
             
-            if ctx.window == nil do log.panicf("Failed to create window. %v", misc.get_last_error_message())
+            if ctx.window == nil {
+                log.panicf("Failed to create window. %v", misc.get_last_error_message())
+            }
             log.debug("Succeeded to create window.")
         }
     }
@@ -398,8 +423,9 @@ _init :: proc() {
 }
 
 _running :: proc() -> bool {
-    if ctx.visible == -1 do ctx.visible += 1
-    else if ctx.visible == 0 {
+    if ctx.visible == -1 {
+        ctx.visible += 1
+    } else if ctx.visible == 0 {
         ctx.visible += 1
         win32.ShowWindow(win32.HWND(ctx.window), win32.SW_SHOW)
         log.info("Window shown.")
@@ -419,7 +445,9 @@ _running :: proc() -> bool {
 
 _swap_buffers :: proc(buffer: []u32) {
     hdc := win32.GetDC(win32.HWND(ctx.window))
-    if hdc == nil do log.panic("Failed to get window device context.")
+    if hdc == nil {
+        log.panic("Failed to get window device context.")
+    }
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
         biSize = size_of(win32.BITMAPINFOHEADER),
@@ -430,9 +458,13 @@ _swap_buffers :: proc(buffer: []u32) {
         biCompression = win32.BI_RGB,
     }
     result := win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
-    if result == 0 do log.panic("Failed to render bitmap.")
+    if result == 0 {
+        log.panic("Failed to render bitmap.")
+    }
     result = win32.ReleaseDC(win32.HWND(ctx.window), hdc)
-    if result == 0 do log.panic("Failed to release window device context.")
+    if result == 0 {
+        log.panic("Failed to release window device context.")
+    }
 }
 
 _cursor_position :: proc() -> (x, y: int) {
@@ -479,7 +511,9 @@ _show_cursor :: proc() -> bool {
     // If there is something like this, please do a pull request and use that instead of this nonsense.
 
     display_counter := ShowCursor(true)
-    if display_counter >= 0 do return true
+    if display_counter >= 0 {
+        return true
+    }
     if display_counter == -1 {
         display_counter = ShowCursor(true)
         if display_counter == -1 {
@@ -487,14 +521,18 @@ _show_cursor :: proc() -> bool {
             return false
         }
     }
-    for display_counter < 0 do display_counter = ShowCursor(true)
+    for display_counter < 0 {
+        display_counter = ShowCursor(true)
+    }
     return true
 }
 
 _hide_cursor :: proc() -> bool {
     // NOTE(pJotoro): Horrible for the same reason _show_cursor is horrible.
     display_counter: c.int
-    for display_counter >= 0 do display_counter = ShowCursor(false)
+    for display_counter >= 0 {
+        display_counter = ShowCursor(false)
+    }
     return true
 }
 
@@ -541,8 +579,9 @@ _set_fullscreen :: proc() -> bool {
     // It's not the end of the world if we don't get the window rectangle. It just means next time we enter windowed mode, the size and
     // position of the window won't be the same as last time.
     rect: win32.RECT = ---
-    if !win32.GetWindowRect(win32.HWND(ctx.window), &rect) do log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
-    else {
+    if !win32.GetWindowRect(win32.HWND(ctx.window), &rect) {
+        log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
+    } else {
         ctx.windowed_x = int(rect.left)
         ctx.windowed_y = int(rect.top)
         ctx.windowed_width = int(rect.right - rect.left)

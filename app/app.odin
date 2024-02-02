@@ -127,8 +127,12 @@ running :: proc() -> bool {
         log.panic("App not initialized.")
     }
 
-    for &k in ctx.keyboard_keys_pressed do k = false
-    for &k in ctx.keyboard_keys_released do k = false
+    for &k in ctx.keyboard_keys_pressed { 
+        k = false 
+    }
+    for &k in ctx.keyboard_keys_released { 
+        k = false 
+    }
 
     ctx.left_mouse_pressed = false
     ctx.left_mouse_released = false
@@ -145,7 +149,9 @@ running :: proc() -> bool {
     if _running() {
         if can_connect_gamepad() {
             for gamepad_index in 0..<len(ctx.gamepads) {
-                if gamepad_connected(gamepad_index) do try_connect_gamepad(gamepad_index)
+                if gamepad_connected(gamepad_index) {
+                    try_connect_gamepad(gamepad_index)
+                }
             }
         }
  
@@ -169,8 +175,12 @@ swap_buffers :: proc(buffer: []u32) {
     }
 
     // TODO(pJotoro): render should change ctx.width and/or ctx.height if the bitmap is too small.
-    if len(buffer) < width() * height() do log.panic("buffer too small")
-    if len(buffer) > width() * height() do log.panic("buffer too big")
+    if len(buffer) < width() * height() {
+        log.panic("buffer too small")
+    }
+    if len(buffer) > width() * height() {
+        log.panic("buffer too big")
+    }
 
     _swap_buffers(buffer)
 }
@@ -260,8 +270,11 @@ set_fullscreen :: proc() {
 }
 
 toggle_fullscreen :: proc() {
-    if !ctx.fullscreen do set_fullscreen()
-    else do set_windowed()
+    if !ctx.fullscreen {
+        set_fullscreen()
+    } else {
+        set_windowed()
+    }
 }
 
 visible :: proc "contextless" () -> bool {
@@ -347,8 +360,11 @@ show_cursor :: proc() {
         return
     }
     
-    if !_show_cursor() do log.error("Failed to show cursor.")
-    else do log.debug("Succeeded to show cursor.")
+    if !_show_cursor() {
+        log.error("Failed to show cursor.")
+    } else {
+        log.debug("Succeeded to show cursor.")
+    }
 }
 
 hide_cursor :: proc() {
@@ -357,8 +373,11 @@ hide_cursor :: proc() {
         return
     }
 
-    if !_hide_cursor() do log.error("Failed to hide cursor.")
-    else do log.debug("Succeeded to hide cursor.")
+    if !_hide_cursor() { 
+        log.error("Failed to hide cursor.")
+    } else { 
+        log.debug("Succeeded to hide cursor.")
+    }
 }
 
 left_mouse_down :: proc "contextless" () -> bool {
@@ -414,7 +433,9 @@ mouse_wheel :: proc "contextless" () -> int {
 }
 
 get_event :: proc "contextless" () -> (event: Event, ok: bool) {
-    if ctx.event_index >= len(ctx.events) do return
+    if ctx.event_index >= len(ctx.events) {
+        return
+    }
     event = ctx.events[ctx.event_index]
     ctx.event_index += 1
     ok = true

@@ -13,7 +13,9 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 		ctx.gamepads[gamepad_index].active = false
 		return false
 	}
-	if !ctx.gamepads[gamepad_index].active do log.infof("Gamepad %v connected.", gamepad_index)
+	if !ctx.gamepads[gamepad_index].active {
+		log.infof("Gamepad %v connected.", gamepad_index)
+	}
 	ctx.gamepads[gamepad_index].active = true
 	if ctx.gamepads[gamepad_index].packet_number != state.dwPacketNumber {
 		// TODO(pJotoro): We could make gamepad input delta be in the crossplatform code, considering that it doesn't use any Windows procedures. I might do that eventually. The only reason
@@ -68,32 +70,53 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 			xinput_gamepad.bLeftTrigger -= xinput_gamepad.bLeftTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) ? win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) : xinput_gamepad.bLeftTrigger
 			xinput_gamepad.bRightTrigger -= xinput_gamepad.bRightTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) ? win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) : xinput_gamepad.bRightTrigger
 	
-			if xinput_gamepad.sThumbLX < xinput.GAMEPAD_LEFT_THUMB_DEADZONE && xinput_gamepad.sThumbLX > -xinput.GAMEPAD_LEFT_THUMB_DEADZONE do xinput_gamepad.sThumbLX = 0
-			else if xinput_gamepad.sThumbLX > 0 do xinput_gamepad.sThumbLX -= xinput.GAMEPAD_LEFT_THUMB_DEADZONE
-			else if xinput_gamepad.sThumbLX < 0 do xinput_gamepad.sThumbLX += xinput.GAMEPAD_LEFT_THUMB_DEADZONE
+			if xinput_gamepad.sThumbLX < xinput.GAMEPAD_LEFT_THUMB_DEADZONE && xinput_gamepad.sThumbLX > -xinput.GAMEPAD_LEFT_THUMB_DEADZONE { 
+				xinput_gamepad.sThumbLX = 0 
+			} else if xinput_gamepad.sThumbLX > 0 { 
+				xinput_gamepad.sThumbLX -= xinput.GAMEPAD_LEFT_THUMB_DEADZONE 
+			} else if xinput_gamepad.sThumbLX < 0 {
+				xinput_gamepad.sThumbLX += xinput.GAMEPAD_LEFT_THUMB_DEADZONE
+			}
 	
-			if xinput_gamepad.sThumbLY < xinput.GAMEPAD_LEFT_THUMB_DEADZONE && xinput_gamepad.sThumbLY > -xinput.GAMEPAD_LEFT_THUMB_DEADZONE do xinput_gamepad.sThumbLY = 0
-			else if xinput_gamepad.sThumbLY > 0 do xinput_gamepad.sThumbLY -= xinput.GAMEPAD_LEFT_THUMB_DEADZONE
-			else if xinput_gamepad.sThumbLY < 0 do xinput_gamepad.sThumbLY += xinput.GAMEPAD_LEFT_THUMB_DEADZONE
+			if xinput_gamepad.sThumbLY < xinput.GAMEPAD_LEFT_THUMB_DEADZONE && xinput_gamepad.sThumbLY > -xinput.GAMEPAD_LEFT_THUMB_DEADZONE {
+				xinput_gamepad.sThumbLY = 0
+			} else if xinput_gamepad.sThumbLY > 0 {
+				xinput_gamepad.sThumbLY -= xinput.GAMEPAD_LEFT_THUMB_DEADZONE
+			} else if xinput_gamepad.sThumbLY < 0 {
+				xinput_gamepad.sThumbLY += xinput.GAMEPAD_LEFT_THUMB_DEADZONE
+			}
 	
-			if xinput_gamepad.sThumbRX < xinput.GAMEPAD_RIGHT_THUMB_DEADZONE && xinput_gamepad.sThumbRX > -xinput.GAMEPAD_RIGHT_THUMB_DEADZONE do xinput_gamepad.sThumbRX = 0
-			else if xinput_gamepad.sThumbRX > 0 do xinput_gamepad.sThumbRX -= xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
-			else if xinput_gamepad.sThumbRX < 0 do xinput_gamepad.sThumbRX += xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
-	
-			if xinput_gamepad.sThumbRY < xinput.GAMEPAD_RIGHT_THUMB_DEADZONE && xinput_gamepad.sThumbRY > -xinput.GAMEPAD_RIGHT_THUMB_DEADZONE do xinput_gamepad.sThumbRY = 0
-			else if xinput_gamepad.sThumbRY > 0 do xinput_gamepad.sThumbRY -= xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
-			else if xinput_gamepad.sThumbRY < 0 do xinput_gamepad.sThumbRY += xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
+			if xinput_gamepad.sThumbRX < xinput.GAMEPAD_RIGHT_THUMB_DEADZONE && xinput_gamepad.sThumbRX > -xinput.GAMEPAD_RIGHT_THUMB_DEADZONE {
+				xinput_gamepad.sThumbRX = 0
+			} else if xinput_gamepad.sThumbRX > 0 {
+				xinput_gamepad.sThumbRX -= xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
+			} else if xinput_gamepad.sThumbRX < 0 {
+				xinput_gamepad.sThumbRX += xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
+			}
+
+			if xinput_gamepad.sThumbRY < xinput.GAMEPAD_RIGHT_THUMB_DEADZONE && xinput_gamepad.sThumbRY > -xinput.GAMEPAD_RIGHT_THUMB_DEADZONE {
+				xinput_gamepad.sThumbRY = 0
+			} else if xinput_gamepad.sThumbRY > 0 {
+				xinput_gamepad.sThumbRY -= xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
+			} else if xinput_gamepad.sThumbRY < 0 {
+				xinput_gamepad.sThumbRY += xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
+			}
 		}
 	}
 }
 
 _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32) {
-	if !ctx.gamepads[gamepad_index].active do return
+	if !ctx.gamepads[gamepad_index].active {
+		return
+	}
 
 	xinput_vibration: xinput.VIBRATION
 	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f32(max(u16)))
 	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f32(max(u16)))
 	result := xinput.SetState(win32.DWORD(gamepad_index), &xinput_vibration)
-	if result != win32.ERROR_SUCCESS do log.errorf("Failed to set vibration for gamepad %v.", gamepad_index)
-	else do log.debugf("Succeeded to set vibration for gamepad %v.", gamepad_index)
+	if result != win32.ERROR_SUCCESS {
+		log.errorf("Failed to set vibration for gamepad %v.", gamepad_index)
+	} else { 
+		log.debugf("Succeeded to set vibration for gamepad %v.", gamepad_index)
+	}
 }
