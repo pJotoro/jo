@@ -92,7 +92,6 @@ gamepad_right_stick :: proc "contextless" (gamepad_index: int) -> [2]f32 {
 }
 
 gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	left_motor := left_motor
 	right_motor := right_motor
 	if !(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1) {
@@ -130,7 +129,6 @@ Gamepad_Battery_Level :: enum {
 }
 
 gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	if !ctx.gamepads[gamepad_index].active {
 		return
 	}
@@ -163,7 +161,6 @@ Gamepad_Capabilities :: struct {
 }
 
 gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (gamepad_capabilities: Gamepad_Capabilities, ok: bool) {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	if !ctx.gamepads[gamepad_index].active {
 		return
 	}
