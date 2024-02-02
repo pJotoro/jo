@@ -2,7 +2,6 @@ package app
 
 import gl "vendor:OpenGL"
 import "core:log"
-import win32 "core:sys/windows"
 
 gl_init :: proc(major, minor: int) -> bool {
     if !ctx.app_initialized {

@@ -510,6 +510,9 @@ _set_title :: proc(title: string) {
 // TODO(pJotoro): This procedure has the y-axis at the top left, at odds with the rest of the library. Change this!
 _set_position :: proc(x, y: int) -> bool {
     rect, ok := adjust_window_rect(ctx.window_flags, x, y, x + ctx.width, y + ctx.height)
+    if !ok {
+        return false
+    }
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
