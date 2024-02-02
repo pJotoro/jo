@@ -47,8 +47,6 @@ main :: proc() {
 }
 ```
 
-![Screenshot](screenshots/app_example_1.png)
-
 ## Why another library?
 
 Libraries like SDL, GLFW, Raylib, Sokol, and others aren't good enough for me. 
