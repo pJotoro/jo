@@ -50,47 +50,38 @@ try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool
 }
 
 gamepad_connected :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> bool {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].active
 }
 
 gamepad_button_down :: proc "contextless" (gamepad_index: int, button: Gamepad_Button, loc := #caller_location) -> bool {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return button in ctx.gamepads[gamepad_index].buttons
 }
 
 gamepad_buttons_down :: proc "contextless" (gamepad_index: int, buttons: Gamepad_Buttons, loc := #caller_location) -> bool {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return buttons <= ctx.gamepads[gamepad_index].buttons
 }
 
 gamepad_button_pressed :: proc "contextless" (gamepad_index: int, button: Gamepad_Button, loc := #caller_location) -> bool {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return button in ctx.gamepads[gamepad_index].buttons && button not_in ctx.gamepads[gamepad_index].buttons_previous
 }
 
 gamepad_button_released :: proc "contextless" (gamepad_index: int, button: Gamepad_Button, loc := #caller_location) -> bool {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return button not_in ctx.gamepads[gamepad_index].buttons && button in ctx.gamepads[gamepad_index].buttons_previous
 }
 
 gamepad_left_trigger :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> f32 {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].left_trigger
 }
 
 gamepad_right_trigger :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> f32 {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].right_trigger
 }
 
 gamepad_left_stick :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> [2]f32 {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].left_stick
 }
 
 gamepad_right_stick :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> [2]f32 {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].right_stick
 }
 
@@ -107,21 +98,17 @@ gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, 
 }
 
 gamepad_left_trigger_delta :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> f32 {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].left_trigger_delta
 }
 
 gamepad_right_trigger_delta :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> f32 {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].right_trigger_delta
 }
 
 gamepad_left_stick_delta :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> [2]f32 {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].left_stick_delta
 }
 
 gamepad_right_stick_delta :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> [2]f32 {
-	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return ctx.gamepads[gamepad_index].right_stick_delta
 }
