@@ -15,12 +15,12 @@ main :: proc() {
 	x, y: int
 
 	for app.running() {
-        if app.key_down(.Left) do x -= 1
-        if app.key_down(.Right) do x += 1
-        if app.key_down(.Up) do y -= 1
-        if app.key_down(.Down) do y += 1
+		if app.key_down(.Left) do x -= 1
+		if app.key_down(.Right) do x += 1
+		if app.key_down(.Up) do y -= 1
+		if app.key_down(.Down) do y += 1
 
-        app.set_position(x, y)
+		app.set_position(x, y)
 	}
 }
 ```
