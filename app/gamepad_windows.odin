@@ -106,10 +106,6 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 }
 
 _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32) {
-	if !ctx.gamepads[gamepad_index].active {
-		return
-	}
-
 	xinput_vibration: xinput.VIBRATION
 	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f32(max(u16)))
 	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f32(max(u16)))
@@ -121,11 +117,14 @@ _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32)
 	}
 }
 
-_gamepad_battery_level :: proc "contextless" (gamepad_index: int) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
+_gamepad_battery_level :: proc(gamepad_index: int) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
 	info: xinput.BATTERY_INFORMATION
 	res := xinput.GetBatteryInformation(win32.DWORD(gamepad_index), 0, &info)
 	if res != win32.ERROR_SUCCESS {
+		log.errorf("Failed to get battery level for gamepad %v.", gamepad_index)
 		return
+	} else {
+		log.debugf("Succeeded to get vattery level for gamepad %v.", gamepad_index)
 	}
 	switch info.BatteryType {
 		case .DISCONNECTED, .WIRED, .UNKNOWN:
@@ -140,7 +139,10 @@ _gamepad_capabilities :: proc(gamepad_index: int) -> (capabilities: Gamepad_Capa
 	c: xinput.CAPABILITIES
 	res := xinput.GetCapabilities(win32.DWORD(gamepad_index), 0, &c)
 	if res != win32.ERROR_SUCCESS {
+		log.errorf("Failed to get capabilities for gamepad %v.", gamepad_index)
 		return
+	} else {
+		log.debugf("Succeeded to get capabilities for gamepad %v.", gamepad_index)
 	}
 
 	switch c.SubType {
