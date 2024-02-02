@@ -49,6 +49,33 @@ GAMEPAD_LEFT_THUMB_DEADZONE  :: 7849
 GAMEPAD_RIGHT_THUMB_DEADZONE :: 8689
 GAMEPAD_TRIGGER_THRESHOLD    :: 30
 
+// NOTE(pJotoro): I'm not even going to bother with XInputEnable. It's only relevant on Windows 8, which nobody uses.
+
+BATTERY_TYPE :: enum BYTE {
+	DISCONNECTED,
+	WIRED,
+	ALKALINE,
+	NIMH,
+	UNKNOWN = 0xFF,
+}
+
+BATTERY_LEVEL :: enum BYTE {
+	EMPTY,
+	LOW,
+	MEDIUM,
+	FULL,
+}
+
+BATTERY_INFORMATION :: struct {
+	BatteryType: BATTERY_TYPE,
+	BatteryLevel: BATTERY_LEVEL,
+}
+
+@(private)
+GetBatteryInformation_stub :: proc "stdcall" (dwUserIndex: DWORD, devType: BYTE, pBatteryInformation: ^BATTERY_INFORMATION) -> DWORD { return 1 }
+
+GetBatteryInformation := GetBatteryInformation_stub
+
 init :: proc() -> bool {
 	library: dynlib.Library
 	ok: bool
@@ -73,22 +100,10 @@ init :: proc() -> bool {
 	}
 	else {
 		log.debug("Succeeded to load XInput 1.4.")
+		GetBatteryInformation = auto_cast dynlib.symbol_address(library, "XInputGetBatteryInformation")
 	}
 	GetState = auto_cast dynlib.symbol_address(library, "XInputGetState")
-	if GetState == nil {
-		log.debug("Failed to load XInputGetState.")
-		GetState = GetState_stub
-	}
-	else {
-		log.debug("Succeeded to load XInputGetState.")
-	}
 	SetState = auto_cast dynlib.symbol_address(library, "XInputSetState")
-	if SetState == nil {
-		log.debug("Failed to load XInputSetState.")
-		SetState = SetState_stub
-	}
-	else {
-		log.debug("Succeeded to load XInputSetState.")
-	}
+
 	return true
 }
