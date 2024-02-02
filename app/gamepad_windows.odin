@@ -45,8 +45,6 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 		ctx.gamepads[gamepad_index].right_stick_delta = {0.0, 0.0}
 	}
 	ctx.gamepads[gamepad_index].packet_number = state.dwPacketNumber
-	
-	return true
 
 	get_input :: proc "contextless" (gamepad: ^Gamepad_Desc, xinput_gamepad: xinput.GAMEPAD) {
 		xinput_gamepad := xinput_gamepad
@@ -65,7 +63,7 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 		gamepad.left_stick.y = f32(xinput_gamepad.sThumbLY) / LEFT_THUMB_MAX
 		gamepad.right_stick.x = f32(xinput_gamepad.sThumbRX) / RIGHT_THUMB_MAX
 		gamepad.right_stick.y = f32(xinput_gamepad.sThumbRY) / RIGHT_THUMB_MAX
-
+	
 		cut_deadzones :: proc "contextless" (xinput_gamepad: ^xinput.GAMEPAD) {
 			xinput_gamepad.bLeftTrigger -= xinput_gamepad.bLeftTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) ? win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) : xinput_gamepad.bLeftTrigger
 			xinput_gamepad.bRightTrigger -= xinput_gamepad.bRightTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) ? win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) : xinput_gamepad.bRightTrigger
@@ -93,7 +91,7 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 			} else if xinput_gamepad.sThumbRX < 0 {
 				xinput_gamepad.sThumbRX += xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
 			}
-
+	
 			if xinput_gamepad.sThumbRY < xinput.GAMEPAD_RIGHT_THUMB_DEADZONE && xinput_gamepad.sThumbRY > -xinput.GAMEPAD_RIGHT_THUMB_DEADZONE {
 				xinput_gamepad.sThumbRY = 0
 			} else if xinput_gamepad.sThumbRY > 0 {
@@ -103,6 +101,8 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 			}
 		}
 	}
+	
+	return true
 }
 
 _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32) {
@@ -121,7 +121,7 @@ _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32)
 	}
 }
 
-_gamepad_battery_level :: proc "contextless" (gamepad_index: int) -> (battery_level: Battery_Level, has_battery: bool) {
+_gamepad_battery_level :: proc "contextless" (gamepad_index: int) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
 	info: xinput.BATTERY_INFORMATION
 	res := xinput.GetBatteryInformation(win32.DWORD(gamepad_index), 0, &info)
 	if res != win32.ERROR_SUCCESS {
@@ -130,8 +130,58 @@ _gamepad_battery_level :: proc "contextless" (gamepad_index: int) -> (battery_le
 	switch info.BatteryType {
 		case .DISCONNECTED, .WIRED, .UNKNOWN:
 		case .ALKALINE, .NIMH:
-			battery_level = Battery_Level(info.BatteryLevel)
+			battery_level = Gamepad_Battery_Level(info.BatteryLevel)
 			has_battery = true
 	}
+	return
+}
+
+_gamepad_capabilities :: proc(gamepad_index: int) -> (capabilities: Gamepad_Capabilities, ok: bool) {
+	c: xinput.CAPABILITIES
+	res := xinput.GetCapabilities(win32.DWORD(gamepad_index), 0, &c)
+	if res != win32.ERROR_SUCCESS {
+		return
+	}
+
+	switch c.SubType {
+		case .UNKNOWN:
+			capabilities.type = .Unknown
+		case .GAMEPAD:
+			capabilities.type = .Gamepad
+		case .WHEEL:
+			capabilities.type = .Wheel
+		case .ARCADE_STICK, .ARCADE_PAD:
+			capabilities.type = .Arcade_Stick
+		case .FLIGHT_STICK:
+			capabilities.type = .Flight_Stick
+		case .DANCE_PAD:
+			capabilities.type = .Dance_Pad
+		case .DRUM_KIT:
+			capabilities.type = .Drum_Kit
+		case .GUITAR, .GUITAR_ALTERNATE, .GUITAR_BASS:
+			capabilities.type = .Guitar
+	}
+
+	if .WIRELESS in c.Flags {
+		capabilities.flags += {.Wireless}
+	}
+	if .VOICE_SUPPORTED in c.Flags {
+		capabilities.flags += {.Voice}
+	}
+	if .NO_NAVIGATION not_in c.Flags {
+		capabilities.flags += {.Navigation}
+	}
+
+	capabilities.buttons = transmute(Gamepad_Buttons)c.Gamepad.wButtons
+	capabilities.left_trigger = f32(c.Gamepad.bLeftTrigger) / f32(max(win32.BYTE))
+	capabilities.right_trigger = f32(c.Gamepad.bRightTrigger) / f32(max(win32.BYTE))
+	capabilities.left_stick.x = f32(c.Gamepad.sThumbLX) / f32(max(win32.SHORT))
+	capabilities.left_stick.y = f32(c.Gamepad.sThumbLY) / f32(max(win32.SHORT))
+	capabilities.right_stick.x = f32(c.Gamepad.sThumbRX) / f32(max(win32.SHORT))
+	capabilities.right_stick.y = f32(c.Gamepad.sThumbRY) / f32(max(win32.SHORT))
+	capabilities.left_motor = f32(c.Vibration.wLeftMotorSpeed) / f32(max(win32.WORD))
+	capabilities.right_motor = f32(c.Vibration.wRightMotorSpeed) / f32(max(win32.WORD))
+
+	ok = true
 	return
 }

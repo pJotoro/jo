@@ -22,15 +22,20 @@ Gamepad_Button :: enum u16 {
 
 Gamepad_Buttons :: distinct bit_set[Gamepad_Button; u16]
 
-@(private)
-Gamepad_Desc :: struct {
+Gamepad_Input :: struct {
 	buttons: Gamepad_Buttons,
-	buttons_previous: Gamepad_Buttons,
 
 	left_trigger: f32,
 	right_trigger: f32,
 	left_stick: [2]f32,
 	right_stick: [2]f32,
+}
+
+@(private)
+Gamepad_Desc :: struct {
+	using gamepad_input: Gamepad_Input,
+
+	buttons_previous: Gamepad_Buttons,
 
 	left_trigger_delta: f32,
 	right_trigger_delta: f32,
@@ -114,14 +119,44 @@ gamepad_right_stick_delta :: proc "contextless" (gamepad_index: int) -> [2]f32 {
 	return ctx.gamepads[gamepad_index].right_stick_delta
 }
 
-Battery_Level :: enum {
+Gamepad_Battery_Level :: enum {
 	Empty,
 	Low,
 	Medium,
 	Full,
 }
 
-gamepad_battery_level :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> (battery_level: Battery_Level, has_battery: bool) {
+gamepad_battery_level :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return _gamepad_battery_level(gamepad_index)
+}
+
+Gamepad_Type :: enum {
+	Unknown = 0x00,
+	Gamepad = 0x01,
+	Wheel = 0x02,
+	Arcade_Stick = 0x03,
+	Flight_Stick = 0x04, // Why are these so expensive?
+	Dance_Pad = 0x05,
+	Guitar = 0x06,
+	Drum_Kit = 0x08,
+}
+
+Gamepad_Flag :: enum {
+	Voice,
+	Wireless,
+	Navigation,
+}
+Gamepad_Flags :: distinct bit_set[Gamepad_Flag]
+
+Gamepad_Capabilities :: struct {
+	type: Gamepad_Type,
+	flags: Gamepad_Flags,
+	using gamepad_input: Gamepad_Input,
+	left_motor, right_motor: f32,
+}
+
+gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (gamepad_capabilities: Gamepad_Capabilities, ok: bool) {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return _gamepad_capabilities(gamepad_index)
 }

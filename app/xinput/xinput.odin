@@ -17,9 +17,12 @@ WCHAR :: win32.WCHAR
 GetState_stub :: proc "stdcall" (dwUserIndex: DWORD, pState: ^STATE) -> DWORD { return 1 }
 @(private)
 SetState_stub :: proc "stdcall" (dwUserIndex: DWORD, pVibration: ^VIBRATION) -> DWORD { return 1 }
+@(private)
+GetCapabilities_stub :: proc "stdcall" (dwUserIndex: DWORD, dwFlags: DWORD, pCapabilities: ^CAPABILITIES) -> DWORD { return 1 }
 
 GetState := GetState_stub
 SetState := SetState_stub
+GetCapabilities := GetCapabilities_stub
 
 GAMEPAD :: struct {
 	wButtons: WORD,
@@ -41,7 +44,40 @@ VIBRATION :: struct {
 	wRightMotorSpeed: WORD,
 }
 
-DEVTYPE_GAMEPAD :: 0x00000001
+CAP :: enum WORD {
+	FFB_SUPPORTED = 0,
+	WIRELESS = 1,
+	VOICE_SUPPORTED = 2,
+	PMD_SUPPORTED = 3,
+	NO_NAVIGATION = 4,
+}
+CAPS :: distinct bit_set[CAP; WORD]
+
+CAPABILITIES :: struct {
+	Type: DEVTYPE,
+	SubType: DEVSUBTYPE,
+	Flags: CAPS,
+	Gamepad: GAMEPAD,
+	Vibration: VIBRATION,
+}
+
+DEVTYPE :: enum BYTE {
+	GAMEPAD = 0x00000001
+}
+
+DEVSUBTYPE :: enum BYTE {
+	GAMEPAD = 0x01,
+	UNKNOWN = 0x00,
+	WHEEL = 0x02,
+	ARCADE_STICK = 0x03,
+	FLIGHT_STICK = 0x04,
+	DANCE_PAD = 0x05,
+	GUITAR = 0x06,
+	GUITAR_ALTERNATE = 0x07,
+	DRUM_KIT = 0x08,
+	GUITAR_BASS = 0x0B,
+	ARCADE_PAD = 0x13,
+}
 
 ERROR_DEVICE_NOT_CONNECTED :: 1167
 
@@ -104,6 +140,7 @@ init :: proc() -> bool {
 	}
 	GetState = auto_cast dynlib.symbol_address(library, "XInputGetState")
 	SetState = auto_cast dynlib.symbol_address(library, "XInputSetState")
+	GetCapabilities = auto_cast dynlib.symbol_address(library, "XInputGetCapabilities")
 
 	return true
 }
