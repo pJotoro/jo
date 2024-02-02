@@ -1,6 +1,6 @@
 package app
 
-rgba_to_bgr_u8 :: #force_inline proc(r, g, b, a: u8) -> (bgr: u32) {
+rgba_to_bgr_u8 :: #force_inline proc "contextless" (r, g, b, a: u8) -> (bgr: u32) {
     src_r := r != 0 ? f32(r) / 255 : 0
     src_g := g != 0 ? f32(g) / 255 : 0
     src_b := b != 0 ? f32(b) / 255 : 0
@@ -24,7 +24,7 @@ rgba_to_bgr_u8 :: #force_inline proc(r, g, b, a: u8) -> (bgr: u32) {
     return
 }
 
-rgba_to_bgr_u32 :: #force_inline proc(rgba: u32) -> (bgr: u32) {
+rgba_to_bgr_u32 :: #force_inline proc "contextless" (rgba: u32) -> (bgr: u32) {
     r := u8((rgba & 0x000000FF) >> 0)
     g := u8((rgba & 0x0000FF00) >> 8)
     b := u8((rgba & 0x00FF0000) >> 16)
@@ -32,5 +32,3 @@ rgba_to_bgr_u32 :: #force_inline proc(rgba: u32) -> (bgr: u32) {
     bgr = rgba_to_bgr_u8(r, g, b, a)
     return
 }
-
-rgba_to_bgr :: proc{rgba_to_bgr_u8, rgba_to_bgr_u32}
