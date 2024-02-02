@@ -50,6 +50,8 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             }
 
         case win32.WM_SIZE:
+            
+
             sizes := transmute([4]u16)l_param
             ctx.width = int(sizes[0])
             ctx.height = int(sizes[1])
@@ -266,6 +268,12 @@ _init :: proc() {
     ctx.windowed_flags = WINDOWED_FLAGS
     if ctx.resizable {
         ctx.windowed_flags |= win32.WS_SIZEBOX
+    }
+    if ctx.minimize_box {
+        ctx.windowed_flags |= win32.WS_MINIMIZEBOX
+    }
+    if ctx.maximize_box {
+        ctx.windowed_flags |= win32.WS_MAXIMIZEBOX
     }
 
     ctx.cursor = GetCursor()

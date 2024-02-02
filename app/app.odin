@@ -17,8 +17,9 @@ Context :: struct {
     windowed_width, windowed_height: int,
     monitor_width, monitor_height: int,
 
-    minimized: bool,
-    maximized: bool,
+    resizable: bool,
+    minimize_box: bool,
+    maximize_box: bool,
     focused: bool,
 
     app_initialized: bool,
@@ -29,7 +30,9 @@ Context :: struct {
     running: bool,
     visible: int, // -1 and 0 mean invisible at first, 1 means visible, and 2 means invisible
     fullscreen: bool,
-    resizable: bool,
+    minimized: bool,
+    maximized: bool,
+    
     // -------------------
     
     // ----- keyboard -----
@@ -83,7 +86,7 @@ Fullscreen_Mode :: enum {
     On,
 }
 
-init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, allocator := context.allocator) {
+init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, allocator := context.allocator) {
     context.allocator = allocator
 
     if ctx.app_initialized {
@@ -100,6 +103,9 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
     ctx.title = title
     ctx.fullscreen_mode = fullscreen
     ctx.resizable = resizable
+
+    ctx.minimize_box = minimize_box
+    ctx.maximize_box = maximize_box
 
     ctx.events = make([dynamic]Event)
     ctx.cursor_enabled = true
@@ -181,12 +187,15 @@ swap_buffers :: proc(buffer: []u32) {
         log.panic("Cannot mix software rendering with OpenGL.")
     }
 
-    // TODO(pJotoro): render should change ctx.width and/or ctx.height if the bitmap is too small.
+    if width() == 0 || height() == 0 || ctx.minimized {
+        return
+    }
+
     if len(buffer) < width() * height() {
-        log.panic("buffer too small")
+        log.panic("Buffer too small.")
     }
     if len(buffer) > width() * height() {
-        log.panic("buffer too big")
+        log.panic("Buffer too big.")
     }
 
     _swap_buffers(buffer)
@@ -293,6 +302,7 @@ hide :: proc() {
         log.warn("Already hidden.")
         return
     }
+
     if !_hide() {
         log.error("Failed to hide.")
     } else {
@@ -306,6 +316,7 @@ show :: proc() {
         log.warn("Already shown.")
         return
     }
+
     if !_show() {
         log.error("Failed to show.")
     } else {
