@@ -59,6 +59,8 @@ Event_Mouse_Wheel :: struct {
 Event_Focus :: struct {}
 Event_Unfocus :: struct {}
 
+Event_Size :: struct {}
+
 Event :: union {
     Event_Key_Down,
     Event_Char,
@@ -80,4 +82,6 @@ Event :: union {
 
     Event_Focus,
     Event_Unfocus,
+
+    Event_Size,
 }

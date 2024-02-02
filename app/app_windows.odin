@@ -10,9 +10,17 @@ import "core:c"
 import "xinput"
 import "../misc"
 
+/* NOTE(pJotoro): WINDOWED_FLAGS only describes the required flags for a windowed jo application. It does not contain any
+ * additional flags required for e.g. being resizable.
+ * FULLSCREEN_FLAGS, on the other hand, does describe all flags which may ever be enabled during fullscreen.
+ */
+
+WINDOWED_FLAGS :: win32.WS_CAPTION | win32.WS_SYSMENU
+FULLSCREEN_FLAGS :: win32.WS_POPUP
+
 OS_Specific :: struct {
     instance: win32.HINSTANCE,
-    window_flags: u32,
+    windowed_flags: u32, // NOTE(pJotoro): Stores flags, both required and additional, for windowed mode.
     fullscreen_rect: win32.RECT,
 
     gl_hdc: win32.HDC,
@@ -38,6 +46,14 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             else {
                 append(&ctx.events, Event_Unfocus{})
             }
+
+        case win32.WM_SIZE:
+            sizes := transmute([4]u16)l_param
+            ctx.width = int(sizes[0])
+            ctx.height = int(sizes[1])
+            
+            event := Event_Size{}
+            append(&ctx.events, event)
 
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
             key := Keyboard_Key(w_param)
@@ -242,6 +258,11 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
 
 _init :: proc() {
     ctx.visible = -1
+
+    ctx.windowed_flags = WINDOWED_FLAGS
+    if ctx.resizable {
+        ctx.windowed_flags |= win32.WS_SIZEBOX
+    }
     
     {
         ctx.dpi = int(GetDpiForSystem())
@@ -303,12 +324,10 @@ _init :: proc() {
                     ctx.fullscreen = true
             }
         
-            if !ctx.fullscreen {
-                ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
-        
+            {
                 client_left := (ctx.monitor_width - ctx.width) / 2
                 client_top := (ctx.monitor_height - ctx.height) / 2
-                window_rect, ok = adjust_window_rect(ctx.window_flags, 
+                window_rect, ok = adjust_window_rect(ctx.windowed_flags, 
                     client_left, 
                     client_top,
                     client_left + ctx.width, 
@@ -322,14 +341,13 @@ _init :: proc() {
             }
         
             ok_fullscreen: bool
-            ctx.fullscreen_rect, ok_fullscreen = adjust_window_rect(win32.WS_POPUP, 0, 0, ctx.monitor_width, ctx.monitor_height)
+            ctx.fullscreen_rect, ok_fullscreen = adjust_window_rect(FULLSCREEN_FLAGS, 0, 0, ctx.monitor_width, ctx.monitor_height)
             if ctx.fullscreen {
                 if !ok_fullscreen {
+                    ctx.fullscreen = false
                     return
                 }
 
-                ctx.window_flags = win32.WS_POPUP
-        
                 window_rect = ctx.fullscreen_rect
         
                 ctx.windowed_x = ctx.monitor_width / 4
@@ -369,12 +387,13 @@ _init :: proc() {
         
         {
             wname := win32.utf8_to_wstring(ctx.title)
+            flags := ctx.windowed_flags if !ctx.fullscreen else FULLSCREEN_FLAGS
             if window_rect_ok {
                 ctx.window = win32.CreateWindowExW(
                     0, 
                     window_class.lpszClassName, 
                     !ctx.fullscreen ? wname : nil,
-                    ctx.window_flags, 
+                    flags, 
                     window_rect.left, 
                     window_rect.top, 
                     window_rect.right - window_rect.left, 
@@ -388,7 +407,7 @@ _init :: proc() {
                     0, 
                     window_class.lpszClassName, 
                     !ctx.fullscreen ? wname : nil,
-                    ctx.window_flags,
+                    flags,
                     win32.CW_USEDEFAULT, 
                     win32.CW_USEDEFAULT, 
                     win32.CW_USEDEFAULT, 
@@ -547,7 +566,7 @@ _set_title :: proc(title: string) {
 
 // TODO(pJotoro): This procedure has the y-axis at the top left, at odds with the rest of the library. Change this!
 _set_position :: proc(x, y: int) -> bool {
-    rect, ok := adjust_window_rect(ctx.window_flags, x, y, x + ctx.width, y + ctx.height)
+    rect, ok := adjust_window_rect(ctx.windowed_flags, x, y, x + ctx.width, y + ctx.height)
     if !ok {
         return false
     }
@@ -559,11 +578,10 @@ _set_position :: proc(x, y: int) -> bool {
 }
 
 _set_windowed :: proc() -> bool {
-    if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(win32.WS_CAPTION | win32.WS_SYSMENU)) == 0 {
+    if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(ctx.windowed_flags)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
     }
-    ctx.window_flags = win32.WS_CAPTION | win32.WS_SYSMENU
 
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         i32(ctx.windowed_x), i32(ctx.windowed_y), i32(ctx.windowed_width), i32(ctx.windowed_height), 
@@ -588,11 +606,10 @@ _set_fullscreen :: proc() -> bool {
         ctx.windowed_height = int(rect.bottom - rect.top)
     }
 
-    if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(win32.WS_POPUP)) == 0 {
+    if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(FULLSCREEN_FLAGS)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
     }
-    ctx.window_flags = win32.WS_POPUP
 
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         ctx.fullscreen_rect.left,

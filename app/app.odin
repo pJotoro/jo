@@ -29,6 +29,7 @@ Context :: struct {
     running: bool,
     visible: int, // -1 and 0 mean invisible at first, 1 means visible, and 2 means invisible
     fullscreen: bool,
+    resizable: bool,
     // -------------------
     
     // ----- keyboard -----
@@ -78,7 +79,7 @@ Fullscreen_Mode :: enum {
     On,
 }
 
-init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, allocator := context.allocator) {
+init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, allocator := context.allocator) {
     context.allocator = allocator
 
     if ctx.app_initialized {
@@ -94,6 +95,7 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
 
     ctx.title = title
     ctx.fullscreen_mode = fullscreen
+    ctx.resizable = resizable
 
     ctx.events = make([dynamic]Event)
 
