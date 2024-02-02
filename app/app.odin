@@ -32,7 +32,6 @@ Context :: struct {
     fullscreen: bool,
     minimized: bool,
     maximized: bool,
-    
     // -------------------
     
     // ----- keyboard -----
@@ -242,6 +241,7 @@ set_position :: proc(x, y: int) {
         log.error("Cannot set position in fullscreen.")
         return
     }
+
     if !_set_position(x, y) {
         log.error("Failed to set position.")
     } else {
@@ -261,6 +261,7 @@ set_windowed :: proc() {
     
     if !_set_windowed() {
         log.error("Failed to set windowed.")
+        return
     } else {
         log.debug("Succeeded to set windowed.")
         ctx.fullscreen = false
@@ -274,7 +275,7 @@ set_fullscreen :: proc() {
         log.warn("Already fullscreen.")
         return
     }
-    
+
     if !_set_fullscreen() {
         log.error("Failed to set fullscreen.")
     } else {
@@ -343,6 +344,10 @@ minimize :: proc() {
 maximize :: proc() {
     if ctx.maximized {
         log.warn("Already maximized.")
+        return
+    }
+    if ctx.fullscreen {
+        log.error("Cannot maximize while fullscreen.")
         return
     }
 

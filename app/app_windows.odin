@@ -20,9 +20,8 @@ FULLSCREEN_FLAGS :: win32.WS_POPUP
 
 OS_Specific :: struct {
     instance: win32.HINSTANCE,
-    windowed_flags: u32, // NOTE(pJotoro): Stores flags, both required and additional, for windowed mode.
+    windowed_flags: u32, 
     fullscreen_rect: win32.RECT,
-
     cursor: win32.HCURSOR,
 
     gl_hdc: win32.HDC,
@@ -50,7 +49,17 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             }
 
         case win32.WM_SIZE:
-            
+            switch w_param {
+                case win32.SIZE_MINIMIZED:
+                    ctx.minimized = true
+                    ctx.maximized = false
+                case win32.SIZE_MAXIMIZED:
+                    ctx.minimized = false
+                    ctx.maximized = true
+                case win32.SIZE_RESTORED:
+                    ctx.minimized = false
+                    ctx.maximized = false
+            }
 
             sizes := transmute([4]u16)l_param
             ctx.width = int(sizes[0])
@@ -616,16 +625,23 @@ _set_windowed :: proc() -> bool {
 }
 
 _set_fullscreen :: proc() -> bool {
-    // It's not the end of the world if we don't get the window rectangle. It just means next time we enter windowed mode, the size and
-    // position of the window won't be the same as last time.
-    rect: win32.RECT = ---
-    if !win32.GetWindowRect(win32.HWND(ctx.window), &rect) {
-        log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
+    if !ctx.maximized {
+        // It's not the end of the world if we don't get the window rectangle. It just means next time we enter windowed mode, the size and
+        // position of the window won't be the same as last time.
+        rect: win32.RECT = ---
+        if !win32.GetWindowRect(win32.HWND(ctx.window), &rect) {
+            log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
+        } else {
+            ctx.windowed_x = int(rect.left)
+            ctx.windowed_y = int(rect.top)
+            ctx.windowed_width = int(rect.right - rect.left)
+            ctx.windowed_height = int(rect.bottom - rect.top)
+        }
     } else {
-        ctx.windowed_x = int(rect.left)
-        ctx.windowed_y = int(rect.top)
-        ctx.windowed_width = int(rect.right - rect.left)
-        ctx.windowed_height = int(rect.bottom - rect.top)
+        ctx.windowed_x = ctx.monitor_width / 4
+        ctx.windowed_y = ctx.monitor_height / 4
+        ctx.windowed_width = ctx.monitor_width / 2
+        ctx.windowed_height = ctx.monitor_height / 2
     }
 
     if ctx.resizable {
