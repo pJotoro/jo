@@ -23,6 +23,8 @@ OS_Specific :: struct {
     windowed_flags: u32, // NOTE(pJotoro): Stores flags, both required and additional, for windowed mode.
     fullscreen_rect: win32.RECT,
 
+    cursor: win32.HCURSOR,
+
     gl_hdc: win32.HDC,
     gl_vsync: bool,
 }
@@ -233,6 +235,8 @@ foreign user32 {
     GetDpiForSystem :: proc() -> win32.UINT ---
     ShowCursor :: proc(bShow: win32.BOOL) -> c.int ---
     GetCursorInfo :: proc(pci: ^CURSORINFO) -> win32.BOOL ---
+    GetCursor :: proc() -> win32.HCURSOR ---
+    SetCursor :: proc(hCursor: win32.HCURSOR) -> win32.HCURSOR ---
 }
 
 @(private="file")
@@ -263,6 +267,8 @@ _init :: proc() {
     if ctx.resizable {
         ctx.windowed_flags |= win32.WS_SIZEBOX
     }
+
+    ctx.cursor = GetCursor()
     
     {
         ctx.dpi = int(GetDpiForSystem())
@@ -555,6 +561,14 @@ _hide_cursor :: proc() -> bool {
     return true
 }
 
+_enable_cursor :: proc() {
+    SetCursor(ctx.cursor)
+}
+
+_disable_cursor :: proc() {
+    SetCursor(nil)
+}
+
 _set_title :: proc(title: string) {
     wstring := win32.utf8_to_wstring(title)
     if !win32.SetWindowTextW(win32.HWND(ctx.window), wstring) {
@@ -606,6 +620,10 @@ _set_fullscreen :: proc() -> bool {
         ctx.windowed_height = int(rect.bottom - rect.top)
     }
 
+    if ctx.resizable {
+        disable_cursor()
+    }
+
     if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(FULLSCREEN_FLAGS)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
@@ -619,6 +637,10 @@ _set_fullscreen :: proc() -> bool {
         win32.SWP_SHOWWINDOW) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
+    }
+
+    if ctx.resizable {
+        enable_cursor()
     }
 
     return true

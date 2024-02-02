@@ -57,6 +57,10 @@ Context :: struct {
     mouse_wheel: int,
     // -----------------
 
+    // ----- cursor -----
+    cursor_enabled: bool,
+    // ------------------
+
     // ----- gamepad -----
     can_connect_gamepad: bool,
     gamepad_debug_flags: Gamepad_Debug_Flags,
@@ -98,6 +102,7 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
     ctx.resizable = resizable
 
     ctx.events = make([dynamic]Event)
+    ctx.cursor_enabled = true
 
     _init()
 
@@ -380,6 +385,24 @@ hide_cursor :: proc() {
     } else { 
         log.debug("Succeeded to hide cursor.")
     }
+}
+
+enable_cursor :: proc() {
+    if ctx.cursor_enabled {
+        log.warn("Cursor already enabled.")
+        return
+    }
+    ctx.cursor_enabled = true
+    _enable_cursor()
+}
+
+disable_cursor :: proc() {
+    if !ctx.cursor_enabled {
+        log.warn("Cursor already disabled.")
+        return
+    }
+    ctx.cursor_enabled = false
+    _disable_cursor()
 }
 
 left_mouse_down :: proc "contextless" () -> bool {
