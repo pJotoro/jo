@@ -120,3 +120,18 @@ _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32)
 		log.debugf("Succeeded to set vibration for gamepad %v.", gamepad_index)
 	}
 }
+
+_gamepad_battery_level :: proc "contextless" (gamepad_index: int) -> (battery_level: Battery_Level, has_battery: bool) {
+	info: xinput.BATTERY_INFORMATION
+	res := xinput.GetBatteryInformation(win32.DWORD(gamepad_index), 0, &info)
+	if res != win32.ERROR_SUCCESS {
+		return
+	}
+	switch info.BatteryType {
+		case .DISCONNECTED, .WIRED, .UNKNOWN:
+		case .ALKALINE, .NIMH:
+			battery_level = Battery_Level(info.BatteryLevel)
+			has_battery = true
+	}
+	return
+}

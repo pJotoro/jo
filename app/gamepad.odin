@@ -114,3 +114,14 @@ gamepad_right_stick_delta :: proc "contextless" (gamepad_index: int) -> [2]f32 {
 	return ctx.gamepads[gamepad_index].right_stick_delta
 }
 
+Battery_Level :: enum {
+	Empty,
+	Low,
+	Medium,
+	Full,
+}
+
+gamepad_battery_level :: proc "contextless" (gamepad_index: int, loc := #caller_location) -> (battery_level: Battery_Level, has_battery: bool) {
+	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
+	return _gamepad_battery_level(gamepad_index)
+}
