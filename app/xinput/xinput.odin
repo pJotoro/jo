@@ -14,11 +14,11 @@ SHORT :: win32.SHORT
 WCHAR :: win32.WCHAR
 
 @(private)
-GetState_stub :: proc "stdcall" (dwUserIndex: DWORD, pState: ^STATE) -> DWORD { return 1 }
+GetState_stub :: proc "system" (dwUserIndex: DWORD, pState: ^STATE) -> DWORD { return 1 }
 @(private)
-SetState_stub :: proc "stdcall" (dwUserIndex: DWORD, pVibration: ^VIBRATION) -> DWORD { return 1 }
+SetState_stub :: proc "system" (dwUserIndex: DWORD, pVibration: ^VIBRATION) -> DWORD { return 1 }
 @(private)
-GetCapabilities_stub :: proc "stdcall" (dwUserIndex: DWORD, dwFlags: DWORD, pCapabilities: ^CAPABILITIES) -> DWORD { return 1 }
+GetCapabilities_stub :: proc "system" (dwUserIndex: DWORD, dwFlags: DWORD, pCapabilities: ^CAPABILITIES) -> DWORD { return 1 }
 
 GetState := GetState_stub
 SetState := SetState_stub
@@ -108,7 +108,7 @@ BATTERY_INFORMATION :: struct {
 }
 
 @(private)
-GetBatteryInformation_stub :: proc "stdcall" (dwUserIndex: DWORD, devType: BYTE, pBatteryInformation: ^BATTERY_INFORMATION) -> DWORD { return 1 }
+GetBatteryInformation_stub :: proc "system" (dwUserIndex: DWORD, devType: BYTE, pBatteryInformation: ^BATTERY_INFORMATION) -> DWORD { return 1 }
 
 GetBatteryInformation := GetBatteryInformation_stub
 

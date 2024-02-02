@@ -22,7 +22,7 @@ OS_Specific :: struct {
 L :: intrinsics.constant_utf16_cstring
 
 @(private="file")
-window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
+window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
     context = runtime.default_context()
     result := win32.LRESULT(0)
     
@@ -212,7 +212,7 @@ window_proc :: proc "stdcall" (window: win32.HWND, message: win32.UINT, w_param:
 
 foreign import user32 "system:User32.lib"
 
-@(default_calling_convention="stdcall", private="file")
+@(default_calling_convention="system", private="file")
 foreign user32 {
     GetDpiForSystem :: proc() -> win32.UINT ---
     ShowCursor :: proc(bShow: win32.BOOL) -> c.int ---
