@@ -174,9 +174,6 @@ swap_buffers :: proc(buffer: []u32) {
     if len(buffer) > width() * height() do log.panic("buffer too big")
 
     _swap_buffers(buffer)
-
-    // _render modifies the bitmap anyway (rgba -> bgr), so we might as well zero it out here.
-    mem.zero_slice(buffer)
 }
 
 window :: proc "contextless" () -> rawptr {

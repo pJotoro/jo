@@ -418,10 +418,6 @@ _running :: proc() -> bool {
 }
 
 _swap_buffers :: proc(buffer: []u32) {
-    // TODO(pJotoro): find a more efficient way to do this.
-    for &pixel in buffer {
-        if pixel != 0 do pixel = rgba_to_bgr(pixel)
-    }
     hdc := win32.GetDC(win32.HWND(ctx.window))
     if hdc == nil do log.panic("Failed to get window device context.")
     bitmap_info: win32.BITMAPINFO
@@ -437,41 +433,6 @@ _swap_buffers :: proc(buffer: []u32) {
     if result == 0 do log.panic("Failed to render bitmap.")
     result = win32.ReleaseDC(win32.HWND(ctx.window), hdc)
     if result == 0 do log.panic("Failed to release window device context.")
-
-    rgba_to_bgr_u8 :: #force_inline proc(r, g, b, a: u8) -> (bgr: u32) {
-        src_r := r != 0 ? f32(r) / 255 : 0
-        src_g := g != 0 ? f32(g) / 255 : 0
-        src_b := b != 0 ? f32(b) / 255 : 0
-        src_a := a != 0 ? f32(a) / 255 : 0
-    
-        /*
-        Target.R = 1 - Source.A + (Source.A * Source.R)
-        Target.G = 1 - Source.A + (Source.A * Source.G)
-        Target.B = 1 - Source.A + (Source.A * Source.B)
-        */
-    
-        dst_r := 1 - src_a + (src_a * src_r)
-        dst_g := 1 - src_a + (src_a * src_g)
-        dst_b := 1 - src_a + (src_a * src_b)
-    
-        dst_r_u32 := u32(dst_r * 255)
-        dst_g_u32 := u32(dst_g * 255)
-        dst_b_u32 := u32(dst_b * 255)
-    
-        bgr = (dst_r_u32 << 16) | (dst_g_u32 << 8) | (dst_b_u32)
-        return
-    }
-    
-    rgba_to_bgr_u32 :: #force_inline proc(rgba: u32) -> (bgr: u32) {
-        r := u8((rgba & 0x000000FF) >> 0)
-        g := u8((rgba & 0x0000FF00) >> 8)
-        b := u8((rgba & 0x00FF0000) >> 16)
-        a := u8((rgba & 0xFF000000) >> 24)
-        bgr = rgba_to_bgr_u8(r, g, b, a)
-        return
-    }
-    
-    rgba_to_bgr :: proc{rgba_to_bgr_u8, rgba_to_bgr_u32}
 }
 
 _cursor_position :: proc() -> (x, y: int) {
