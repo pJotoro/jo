@@ -326,6 +326,14 @@ show :: proc() {
     }
 }
 
+minimized :: proc "contextless" () -> bool {
+    return ctx.minimized
+}
+
+maximized :: proc "contextless" () -> bool {
+    return ctx.maximized
+}
+
 minimize :: proc() {
     if ctx.minimized {
         log.warn("Already minimized.")
