@@ -132,14 +132,14 @@ gamepad_battery_level :: proc "contextless" (gamepad_index: int, loc := #caller_
 }
 
 Gamepad_Type :: enum {
-	Unknown = 0x00,
-	Gamepad = 0x01,
-	Wheel = 0x02,
-	Arcade_Stick = 0x03,
-	Flight_Stick = 0x04, // Why are these so expensive?
-	Dance_Pad = 0x05,
-	Guitar = 0x06,
-	Drum_Kit = 0x08,
+	Unknown,
+	Gamepad,
+	Wheel,
+	Arcade_Stick,
+	Flight_Stick,
+	Dance_Pad,
+	Guitar,
+	Drum_Kit,
 }
 
 Gamepad_Flag :: enum {
