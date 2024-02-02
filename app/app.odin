@@ -411,6 +411,10 @@ hide_cursor :: proc() {
     }
 }
 
+cursor_enabled :: proc "contextless" () -> bool {
+    return _cursor_enabled()
+}
+
 enable_cursor :: proc() {
     if ctx.cursor_enabled {
         log.warn("Cursor already enabled.")
