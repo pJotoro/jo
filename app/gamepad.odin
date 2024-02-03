@@ -160,7 +160,7 @@ Gamepad_Capabilities :: struct {
 	left_motor, right_motor: f32,
 }
 
-gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (gamepad_capabilities: Gamepad_Capabilities, ok: bool) {
+gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (capabilities: Gamepad_Capabilities, ok: bool) {
 	if !ctx.gamepads[gamepad_index].active {
 		return
 	}

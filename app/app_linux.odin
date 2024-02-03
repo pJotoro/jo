@@ -204,3 +204,16 @@ _show_cursor :: proc() -> bool {
 _hide_cursor :: proc() -> bool {
     unimplemented()
 }
+
+_cursor_enabled :: proc "contextless" () -> bool {
+    unimplemented()
+}
+
+_enable_cursor :: proc() {
+    unimplemented()
+}
+
+_disable_cursor :: proc() {
+    unimplemented()
+}
+
