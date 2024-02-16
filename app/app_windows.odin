@@ -24,6 +24,8 @@ OS_Specific :: struct {
     fullscreen_rect: win32.RECT,
     cursor: win32.HCURSOR,
 
+    dpi_aware: bool,
+
     gl_hdc: win32.HDC,
     gl_vsync: bool,
 }
@@ -261,13 +263,23 @@ CURSORINFO :: struct {
 @(private="file")
 adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT, ok: bool) {
     rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
-    if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
-        log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+    
+    if ctx.dpi_aware {
+        if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
+            log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+        } else {
+            log.debug("Succeeded to adjust window rectangle.")
+            ok = true
+        }
+    } else {
+        if !win32.AdjustWindowRectEx(&rect, flags, false, 0) {
+            log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+        } else {
+            log.debug("Succeeded to adjust window rectangle.")
+            ok = true
+        }
     }
-    else {
-        log.debug("Succeeded to adjust window rectangle.")
-        ok = true
-    }
+    
     return
 }
 
@@ -288,12 +300,13 @@ _init :: proc() {
     ctx.cursor = GetCursor()
     
     {
-        ctx.dpi = int(GetDpiForSystem())
         if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
             log.error("Failed to make process DPI aware.")
         } else {
             log.debug("Succeeded to make process DPI aware.")
+            ctx.dpi_aware = true
         }
+        ctx.dpi = int(GetDpiForSystem())
     }
     
     set_window_rect :: proc() -> (window_rect: win32.RECT, ok: bool) {
