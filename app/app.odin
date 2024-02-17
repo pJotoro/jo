@@ -289,6 +289,8 @@ set_windowed :: proc() {
         ctx.fullscreen = false
         ctx.width = ctx.windowed_width
         ctx.height = ctx.windowed_height
+
+        enable_cursor()
     }
 }
 
@@ -306,6 +308,8 @@ set_fullscreen :: proc() {
         ctx.fullscreen = true
         ctx.width = ctx.monitor_width
         ctx.height = ctx.monitor_height
+
+        disable_cursor()
     }
 }
 

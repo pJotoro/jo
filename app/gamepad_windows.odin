@@ -7,6 +7,7 @@ import "core:log"
 
 _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 	state: xinput.STATE = ---
+	
 	result := xinput.GetState(win32.DWORD(gamepad_index), &state)
 	if result != win32.ERROR_SUCCESS {
 		log.infof("Gamepad %v disconnected.", gamepad_index)
