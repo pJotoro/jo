@@ -300,6 +300,7 @@ _init :: proc() {
     ctx.cursor = GetCursor()
     
     {
+
         if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
             log.error("Failed to make process DPI aware.")
         } else {
@@ -595,12 +596,14 @@ _cursor_enabled :: proc "contextless" () -> bool {
     return GetCursor() != nil
 }
 
-_enable_cursor :: proc() {
+_enable_cursor :: proc() -> bool {
     SetCursor(ctx.cursor)
+    return true
 }
 
-_disable_cursor :: proc() {
+_disable_cursor :: proc() -> bool {
     SetCursor(nil)
+    return true
 }
 
 _set_title :: proc(title: string) {
@@ -661,10 +664,6 @@ _set_fullscreen :: proc() -> bool {
         ctx.windowed_height = ctx.monitor_height / 2
     }
 
-    if ctx.resizable {
-        disable_cursor()
-    }
-
     if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(FULLSCREEN_FLAGS)) == 0 {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
@@ -678,10 +677,6 @@ _set_fullscreen :: proc() -> bool {
         win32.SWP_SHOWWINDOW) {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
-    }
-
-    if ctx.resizable {
-        enable_cursor()
     }
 
     return true

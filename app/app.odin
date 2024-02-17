@@ -2,6 +2,9 @@ package app
 
 import "core:log"
 
+import "core:prof/spall"
+SPALL_ENABLED :: #config(JO_SPALL_ENABLED, false)
+
 @(private)
 Context :: struct {
     // ----- init -----
@@ -74,6 +77,11 @@ Context :: struct {
     event_index: int,
     // ------------------
 
+    // ----- profiling -----
+    spall_ctx: ^spall.Context,
+    spall_buffer: ^spall.Buffer,
+    // ---------------------
+
     using os_specific: OS_Specific,
 }
 @(private)
@@ -85,11 +93,22 @@ Fullscreen_Mode :: enum {
     On,
 }
 
-init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, allocator := context.allocator) {
+init :: proc(title := "", width := 0, height := 0, 
+             fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, 
+             spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil, 
+             allocator := context.allocator) {
     context.allocator = allocator
 
     if ctx.app_initialized {
         log.panic("App already initialized.")
+    }
+
+    when SPALL_ENABLED {
+        if spall_ctx == nil || spall_buffer == nil {
+            log.panic("Must set spall_ctx and spall_buffer when spall is enabled.")
+        }
+        ctx.spall_ctx = spall_ctx
+        ctx.spall_buffer = spall_buffer
     }
 
     if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
@@ -117,6 +136,8 @@ init :: proc(title := "", width := 0, height := 0, fullscreen := Fullscreen_Mode
     } else {
         ctx.windowed_width = ctx.width / 2
         ctx.windowed_height = ctx.height / 2
+
+        disable_cursor()
     }
 
     if can_connect_gamepad() {
@@ -264,6 +285,7 @@ set_windowed :: proc() {
         return
     } else {
         log.debug("Succeeded to set windowed.")
+
         ctx.fullscreen = false
         ctx.width = ctx.windowed_width
         ctx.height = ctx.windowed_height
@@ -280,6 +302,7 @@ set_fullscreen :: proc() {
         log.error("Failed to set fullscreen.")
     } else {
         log.debug("Succeeded to set fullscreen.")
+
         ctx.fullscreen = true
         ctx.width = ctx.monitor_width
         ctx.height = ctx.monitor_height
@@ -420,8 +443,12 @@ enable_cursor :: proc() {
         log.warn("Cursor already enabled.")
         return
     }
-    ctx.cursor_enabled = true
-    _enable_cursor()
+    if !_enable_cursor() {
+        log.error("Failed to enable cursor.")
+    } else {
+        log.debug("Succeeded to enable cursor.")
+        ctx.cursor_enabled = true
+    }
 }
 
 disable_cursor :: proc() {
@@ -429,8 +456,12 @@ disable_cursor :: proc() {
         log.warn("Cursor already disabled.")
         return
     }
-    ctx.cursor_enabled = false
-    _disable_cursor()
+    if !_disable_cursor() {
+        log.error("Failed to disable cursor.")
+    } else {
+        log.debug("Succeeded to disable cursor.")
+        ctx.cursor_enabled = false
+    }
 }
 
 left_mouse_down :: proc "contextless" () -> bool {
