@@ -7,7 +7,14 @@ import "../misc"
 import "core:log"
 
 _gl_init :: proc(major, minor: int) -> bool {
-    {
+    if ctx.gl_procs_initialized {
+        if win32.wglChoosePixelFormatARB == nil || win32.wglCreateContextAttribsARB == nil || win32.wglSwapIntervalEXT == nil {
+            log.error("OpenGL: unable to initialize after having already failed to load wgl procedures.")
+            return false
+        }
+    } else {
+        ctx.gl_procs_initialized = true
+
         spall_buffer_begin("load_wgl_procs")
         defer spall_buffer_end()
 
@@ -146,10 +153,13 @@ _gl_init :: proc(major, minor: int) -> bool {
         }
     }
 
+    if ctx.gl_hdc != nil {
+        win32.ReleaseDC(win32.HWND(ctx.window), ctx.gl_hdc)
+    }
+
     spall_buffer_begin("GetDC")
     ctx.gl_hdc = win32.GetDC(win32.HWND(ctx.window))
     spall_buffer_end()
-
     if ctx.gl_hdc == nil {
         log.error("OpenGL: failed to get window device context.")
         return false

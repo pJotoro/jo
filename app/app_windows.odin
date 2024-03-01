@@ -28,6 +28,7 @@ OS_Specific :: struct {
 
     gl_hdc: win32.HDC,
     gl_vsync: bool,
+    gl_procs_initialized: bool,
 }
 
 L :: intrinsics.constant_utf16_cstring
