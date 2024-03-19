@@ -166,6 +166,23 @@ logic_op :: proc "contextless" (opcode: Logic_Op) {
 	gl.LogicOp(u32(opcode))
 }
 
+Stencil_Func :: enum u32 {
+	Never = gl.NEVER,
+	Less = gl.LESS,
+	Less_Or_Equal = gl.LEQUAL,
+	Greater = gl.GREATER,
+	Greater_Or_Equal = gl.GEQUAL,
+	Equal = gl.EQUAL,
+	Not_Equal = gl.NOTEQUAL,
+	Always = gl.ALWAYS,
+}
+
+stencil_func :: proc "contextless" (func: Stencil_Func, ref: i32, mask: u32) {
+	gl.StencilFunc(u32(func), ref, mask)
+}
+
+
+
 
 
 
