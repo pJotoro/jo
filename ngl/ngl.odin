@@ -117,7 +117,7 @@ enable :: proc "contextless" (cap: Capability) {
 finish :: gl.Finish
 flush :: gl.Flush
 
-Blend_Op :: enum u32 {
+Blend_Func :: enum u32 {
 	Zero = gl.ZERO,
 	One = gl.ONE,
 	Src_Color = gl.SRC_COLOR,
@@ -139,7 +139,7 @@ Blend_Op :: enum u32 {
 	One_Minus_Src1_Alpha = gl.ONE_MINUS_SRC1_ALPHA,
 }
 
-blend_func :: proc "contextless" (sfactor, dfactor: Blend_Op) {
+blend_func :: proc "contextless" (sfactor, dfactor: Blend_Func) {
 	gl.BlendFunc(u32(sfactor), u32(dfactor))
 }
 
