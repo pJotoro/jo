@@ -17,8 +17,8 @@ cull_face :: proc "contextless" (mode: Cull_Mode) {
 }
 
 Front_Mode :: enum u32 {
-	Cw = gl.CW,
-	Ccw = gl.CCW,
+	CW = gl.CW,
+	CCW = gl.CCW,
 }
 
 front_face :: proc "contextless" (mode: Front_Mode) {
@@ -70,13 +70,52 @@ clear :: proc "contextless" (flags: Clear_Flags) {
 }
 
 clear_color :: gl.ClearColor
+clear_stencil :: gl.ClearStencil
+clear_depth :: gl.ClearDepth
+stencil_mask :: gl.StencilMask
+color_mask :: gl.ColorMask
+depth_mask :: gl.DepthMask
 
+Capability :: enum u32 {
+	Blend = gl.BLEND,
+	Color_Logic_Op = gl.COLOR_LOGIC_OP,
+	Cull_Face = gl.CULL_FACE,
+	Debug_Output = gl.DEBUG_OUTPUT,
+	Debug_Output_Synchronous = gl.DEBUG_OUTPUT_SYNCHRONOUS,
+	Depth_Clamp = gl.DEPTH_CLAMP,
+	Depth_Test = gl.DEPTH_TEST,
+	Dither = gl.DITHER,
+	Framebuffer_SRGB = gl.FRAMEBUFFER_SRGB,
+	Line_Smooth = gl.LINE_SMOOTH,
+	Multisample = gl.MULTISAMPLE,
+	Polygon_Offset_Fill = gl.POLYGON_OFFSET_FILL,
+	Polygon_Offset_Line = gl.POLYGON_OFFSET_LINE,
+	Polygon_Offset_Point = gl.POLYGON_OFFSET_POINT,
+	Polygon_Smooth = gl.POLYGON_SMOOTH,
+	Primitive_Restart = gl.PRIMITIVE_RESTART,
+	Primitive_Restart_Fixed_Index = gl.PRIMITIVE_RESTART_FIXED_INDEX,
+	Rasterizer_Discard = gl.RASTERIZER_DISCARD,
+	Sample_Alpha_To_Coverage = gl.SAMPLE_ALPHA_TO_COVERAGE,
+	Sample_Alpha_To_One = gl.SAMPLE_ALPHA_TO_ONE,
+	Sample_Coverage = gl.SAMPLE_COVERAGE,
+	Sample_Shading = gl.SAMPLE_SHADING,
+	Sample_Mask = gl.SAMPLE_MASK,
+	Scissor_Test = gl.SCISSOR_TEST,
+	Stencil_Test = gl.STENCIL_TEST,
+	Texture_Cube_Map_Seamless = gl.TEXTURE_CUBE_MAP_SEAMLESS,
+	Program_Point_Size = gl.PROGRAM_POINT_SIZE,
+}
 
+disable :: proc "contextless" (cap: Capability) {
+	gl.Disable(u32(cap))
+}
 
+enable :: proc "contextless" (cap: Capability) {
+	gl.Enable(u32(cap))
+}
 
-
-
-
+finish :: gl.Finish
+flush :: gl.Flush
 
 
 
