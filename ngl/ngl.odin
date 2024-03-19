@@ -13,7 +13,7 @@ Cull_Mode :: enum u32 {
 }
 
 cull_face :: proc "contextless" (mode: Cull_Mode) {
-	gl.CullFace(mode)
+	gl.CullFace(u32(mode))
 }
 
 Front_Mode :: enum u32 {
@@ -22,7 +22,7 @@ Front_Mode :: enum u32 {
 }
 
 front_face :: proc "contextless" (mode: Front_Mode) {
-	gl.FrontFace(mode)
+	gl.FrontFace(u32(mode))
 }
 
 Hint_Target :: enum u32 {
@@ -39,7 +39,7 @@ Hint_Mode :: enum u32 {
 }
 
 hint :: proc "contextless" (target: Hint_Target, mode: Hint_Mode) {
-	gl.Hint(target, mode)
+	gl.Hint(u32(target), u32(mode))
 }
 
 line_width :: gl.LineWidth
@@ -52,14 +52,24 @@ Polygon_Mode :: enum u32 {
 }
 
 polygon_mode :: proc "contextless" (mode: Polygon_Mode) {
-	gl.PolygonMode(gl.FRONT_AND_BACK, mode)
+	gl.PolygonMode(gl.FRONT_AND_BACK, u32(mode))
 }
 
 scissor :: gl.Scissor
 
+Clear_Flag :: enum u32 {
+	Depth = 8,
+	Stencil = 10, 
+	Color = 14, 
+}
 
+Clear_Flags :: distinct bit_set[Clear_Flag; u32]
 
+clear :: proc "contextless" (flags: Clear_Flags) {
+	gl.Clear(transmute(u32)flags)
+}
 
+clear_color :: gl.ClearColor
 
 
 
@@ -76,19 +86,6 @@ scissor :: gl.Scissor
 
 
 viewport :: gl.Viewport
-clear_color :: gl.ClearColor
-
-Clear_Flag :: enum u32 {
-	Depth = 8,
-	Stencil = 10, 
-	Color = 14, 
-}
-
-Clear_Flags :: distinct bit_set[Clear_Flag; u32]
-
-clear :: proc "contextless" (flags: Clear_Flags) {
-	gl.Clear(transmute(u32)flags)
-}
 
 Buffer :: distinct u32
 

@@ -1,5 +1,7 @@
 package ngl
 
+import gl "vendor:OpenGL"
+
 texture_lod_bias :: proc "contextless" (texture: Texture, lod_bias: f32) {
 	gl.TextureParameterf(u32(texture), gl.TEXTURE_LOD_BIAS, lod_bias)
 }
