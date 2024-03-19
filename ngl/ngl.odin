@@ -143,6 +143,29 @@ blend_func :: proc "contextless" (sfactor, dfactor: Blend_Func) {
 	gl.BlendFunc(u32(sfactor), u32(dfactor))
 }
 
+Logic_Op :: enum u32 {
+	Clear = gl.CLEAR,
+	Set = gl.SET,
+	Copy = gl.COPY,
+	Copy_Inverted = gl.COPY_INVERTED,
+	Noop = gl.NOOP,
+	Invert = gl.INVERT,
+	And = gl.AND,
+	Nand = gl.NAND,
+	Or = gl.OR,
+	Nor = gl.NOR,
+	Xor = gl.XOR,
+	Equiv = gl.EQUIV,
+	And_Reverse = gl.AND_REVERSE,
+	And_Inverted = gl.AND_INVERTED,
+	Or_Reverse = gl.OR_REVERSE,
+	Or_Inverted = gl.OR_INVERTED,
+}
+
+logic_op :: proc "contextless" (opcode: Logic_Op) {
+	gl.LogicOp(u32(opcode))
+}
+
 
 
 
