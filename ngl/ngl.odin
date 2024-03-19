@@ -181,7 +181,18 @@ stencil_func :: proc "contextless" (func: Stencil_Func, ref: i32, mask: u32) {
 	gl.StencilFunc(u32(func), ref, mask)
 }
 
+// TODO
 
+String_Name :: enum u32 {
+	Vendor = gl.VENDOR,
+	Renderer = gl.RENDERER,
+	Version = gl.VERSION,
+	Shading_Language_Version = gl.SHADING_LANGUAGE_VERSION,
+}
+
+get_string :: proc(name: String_Name) -> string {
+	return string(gl.GetString(u32(name)))
+}
 
 
 
