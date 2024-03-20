@@ -2,10 +2,11 @@ package ngl
 
 import gl "vendor:OpenGL"
 
-get_aliased_line_width_range :: proc "contextless" () -> (lo, hi: i32) {
+aliased_line_width_range :: proc "contextless" () -> (lo, hi: i32) {
 	arr: [2]i32 = ---
 	gl.GetIntegerv(gl.ALIASED_LINE_WIDTH_RANGE, raw_data(&arr))
 	lo = arr[0]
 	hi = arr[1]
 	return
 }
+
