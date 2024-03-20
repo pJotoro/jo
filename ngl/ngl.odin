@@ -202,6 +202,35 @@ depth_func :: proc "contextless" (func: Depth_Func) {
 	gl.DepthFunc(u32(func))
 }
 
+Pixel_Store_Name :: enum u32 {
+	Pack_Swap_Bytes = gl.PACK_SWAP_BYTES,
+	Pack_LSB_First = gl.PACK_LSB_FIRST,
+	Pack_Row_Length = gl.PACK_ROW_LENGTH,
+	Pack_Image_Height = gl.PACK_IMAGE_HEIGHT,
+	Pack_Skip_Pixels = gl.PACK_SKIP_PIXELS,
+	Pack_Skip_Rows = gl.PACK_SKIP_ROWS,
+	Pack_Skip_Images = gl.PACK_SKIP_IMAGES,
+	Pack_Alignment = gl.PACK_ALIGNMENT,
+	Unpack_Swap_Bytes = gl.UNPACK_SWAP_BYTES,
+	Unpack_LSB_First = gl.UNPACK_LSB_FIRST,
+	Unpack_Row_Length = gl.UNPACK_ROW_LENGTH,
+	Unpack_Image_Height = gl.UNPACK_IMAGE_HEIGHT,
+	Unpack_Skip_Pixels = gl.UNPACK_SKIP_PIXELS,
+	Unpack_Skip_Rows = gl.UNPACK_SKIP_ROWS,
+	Unpack_Skip_Images = gl.UNPACK_SKIP_IMAGES,
+	Unpack_Alignment = gl.UNPACK_ALIGNMENT,
+}
+
+pixel_store_f :: proc "contextless" (pname: Pixel_Store_Name, param: f32) {
+	gl.PixelStoref(u32(pname), param)
+}
+
+pixel_store_i :: proc "contextless" (pname: Pixel_Store_Name, param: i32) {
+	gl.PixelStorei(u32(pname), param)
+}
+
+pixel_store :: proc{pixel_store_f, pixel_store_i}
+
 String_Name :: enum u32 {
 	Vendor = gl.VENDOR,
 	Renderer = gl.RENDERER,
