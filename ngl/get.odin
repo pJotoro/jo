@@ -10,3 +10,7 @@ aliased_line_width_range :: proc "contextless" () -> (lo, hi: i32) {
 	return
 }
 
+blend_enabled :: proc "contextless" () -> (res: bool) {
+    gl.GetBooleanv(gl.BLEND, &res)
+    return
+}
