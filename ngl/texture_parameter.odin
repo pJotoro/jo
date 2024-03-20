@@ -20,8 +20,8 @@ texture_border_color_f :: proc "contextless" (texture: Texture, r, g, b, a: f32)
 }
 
 Depth_Stencil_Mode :: enum i32 {
-	Stencil_Index = 0x1901,
-	Depth_Component = 0x1902,
+	Stencil_Index = gl.STENCIL_INDEX,
+	Depth_Component = gl.DEPTH_COMPONENT,
 }
 
 texture_depth_stencil_mode :: proc "contextless" (texture: Texture, mode: Depth_Stencil_Mode) {

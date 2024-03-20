@@ -242,11 +242,6 @@ get_string :: proc(name: String_Name) -> string {
 	return string(gl.GetString(u32(name)))
 }
 
-
-
-
-
-
 viewport :: gl.Viewport
 
 Buffer :: distinct u32
