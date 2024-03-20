@@ -196,6 +196,12 @@ stencil_op :: proc "contextless" (sfail, dpfail, dppass: Stencil_Op) {
 	gl.StencilOp(u32(sfail), u32(dpfail), u32(dppass))
 }
 
+Depth_Func :: Stencil_Func
+
+depth_func :: proc "contextless" (func: Depth_Func) {
+	gl.DepthFunc(u32(func))
+}
+
 String_Name :: enum u32 {
 	Vendor = gl.VENDOR,
 	Renderer = gl.RENDERER,
