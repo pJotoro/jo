@@ -181,7 +181,20 @@ stencil_func :: proc "contextless" (func: Stencil_Func, ref: i32, mask: u32) {
 	gl.StencilFunc(u32(func), ref, mask)
 }
 
-// TODO
+Stencil_Op :: enum u32 {
+	Keep = gl.KEEP,
+	Zero = gl.ZERO,
+	Replace = gl.REPLACE,
+	Incr = gl.INCR,
+	Incr_Wrap = gl.INCR_WRAP,
+	Decr = gl.DECR,
+	Decr_Wrap = gl.DECR_WRAP,
+	Invert = gl.INVERT,
+}
+
+stencil_op :: proc "contextless" (sfail, dpfail, dppass: Stencil_Op) {
+	gl.StencilOp(u32(sfail), u32(dpfail), u32(dppass))
+}
 
 String_Name :: enum u32 {
 	Vendor = gl.VENDOR,
