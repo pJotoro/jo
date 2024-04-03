@@ -2,21 +2,80 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+Texture :: distinct u32
+
 texture_lod_bias :: proc "contextless" (texture: Texture, lod_bias: f32) {
 	gl.TextureParameterf(u32(texture), gl.TEXTURE_LOD_BIAS, lod_bias)
+}
+
+get_texture_lod_bias :: proc "contextless" (texture: Texture) -> (lod_bias: f32) {
+	gl.GetTextureParameterfv(u32(texture), gl.TEXTURE_LOD_BIAS, &lod_bias)
+	return
 }
 
 texture_min_lod :: proc "contextless" (texture: Texture, min_lod: f32) {
 	gl.TextureParameterf(u32(texture), gl.TEXTURE_MIN_LOD, min_lod)
 }
 
+get_texture_min_lod :: proc "contextless" (texture: Texture) -> (min_lod: f32) {
+	gl.GetTextureParameterfv(u32(texture), gl.TEXTURE_MIN_LOD, &min_lod)
+	return
+}
+
 texture_max_lod :: proc "contextless" (texture: Texture, max_lod: f32) {
 	gl.TextureParameterf(u32(texture), gl.TEXTURE_MAX_LOD, max_lod)
+}
+
+get_texture_max_lod :: proc "contextless" (texture: Texture) -> (max_lod: f32) {
+	gl.GetTextureParameterfv(u32(texture), gl.TEXTURE_MAX_LOD, &max_lod)
+	return
 }
 
 texture_border_color_f :: proc "contextless" (texture: Texture, r, g, b, a: f32) {
 	params := [4]f32{r, g, b, a}
 	gl.TextureParameterfv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
+}
+
+texture_border_color_i :: proc "contextless" (texture: Texture, r, g, b, a: i32) {
+	params := [4]i32{r, g, b, a}
+	gl.TextureParameterIiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
+}
+
+texture_border_color_ui :: proc "contextless" (texture: Texture, r, g, b, a: u32) {
+	params := [4]u32{r, g, b, a}
+	gl.TextureParameterIuiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
+}
+
+texture_border_color :: proc{texture_border_color_f, texture_border_color_i, texture_border_color_ui}
+
+get_texture_border_color_f :: proc "contextless" (texture: Texture) -> (r, g, b, a: f32) {
+	rgba: [4]f32 = ---
+	gl.GetTextureParameterfv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(&rgba))
+	r = rgba[0]
+	g = rgba[1]
+	b = rgba[2]
+	a = rgba[3]
+	return
+}
+
+get_texture_border_color_i :: proc "contextless" (texture: Texture) -> (r, g, b, a: i32) {
+	rgba: [4]i32 = ---
+	gl.GetTextureParameteriv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(&rgba))
+	r = rgba[0]
+	g = rgba[1]
+	b = rgba[2]
+	a = rgba[3]
+	return
+}
+
+get_texture_border_color_ui :: proc "contextless" (texture: Texture) -> (r, g, b, a: u32) {
+	rgba: [4]u32 = ---
+	gl.GetTextureParameterIuiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(&rgba))
+	r = rgba[0]
+	g = rgba[1]
+	b = rgba[2]
+	a = rgba[3]
+	return
 }
 
 Depth_Stencil_Mode :: enum i32 {
@@ -32,18 +91,7 @@ texture_base_level :: proc "contextless" (texture: Texture, index: i32) {
 	gl.TextureParameteri(u32(texture), gl.TEXTURE_BASE_LEVEL, index)
 }
 
-Compare_Func :: enum i32 {
-	Never = 0x0200,
-	Less,
-	Equal,
-	Less_Equal,
-	Greater,
-	Not_Equal,
-	Greater_Equal,
-	Always,
-}
-
-texture_compare_func :: proc "contextless" (texture: Texture, compare_func: Compare_Func) {
+texture_compare_func :: proc "contextless" (texture: Texture, compare_func: Comparison_Func) {
 	gl.TextureParameteri(u32(texture), gl.TEXTURE_COMPARE_FUNC, i32(compare_func))
 }
 
@@ -83,12 +131,12 @@ texture_max_level :: proc "contextless" (texture: Texture, max_level: i32) {
 }
 
 Swizzle :: enum i32 {
-	Zero = 0,
-	One = 1,
-	Red = 0x1903,
-	Green = 0x1904,
-	Blue = 0x1905,
-	Alpha = 0x1906,
+	Zero = gl.ZERO,
+	One = gl.ONE,
+	Red = gl.RED,
+	Green = gl.GREEN,
+	Blue = gl.BLUE,
+	Alpha = gl.ALPHA,
 }
 
 texture_swizzle_r :: proc "contextless" (texture: Texture, swizzle_r: Swizzle) {
@@ -108,11 +156,11 @@ texture_swizzle_a :: proc "contextless" (texture: Texture, swizzle_a: Swizzle) {
 }
 
 Wrap :: enum i32 {
-	Repeat = 0x2901,
-	Clamp_To_Border = 0x812D,
-	Clamp_To_Edge = 0x812F,
-	Mirrored_Repeat = 0x8370,
-	Mirror_Clamp_To_Edge = 0x8743,
+	Repeat = gl.REPEAT,
+	Clamp_To_Border = gl.CLAMP_TO_BORDER,
+	Clamp_To_Edge = gl.CLAMP_TO_EDGE,
+	Mirrored_Repeat = gl.MIRRORED_REPEAT,
+	Mirror_Clamp_To_Edge = gl.MIRROR_CLAMP_TO_EDGE,
 }
 
 texture_wrap_s :: proc "contextless" (texture: Texture, wrap: Wrap) {
@@ -126,17 +174,6 @@ texture_wrap_t :: proc "contextless" (texture: Texture, wrap: Wrap) {
 texture_wrap_r :: proc "contextless" (texture: Texture, wrap: Wrap) {
 	gl.TextureParameteri(u32(texture), gl.TEXTURE_WRAP_R, i32(wrap))
 }
-
-texture_border_color_i :: proc "contextless" (texture: Texture, r, g, b, a: i32) {
-	params := [4]i32{r, g, b, a}
-	gl.TextureParameterIiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
-}
-texture_border_color_ui :: proc "contextless" (texture: Texture, r, g, b, a: u32) {
-	params := [4]u32{r, g, b, a}
-	gl.TextureParameterIuiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
-}
-
-texture_border_color :: proc{texture_border_color_f, texture_border_color_i, texture_border_color_ui}
 
 texture_swizzle_rgba :: proc "contextless" (texture: Texture, r, g, b, a: Swizzle) {
 	swizzles := [4]i32{i32(r), i32(g), i32(b), i32(a)}
