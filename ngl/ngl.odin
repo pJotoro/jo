@@ -435,6 +435,33 @@ copy_tex_image_3d :: proc "contextless" (texture: Texture, level, xoffset, yoffs
 	gl.CopyTextureSubImage3D(u32(texture), level, xoffset, yoffset, zoffset, x, y, width, height)
 }
 
+
+// VERSION_1_3
+
+active_texture :: proc "contextless" (unit: u32, texture: Texture) {
+	gl.BindTextureUnit(unit, u32(texture))
+}
+
+sample_coverage :: proc "contextless" (value: f32, invert: bool) {
+	gl.SampleCoverage(value, invert)
+}
+
+compressed_tex_image_1d :: proc "contextless" (texture: Texture, level, xoffset, width: i32, format: Texture_Internalformat, raw_image_data: []byte) {
+	gl.CompressedTextureSubImage1D(u32(texture), level, xoffset, width, u32(format), i32(len(raw_image_data)), raw_data(raw_image_data))
+}
+
+compressed_tex_image_2d :: proc "contextless" (texture: Texture, level, xoffset, yoffset, width, height: i32, format: Texture_Internalformat, raw_image_data: []byte) {
+	gl.CompressedTextureSubImage2D(u32(texture), level, xoffset, yoffset, width, height, u32(format), i32(len(raw_image_data)), raw_data(raw_image_data))
+}
+
+compressed_tex_image_3d :: proc "contextless" (texture: Texture, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Texture_Internalformat, raw_image_data: []byte) {
+	gl.CompressedTextureSubImage3D(u32(texture), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), i32(len(raw_image_data)), raw_data(raw_image_data))
+}
+
+get_compressed_tex_image :: proc "contextless" (texture: Texture, level, xoffset, yoffset, zoffset, width, height, depth: i32, raw_pixels: []byte) {
+	gl.GetCompressedTextureSubImage(u32(texture), level, xoffset, yoffset, zoffset, width, height, depth, i32(len(raw_pixels)), raw_data(raw_pixels))
+}
+
 /*
 
 create_buffer :: proc "contextless" () -> Buffer {
