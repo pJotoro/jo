@@ -371,8 +371,8 @@ gen_textures :: proc "contextless" (target: Texture_Target, textures: []Texture)
 	gl.CreateTextures(u32(target), i32(len(textures)), (^u32)(raw_data(textures)))
 }
 
-is_texture :: proc "contextless" (texture: Texture) -> bool {
-	return gl.IsTexture(u32(texture))
+is_texture :: proc "contextless" (maybe_texture: u32) -> bool {
+	return gl.IsTexture(maybe_texture)
 }
 
 
@@ -446,20 +446,37 @@ sample_coverage :: proc "contextless" (value: f32, invert: bool) {
 	gl.SampleCoverage(value, invert)
 }
 
-compressed_tex_image_1d :: proc "contextless" (texture: Texture, level, xoffset, width: i32, format: Texture_Internalformat, raw_image_data: []byte) {
-	gl.CompressedTextureSubImage1D(u32(texture), level, xoffset, width, u32(format), i32(len(raw_image_data)), raw_data(raw_image_data))
+compressed_tex_image_1d :: proc "contextless" (texture: Texture, level, xoffset, width: i32, format: Texture_Internalformat, compressed_image: []byte) {
+	gl.CompressedTextureSubImage1D(u32(texture), level, xoffset, width, u32(format), i32(len(compressed_image)), raw_data(compressed_image))
 }
 
-compressed_tex_image_2d :: proc "contextless" (texture: Texture, level, xoffset, yoffset, width, height: i32, format: Texture_Internalformat, raw_image_data: []byte) {
-	gl.CompressedTextureSubImage2D(u32(texture), level, xoffset, yoffset, width, height, u32(format), i32(len(raw_image_data)), raw_data(raw_image_data))
+compressed_tex_image_2d :: proc "contextless" (texture: Texture, level, xoffset, yoffset, width, height: i32, format: Texture_Internalformat, compressed_image: []byte) {
+	gl.CompressedTextureSubImage2D(u32(texture), level, xoffset, yoffset, width, height, u32(format), i32(len(compressed_image)), raw_data(compressed_image))
 }
 
-compressed_tex_image_3d :: proc "contextless" (texture: Texture, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Texture_Internalformat, raw_image_data: []byte) {
-	gl.CompressedTextureSubImage3D(u32(texture), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), i32(len(raw_image_data)), raw_data(raw_image_data))
+compressed_tex_image_3d :: proc "contextless" (texture: Texture, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Texture_Internalformat, compressed_image: []byte) {
+	gl.CompressedTextureSubImage3D(u32(texture), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), i32(len(compressed_image)), raw_data(compressed_image))
 }
 
-get_compressed_tex_image :: proc "contextless" (texture: Texture, level, xoffset, yoffset, zoffset, width, height, depth: i32, raw_pixels: []byte) {
-	gl.GetCompressedTextureSubImage(u32(texture), level, xoffset, yoffset, zoffset, width, height, depth, i32(len(raw_pixels)), raw_data(raw_pixels))
+get_compressed_tex_image :: proc "contextless" (texture: Texture, level, xoffset, yoffset, zoffset, width, height, depth: i32, compressed_image: []byte) {
+	gl.GetCompressedTextureSubImage(u32(texture), level, xoffset, yoffset, zoffset, width, height, depth, i32(len(compressed_image)), raw_data(compressed_image))
+}
+
+
+// VERSION_1_4
+
+blend_func_separate :: proc "contextless" (s_factor_rgb, d_factor_rgb, s_factor_alpha, d_factor_alpha: Blend_Function) {
+	gl.BlendFuncSeparate(u32(s_factor_rgb), u32(d_factor_rgb), u32(s_factor_alpha), u32(d_factor_alpha))
+}
+
+multi_draw_arrays :: proc(mode: Draw_Mode, first, count: []i32, loc := #caller_location) {
+	assert(len(first) == len(count), "len(first) != len(count)", loc)
+	gl.MultiDrawArrays(u32(mode), raw_data(first), raw_data(count), i32(len(first)))
+}
+
+multi_draw_elements_byte :: proc(mode: Draw_Mode, count: []i32, indices: []byte, loc := #caller_location) {
+	assert(len(count) == len(indices), "len(count) != len(indices)", loc)
+	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_BYTE, (^rawptr)(raw_data(indices)), i32(len(count)))
 }
 
 /*
