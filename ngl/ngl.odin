@@ -68,7 +68,7 @@ tex_image_1d_f32 :: proc "contextless" (texture: Texture, level, offset: i32, fo
 	gl.TextureSubImage1D(u32(texture), level, offset, i32(len(pixels)), u32(format), gl.FLOAT, raw_data(pixels))
 }
 
-tex_image_1d :: proc{
+tex_image_1d :: proc {
 	tex_image_1d_byte,
 	tex_image_1d_i8,
 	tex_image_1d_u16,
@@ -119,7 +119,7 @@ tex_image_2d_f32 :: proc(texture: Texture, level, xoffset, yoffset, width, heigh
 	gl.TextureSubImage2D(u32(texture), level, xoffset, yoffset, width, height, u32(format), gl.FLOAT, raw_data(pixels))
 }
 
-tex_image_2d :: proc{
+tex_image_2d :: proc {
 	tex_image_2d_byte,
 	tex_image_2d_i8,
 	tex_image_2d_u16,
@@ -244,7 +244,7 @@ read_pixels_f32 :: proc "contextless" (x, y, width, height: i32, format: Pixel_D
 	gl.ReadnPixels(x, y, width, height, u32(format), gl.FLOAT, i32(len(buf)), raw_data(buf))
 }
 
-read_pixels :: proc{
+read_pixels :: proc {
 	read_pixels_byte,
 	read_pixels_i8,
 	read_pixels_u16,
@@ -303,7 +303,7 @@ get_tex_image_f32 :: proc "contextless" (texture: Texture, level: i32, format: P
 	gl.GetTextureImage(u32(texture), level, u32(format), gl.FLOAT, i32(len(buf)), raw_data(buf))
 }
 
-get_tex_image :: proc{
+get_tex_image :: proc {
 	get_tex_image_byte,
 	get_tex_image_i8,
 	get_tex_image_u16,
@@ -420,7 +420,7 @@ tex_image_3d_f32 :: proc(texture: Texture, level, xoffset, yoffset, zoffset, wid
 	gl.TextureSubImage3D(u32(texture), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), gl.FLOAT, raw_data(pixels))
 }
 
-tex_image_3d :: proc{
+tex_image_3d :: proc {
 	tex_image_3d_byte,
 	tex_image_3d_i8,
 	tex_image_3d_u16,
@@ -477,6 +477,43 @@ multi_draw_arrays :: proc(mode: Draw_Mode, first, count: []i32, loc := #caller_l
 multi_draw_elements_byte :: proc(mode: Draw_Mode, count: []i32, indices: []byte, loc := #caller_location) {
 	assert(len(count) == len(indices), "len(count) != len(indices)", loc)
 	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_BYTE, (^rawptr)(raw_data(indices)), i32(len(count)))
+}
+
+multi_draw_elements_u16 :: proc(mode: Draw_Mode, count: []i32, indices: []u16, loc := #caller_location) {
+	assert(len(count) == len(indices), "len(count) != len(indices)", loc)
+	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_SHORT, (^rawptr)(raw_data(indices)), i32(len(count)))
+}
+
+multi_draw_elements_u32 :: proc(mode: Draw_Mode, count: []i32, indices: []u32, loc := #caller_location) {
+	assert(len(count) == len(indices), "len(count) != len(indices)", loc)
+	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_INT, (^rawptr)(raw_data(indices)), i32(len(count)))
+}
+
+multi_draw_elements :: proc {
+	multi_draw_elements_byte,
+	multi_draw_elements_u16,
+	multi_draw_elements_u32,
+}
+
+point_fade_threshold_size :: proc "contextless" (value: f32) {
+	gl.PointParameterf(gl.POINT_FADE_THRESHOLD_SIZE, value)
+}
+
+Point_Sprite_Coord_Origin :: enum i32 {
+	Lower_Left = gl.LOWER_LEFT,
+	Upper_Left = gl.UPPER_LEFT,
+}
+
+point_sprite_coord_origin :: proc "contextless" (value: Point_Sprite_Coord_Origin) {
+	gl.PointParameteri(gl.POINT_SPRITE_COORD_ORIGIN, i32(value))
+}
+
+blend_color :: proc "contextless" (red, green, blue, alpha: f32) {
+	gl.BlendColor(red, green, blue, alpha)
+}
+
+blend_equation :: proc "contextless" (mode: Blend_Mode) {
+	gl.BlendEquation(u32(mode))
 }
 
 /*
