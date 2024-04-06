@@ -1,6 +1,7 @@
 package ngl
 
 import gl "vendor:OpenGL"
+import "core:mem"
 import "core:strings"
 import "../misc"
 
@@ -516,45 +517,74 @@ blend_equation :: proc "contextless" (mode: Blend_Mode) {
 	gl.BlendEquation(u32(mode))
 }
 
-/*
 
-create_buffer :: proc "contextless" () -> Buffer {
-	buf: u32 = ---
-	gl.CreateBuffers(1, &buf)
-	return Buffer(buf)
+// VERSION_1_5
+
+gen_queries :: proc "contextless" (target: Query_And_Timestamp_Target, ids: []Query) {
+	gl.CreateQueries(u32(target), i32(len(ids)), ([^]u32)(raw_data(ids)))
 }
 
-create_buffers :: proc(n: i32, allocator := context.allocator, loc := #caller_location) -> []Buffer {
-	bufs := make([]u32, n, allocator, loc = loc)
-	gl.CreateBuffers(n, raw_data(bufs))
-	return transmute([]Buffer)bufs
+delete_queries :: proc "contextless" (ids: []Query) {
+	gl.DeleteQueries(i32(len(ids)), ([^]u32)(raw_data(ids)))
 }
 
-buffer_data :: proc "contextless" (buffer: Buffer, data: []byte, usage: Buffer_Usage) {
+is_query :: proc "contextless" (query: u32) -> bool {
+	return gl.IsQuery(query)
+}
+
+// TODO
+
+delete_buffers :: proc "contextless" (buffers: []Buffer) {
+	gl.DeleteBuffers(i32(len(buffers)), ([^]u32)(raw_data(buffers)))
+}
+
+gen_buffers :: proc "contextless" (buffers: []Buffer) {
+	gl.GenBuffers(i32(len(buffers)), ([^]u32)(raw_data(buffers)))
+}
+
+is_buffer :: proc "contextless" (buffer: u32) -> bool {
+	return gl.IsBuffer(buffer)
+}
+
+buffer_data :: proc "contextless" (buffer: Buffer, data: []byte, usage: Buffer_Data_Usage) {
 	gl.NamedBufferData(u32(buffer), len(data), raw_data(data), u32(usage))
-}
-
-buffer_storage :: proc "contextless" (buffer: Buffer, data: []byte, flags: Buffer_Storage_Flags) {
-	gl.NamedBufferStorage(u32(buffer), len(data), raw_data(data), transmute(u32)flags)
 }
 
 buffer_sub_data :: proc "contextless" (buffer: Buffer, offset: int, data: []byte) {
 	gl.NamedBufferSubData(u32(buffer), offset, len(data), raw_data(data))
 }
 
-copy_buffer_sub_data :: proc "contextless" (read_buffer, write_buffer: Buffer, read_offset, write_offset, size: int) {
-	gl.CopyNamedBufferSubData(u32(read_buffer), u32(write_buffer), read_offset, write_offset, size)
+get_buffer_sub_data :: proc "contextless" (buffer: Buffer, offset: int, data: []byte) {
+	gl.GetNamedBufferSubData(u32(buffer), offset, len(data), raw_data(data))
 }
 
-map_buffer :: proc "contextless" (buffer: Buffer, offset, length: int, access: Buffer_Access_Flags) -> []byte {
-	return ([^]byte)(gl.MapNamedBufferRange(u32(buffer), offset, length, transmute(u32)access))[:length]
+map_buffer :: proc "contextless" (buffer: Buffer, offset, length: int, access: Access) -> []byte {
+	data: mem.Raw_Slice
+	data.len = length
+	data.data = gl.MapNamedBufferRange(u32(buffer), offset, length, u32(access))
+	return transmute([]byte)data
 }
 
 unmap_buffer :: proc "contextless" (buffer: Buffer) {
 	gl.UnmapNamedBuffer(u32(buffer))
 }
 
+// TODO
 
+
+// VERSION_2_0
+
+
+
+/*
+
+buffer_storage :: proc "contextless" (buffer: Buffer, data: []byte, flags: Buffer_Storage_Flags) {
+	gl.NamedBufferStorage(u32(buffer), len(data), raw_data(data), transmute(u32)flags)
+}
+
+copy_buffer_sub_data :: proc "contextless" (read_buffer, write_buffer: Buffer, read_offset, write_offset, size: int) {
+	gl.CopyNamedBufferSubData(u32(read_buffer), u32(write_buffer), read_offset, write_offset, size)
+}
 
 create_shader_from_binary :: proc(binary: []byte, type: Shader_Type, entry := "main", loc := #caller_location) -> (Shader, bool) #optional_ok {
 	assert(condition = align_of(raw_data(binary)) >= align_of(u32), loc = loc)
