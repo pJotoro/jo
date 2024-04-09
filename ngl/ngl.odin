@@ -315,9 +315,9 @@ get_tex_image :: proc {
 	get_tex_image_f32,
 }
 
-// get_tex_parameter - see texture_parameter.odin
+// get_tex_parameter - see tex_parameter.odin
 
-// get_tex_level_parameter - see texture_parameter.odin
+// get_tex_level_parameter - see tex_parameter.odin
 
 is_enabled :: proc "contextless" (cap: Is_Enabled_Cap) -> bool {
 	return gl.IsEnabled(u32(cap))
@@ -558,7 +558,7 @@ get_buffer_sub_data :: proc "contextless" (buffer: Buffer, offset: int, data: []
 	gl.GetNamedBufferSubData(u32(buffer), offset, len(data), raw_data(data))
 }
 
-map_buffer :: proc "contextless" (buffer: Buffer, offset, length: int, access: Access) -> []byte {
+map_buffer :: proc "contextless" (buffer: Buffer, offset, length: int, access: Access_Bits) -> []byte {
 	data: mem.Raw_Slice
 	data.len = length
 	data.data = gl.MapNamedBufferRange(u32(buffer), offset, length, u32(access))
@@ -569,7 +569,12 @@ unmap_buffer :: proc "contextless" (buffer: Buffer) {
 	gl.UnmapNamedBuffer(u32(buffer))
 }
 
-// TODO
+// get_buffer_parameter - see buffer_parameter.odin
+
+get_buffer_pointer :: proc "contextless" (buffer: Buffer) -> (pointer: rawptr) {
+	gl.GetNamedBufferPointerv(u32(buffer), gl.BUFFER_MAP_POINTER, &pointer)
+	return
+}
 
 
 // VERSION_2_0
