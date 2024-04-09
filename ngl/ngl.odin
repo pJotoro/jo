@@ -539,7 +539,7 @@ delete_buffers :: proc "contextless" (buffers: []Buffer) {
 }
 
 gen_buffers :: proc "contextless" (buffers: []Buffer) {
-	gl.GenBuffers(i32(len(buffers)), ([^]u32)(raw_data(buffers)))
+	gl.CreateBuffers(i32(len(buffers)), ([^]u32)(raw_data(buffers)))
 }
 
 is_buffer :: proc "contextless" (buffer: u32) -> bool {
@@ -578,6 +578,18 @@ get_buffer_pointer :: proc "contextless" (buffer: Buffer) -> (pointer: rawptr) {
 
 
 // VERSION_2_0
+
+blend_equation_separate :: proc "contextless" (mode_rgb, mode_alpha: Blend_Mode) {
+	gl.BlendEquationSeparate(u32(mode_rgb), u32(mode_alpha))
+}
+
+draw_buffers :: proc "contextless" (framebuffer: Framebuffer, bufs: []Draw_Buffers) {
+	gl.NamedFramebufferDrawBuffers(u32(framebuffer), i32(len(bufs)), ([^]u32)(raw_data(bufs)))
+}
+
+stencil_op_separate :: proc "contextless" (face: Stencil_Face, sfail, dpfail, dppass: Stencil_Operation) {
+	gl.StencilOpSeparate(u32(face), u32(sfail), u32(dpfail), u32(dppass))
+}
 
 
 
