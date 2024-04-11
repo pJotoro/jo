@@ -702,6 +702,49 @@ uniform_4_i32 :: proc "contextless" (program: Program, location: i32, v0, v1, v2
 	gl.ProgramUniform4i(u32(program), location, v0, v1, v2, v3)
 }
 
+uniform_matrix_2_f32 :: proc "contextless" (program: Program, location: i32, transpose: bool, value: matrix[2, 2]f32) {
+	value := value
+	gl.ProgramUniformMatrix2fv(u32(program), location, 2*2, transpose, raw_data(&value))
+}
+
+uniform_matrix_3_f32 :: proc "contextless" (program: Program, location: i32, transpose: bool, value: matrix[3, 3]f32) {
+	value := value
+	gl.ProgramUniformMatrix3fv(u32(program), location, 3*3, transpose, raw_data(&value))
+}
+
+uniform_matrix_4_f32 :: proc "contextless" (program: Program, location: i32, transpose: bool, value: matrix[4, 4]f32) {
+	value := value
+	gl.ProgramUniformMatrix4fv(u32(program), location, 4*4, transpose, raw_data(&value))
+}
+
+uniform :: proc {
+	uniform_1_f32,
+	uniform_2_f32,
+	uniform_3_f32,
+	uniform_4_f32,
+	uniform_1_i32,
+	uniform_2_i32,
+	uniform_3_i32,
+	uniform_4_i32,
+	uniform_matrix_2_f32,
+	uniform_matrix_3_f32,
+	uniform_matrix_4_f32,
+}
+
+validate_program :: proc "contextless" (program: Program) {
+	gl.ValidateProgram(u32(program))
+}
+
+// No vertex_attrib_pointer. Must use vertex_attrib_binding + vertex_attrib_format.
+
+vertex_attrib_binding :: proc "contextless" (vertex_array: Vertex_Array, attrib_index, binding_index: u32) {
+	gl.VertexArrayAttribBinding(u32(vertex_array), attrib_index, binding_index)
+}
+
+vertex_attrib_format :: proc "contextless" (vertex_array: Vertex_Array, attrib_index: u32, size: i32, type: Attribute_Type, normalized: bool, relative_offset: u32) {
+	gl.VertexArrayAttribFormat(u32(vertex_array), attrib_index, size, u32(type), normalized, relative_offset)
+}
+
 /*
 
 buffer_storage :: proc "contextless" (buffer: Buffer, data: []byte, flags: Buffer_Storage_Flags) {
