@@ -31,24 +31,24 @@ get_tex_max_lod :: proc "contextless" (texture: Texture) -> (max_lod: f32) {
 	return
 }
 
-tex_border_color_f :: proc "contextless" (texture: Texture, r, g, b, a: f32) {
+tex_border_color_f32 :: proc "contextless" (texture: Texture, r, g, b, a: f32) {
 	params := [4]f32{r, g, b, a}
 	gl.TextureParameterfv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
 }
 
-tex_border_color_i :: proc "contextless" (texture: Texture, r, g, b, a: i32) {
+tex_border_color_i32 :: proc "contextless" (texture: Texture, r, g, b, a: i32) {
 	params := [4]i32{r, g, b, a}
 	gl.TextureParameterIiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
 }
 
-tex_border_color_ui :: proc "contextless" (texture: Texture, r, g, b, a: u32) {
+tex_border_color_u32 :: proc "contextless" (texture: Texture, r, g, b, a: u32) {
 	params := [4]u32{r, g, b, a}
 	gl.TextureParameterIuiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(params[:]))
 }
 
-tex_border_color :: proc{tex_border_color_f, tex_border_color_i, tex_border_color_ui}
+tex_border_color :: proc{tex_border_color_f32, tex_border_color_i32, tex_border_color_u32}
 
-get_tex_border_color_f :: proc "contextless" (texture: Texture) -> (r, g, b, a: f32) {
+get_tex_border_color_f32 :: proc "contextless" (texture: Texture) -> (r, g, b, a: f32) {
 	rgba: [4]f32 = ---
 	gl.GetTextureParameterfv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(&rgba))
 	r = rgba[0]
@@ -58,7 +58,7 @@ get_tex_border_color_f :: proc "contextless" (texture: Texture) -> (r, g, b, a: 
 	return
 }
 
-get_tex_border_color_i :: proc "contextless" (texture: Texture) -> (r, g, b, a: i32) {
+get_tex_border_color_i32 :: proc "contextless" (texture: Texture) -> (r, g, b, a: i32) {
 	rgba: [4]i32 = ---
 	gl.GetTextureParameteriv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(&rgba))
 	r = rgba[0]
@@ -68,7 +68,7 @@ get_tex_border_color_i :: proc "contextless" (texture: Texture) -> (r, g, b, a: 
 	return
 }
 
-get_tex_border_color_ui :: proc "contextless" (texture: Texture) -> (r, g, b, a: u32) {
+get_tex_border_color_u32 :: proc "contextless" (texture: Texture) -> (r, g, b, a: u32) {
 	rgba: [4]u32 = ---
 	gl.GetTextureParameterIuiv(u32(texture), gl.TEXTURE_BORDER_COLOR, raw_data(&rgba))
 	r = rgba[0]

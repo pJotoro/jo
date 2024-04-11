@@ -591,7 +591,116 @@ stencil_op_separate :: proc "contextless" (face: Stencil_Face, sfail, dpfail, dp
 	gl.StencilOpSeparate(u32(face), u32(sfail), u32(dpfail), u32(dppass))
 }
 
+stencil_func_separate :: proc "contextless" (face: Stencil_Face, func: Comparison_Func, ref: i32, mask: u32) {
+	gl.StencilFuncSeparate(u32(face), u32(func), ref, mask)
+}
 
+stencil_mask_separate :: proc "contextless" (face: Stencil_Face, mask: u32) {
+	gl.StencilMaskSeparate(u32(face), mask)
+}
+
+attach_shader :: proc "contextless" (program: Program, shader: Shader) {
+	gl.AttachShader(u32(program), u32(shader))
+}
+
+bind_attrib_location :: proc(program: Program, index: u32, name: string) {
+	name := strings.clone_to_cstring(name)
+	gl.BindAttribLocation(u32(program), index, name)
+}
+
+compile_shaders :: proc "contextless" (shaders: []Shader, binary: []byte) {
+	gl.ShaderBinary(i32(len(shaders)), ([^]u32)(raw_data(shaders)), gl.SHADER_BINARY_FORMAT_SPIR_V, raw_data(binary), i32(len(binary)))
+}
+
+create_program :: proc "contextless" () -> Program {
+	return Program(gl.CreateProgram())
+}
+
+create_shader :: proc "contextless" (type: Shader_Type) -> Shader {
+	return Shader(gl.CreateShader(u32(type)))
+}
+
+delete_program :: proc "contextless" (program: Program) {
+	gl.DeleteProgram(u32(program))
+}
+
+delete_shader :: proc "contextless" (shader: Shader) {
+	gl.DeleteShader(u32(shader))
+}
+
+detach_shader :: proc "contextless" (program: Program, shader: Shader) {
+	gl.DetachShader(u32(program), u32(shader))
+}
+
+disable_vertex_attrib_array :: proc "contextless" (vertex_array: Vertex_Array, index: u32) {
+	gl.DisableVertexArrayAttrib(u32(vertex_array), index)
+}
+
+enable_vertex_attrib_array :: proc "contextless" (vertex_array: Vertex_Array, index: u32) {
+	gl.EnableVertexArrayAttrib(u32(vertex_array), index)
+}
+
+// TODO(pJotoro): Do some testing to find out if this procedure get return
+// the length of the string without anything else.
+// get_active_attrib :: proc "contextless" (program: Program, index: u32) -> (size: i32, type: Attribute_Type, name: string) {
+// 	length: i32 = ---
+// 	gl.GetActiveAttrib(u32(program), index, 0, &length, &size, (^u32)(&type), nil)
+
+// 	//name = transmute(string)mem.Raw_String{raw_data(&buf), int(length)}
+// 	return
+// }
+
+// ...
+
+is_program :: proc "contextless" (program: u32) -> bool {
+	return gl.IsProgram(program)
+}
+
+is_shader :: proc "contextless" (shader: u32) -> bool {
+	return gl.IsShader(shader)
+}
+
+link_program :: proc "contextless" (program: Program) {
+	gl.LinkProgram(u32(program))
+}
+
+// shader_source - see compile_shaders
+
+use_program :: proc "contextless" (program: Program) {
+	gl.UseProgram(u32(program))
+}
+
+uniform_1_f32 :: proc "contextless" (program: Program, location: i32, v0: f32) {
+	gl.ProgramUniform1f(u32(program), location, v0)
+}
+
+uniform_2_f32 :: proc "contextless" (program: Program, location: i32, v0, v1: f32) {
+	gl.ProgramUniform2f(u32(program), location, v0, v1)
+}
+
+uniform_3_f32 :: proc "contextless" (program: Program, location: i32, v0, v1, v2: f32) {
+	gl.ProgramUniform3f(u32(program), location, v0, v1, v2)
+}
+
+uniform_4_f32 :: proc "contextless" (program: Program, location: i32, v0, v1, v2, v3: f32) {
+	gl.ProgramUniform4f(u32(program), location, v0, v1, v2, v3)
+}
+
+uniform_1_i32 :: proc "contextless" (program: Program, location: i32, v0: i32) {
+	gl.ProgramUniform1i(u32(program), location, v0)
+}
+
+uniform_2_i32 :: proc "contextless" (program: Program, location: i32, v0, v1: i32) {
+	gl.ProgramUniform2i(u32(program), location, v0, v1)
+}
+
+uniform_3_i32 :: proc "contextless" (program: Program, location: i32, v0, v1, v2: i32) {
+	gl.ProgramUniform3i(u32(program), location, v0, v1, v2)
+}
+
+uniform_4_i32 :: proc "contextless" (program: Program, location: i32, v0, v1, v2, v3: i32) {
+	gl.ProgramUniform4i(u32(program), location, v0, v1, v2, v3)
+}
 
 /*
 
