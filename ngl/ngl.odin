@@ -729,6 +729,12 @@ uniform :: proc {
 	uniform_matrix_2_f32,
 	uniform_matrix_3_f32,
 	uniform_matrix_4_f32,
+	uniform_matrix_2x3_f32,
+	uniform_matrix_3x2_f32,
+	uniform_matrix_2x4_f32,
+	uniform_matrix_4x2_f32,
+	uniform_matrix_3x4_f32,
+	uniform_matrix_4x3_f32,
 }
 
 validate_program :: proc "contextless" (program: Program) {
@@ -743,6 +749,39 @@ vertex_attrib_binding :: proc "contextless" (vertex_array: Vertex_Array, attrib_
 
 vertex_attrib_format :: proc "contextless" (vertex_array: Vertex_Array, attrib_index: u32, size: i32, type: Attribute_Type, normalized: bool, relative_offset: u32) {
 	gl.VertexArrayAttribFormat(u32(vertex_array), attrib_index, size, u32(type), normalized, relative_offset)
+}
+
+
+// VERSION_2_1
+
+uniform_matrix_2x3_f32 :: proc "contextless" (program: Program, location: i32, transpose: bool, value: matrix[2, 3]f32) {
+	value := value
+	gl.ProgramUniformMatrix3x2fv(u32(program), location, 2*3, transpose, raw_data(&value))
+}
+
+uniform_matrix_3x2_f32 :: proc "contextless" (program: Program, location: i32, transpose: bool, value: matrix[3, 2]f32) {
+	value := value
+	gl.ProgramUniformMatrix2x3fv(u32(program), location, 3*2, transpose, raw_data(&value))
+}
+
+uniform_matrix_2x4_f32 :: proc "contextless" (program: Program, location: i32, transpose: bool, value: matrix[2, 4]f32) {
+	value := value
+	gl.ProgramUniformMatrix4x2fv(u32(program), location, 2*4, transpose, raw_data(&value))
+}
+
+uniform_matrix_4x2_f32 :: proc "contextless" (program: Program, location: i32, transpose: bool, value: matrix[4, 2]f32) {
+	value := value
+	gl.ProgramUniformMatrix2x4fv(u32(program), location, 4*2, transpose, raw_data(&value))
+}
+
+uniform_matrix_3x4_f32 :: proc "contextless" (program: Program, location: i32, transpose: bool, value: matrix[3, 4]f32) {
+	value := value
+	gl.ProgramUniformMatrix4x3fv(u32(program), location, 3*4, transpose, raw_data(&value))
+}
+
+uniform_matrix_4x3_f32 :: proc "contextless" (program: Program, location: i32, transpose: bool, value: matrix[4, 3]f32) {
+	value := value
+	gl.ProgramUniformMatrix3x4fv(u32(program), location, 4*3, transpose, raw_data(&value))
 }
 
 /*
