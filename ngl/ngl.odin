@@ -994,17 +994,31 @@ renderbuffer_storage_multisample :: proc "contextless" (renderbuffer: Renderbuff
 	gl.NamedRenderbufferStorageMultisample(u32(renderbuffer), samples, u32(internal_format), width, height)
 }
 
+framebuffer_texture_layer :: proc "contextless" (framebuffer: Framebuffer, attachment: Framebuffer_Renderbuffer_Attachment, texture: Texture, level, layer: i32) {
+	gl.NamedFramebufferTextureLayer(u32(framebuffer), u32(attachment), u32(texture), level, layer)
+}
 
+flush_mapped_buffer_range :: proc "contextless" (buffer: Buffer, offset, length: int) {
+	gl.FlushMappedNamedBufferRange(u32(buffer), offset, length)
+}
+
+bind_vertex_array :: proc "contextless" (vertex_array: Vertex_Array) {
+	gl.BindVertexArray(u32(vertex_array))
+}
+
+delete_vertex_arrays :: proc "contextless" (vertex_arrays: []Vertex_Array) {
+	gl.DeleteVertexArrays(i32(len(vertex_arrays)), ([^]u32)(raw_data(vertex_arrays)))
+}
+
+gen_vertex_arrays :: proc "contextless" (vertex_arrays: []Vertex_Array) {
+	gl.CreateVertexArrays(i32(len(vertex_arrays)), ([^]u32)(raw_data(vertex_arrays)))
+}
+
+is_vertex_array :: proc "contextless" (vertex_array: u32) -> bool {
+	return gl.IsVertexArray(u32(vertex_array))
+}
 
 /*
-
-buffer_storage :: proc "contextless" (buffer: Buffer, data: []byte, flags: Buffer_Storage_Flags) {
-	gl.NamedBufferStorage(u32(buffer), len(data), raw_data(data), transmute(u32)flags)
-}
-
-copy_buffer_sub_data :: proc "contextless" (read_buffer, write_buffer: Buffer, read_offset, write_offset, size: int) {
-	gl.CopyNamedBufferSubData(u32(read_buffer), u32(write_buffer), read_offset, write_offset, size)
-}
 
 create_shader_from_binary :: proc(binary: []byte, type: Shader_Type, entry := "main", loc := #caller_location) -> (Shader, bool) #optional_ok {
 	assert(condition = align_of(raw_data(binary)) >= align_of(u32), loc = loc)
@@ -1050,67 +1064,6 @@ create_program :: proc(shaders: ..Shader, loc := #caller_location) -> (Program, 
 		}
 	}
 	return Program(program), bool(success)
-}
-
-use_program :: proc "contextless" (program: Program) {
-	gl.UseProgram(u32(program))
-}
-
-get_uniform_location_cstring :: proc "contextless" (program: Program, name: cstring) -> i32 {
-	return gl.GetUniformLocation(u32(program), name)
-}
-
-get_uniform_location_string :: proc(program: Program, name: string, loc := #caller_location) -> i32 {
-	cstring_name := strings.clone_to_cstring(name, context.temp_allocator, loc)
-	return gl.GetUniformLocation(u32(program), cstring_name)
-}
-
-get_uniform_location :: proc{get_uniform_location_cstring, get_uniform_location_string}
-
-
-
-create_pipeline :: proc "contextless" () -> Pipeline {
-	pipeline: u32 = ---
-	gl.CreateProgramPipelines(1, &pipeline)
-	return Pipeline(pipeline)
-}
-
-create_pipelines :: proc(n: i32, allocator := context.allocator, loc := #caller_location) -> []Pipeline {
-	pipelines := make([]u32, n, allocator, loc)
-	gl.CreateProgramPipelines(n, raw_data(pipelines))
-	return transmute([]Pipeline)pipelines
-}
-
-use_stages :: proc "contextless" (pipeline: Pipeline, stages: Stage_Flags, program: Program) {
-	gl.UseProgramStages(u32(pipeline), transmute(u32)stages, u32(program))
-}
-
-bind_pipeline :: proc "contextless" (pipeline: Pipeline) {
-	gl.BindProgramPipeline(u32(pipeline))
-}
-
-bind_vertex_buffer :: proc "contextless" (vertex_array: Vertex_Array, binding_index: u32, vertex_buffer: Buffer, offset: int, stride: i32) {
-	gl.VertexArrayVertexBuffer(u32(vertex_array), binding_index, u32(vertex_buffer), offset, stride)
-}
-
-bind_element_buffer :: proc "contextless" (vertex_array: Vertex_Array, element_buffer: Buffer) {
-	gl.VertexArrayElementBuffer(u32(vertex_array), u32(element_buffer))
-}
-
-bind_vertex_array :: proc "contextless" (vertex_array: Vertex_Array) {
-	gl.BindVertexArray(u32(vertex_array))
-}
-
-texture_storage_1d :: proc "contextless" (texture: Texture, levels: i32, format: Internal_Format, size: i32) {
-	gl.TextureStorage1D(u32(texture), levels, u32(format), size)
-}
-
-texture_storage_2d :: proc "contextless" (texture: Texture, levels: i32, format: Internal_Format, width, height: i32) {
-	gl.TextureStorage2D(u32(texture), levels, u32(format), width, height)
-}
-
-texture_storage_3d :: proc "contextless" (texture: Texture, levels: i32, format: Internal_Format, width, height, depth: i32) {
-	gl.TextureStorage3D(u32(texture), levels, u32(format), width, height, depth)
 }
 
 */
