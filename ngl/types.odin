@@ -6,4 +6,5 @@ Program :: distinct u32
 Pipeline :: distinct u32
 Vertex_Array :: distinct u32
 Framebuffer :: distinct u32
+Renderbuffer :: distinct u32
 Query :: distinct u32
