@@ -391,7 +391,11 @@ draw_elements_u32 :: proc "contextless" (mode: Draw_Mode, indices: []u32) {
 	gl.DrawElements(u32(mode), i32(len(indices)), gl.UNSIGNED_INT, raw_data(indices))
 }
 
-draw_elements :: proc{draw_elements_byte, draw_elements_u16, draw_elements_u32}
+draw_elements :: proc{
+	draw_elements_byte, 
+	draw_elements_u16, 
+	draw_elements_u32,
+}
 
 polygon_offset :: proc "contextless" (factor, units: f32) {
 	gl.PolygonOffset(factor, units)
@@ -511,24 +515,20 @@ blend_func_separate :: proc "contextless" (s_factor_rgb, d_factor_rgb, s_factor_
 	gl.BlendFuncSeparate(u32(s_factor_rgb), u32(d_factor_rgb), u32(s_factor_alpha), u32(d_factor_alpha))
 }
 
-multi_draw_arrays :: proc(mode: Draw_Mode, first, count: []i32, loc := #caller_location) {
-	assert(len(first) == len(count), "len(first) != len(count)", loc)
-	gl.MultiDrawArrays(u32(mode), raw_data(first), raw_data(count), i32(len(first)))
+multi_draw_arrays :: proc "contextless" (mode: Draw_Mode, first, count: []i32) {
+	gl.MultiDrawArrays(u32(mode), raw_data(first), raw_data(count), i32(min(len(first), len(count))))
 }
 
-multi_draw_elements_byte :: proc(mode: Draw_Mode, count: []i32, indices: []byte, loc := #caller_location) {
-	assert(len(count) == len(indices), "len(count) != len(indices)", loc)
-	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_BYTE, (^rawptr)(raw_data(indices)), i32(len(count)))
+multi_draw_elements_byte :: proc "contextless" (mode: Draw_Mode, count: []i32, indices: []byte) {
+	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_BYTE, (^rawptr)(raw_data(indices)), i32(min(len(count), len(indices))))
 }
 
-multi_draw_elements_u16 :: proc(mode: Draw_Mode, count: []i32, indices: []u16, loc := #caller_location) {
-	assert(len(count) == len(indices), "len(count) != len(indices)", loc)
-	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_SHORT, (^rawptr)(raw_data(indices)), i32(len(count)))
+multi_draw_elements_u16 :: proc "contextless" (mode: Draw_Mode, count: []i32, indices: []u16) {
+	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_SHORT, (^rawptr)(raw_data(indices)), i32(min(len(count), len(indices))))
 }
 
-multi_draw_elements_u32 :: proc(mode: Draw_Mode, count: []i32, indices: []u32, loc := #caller_location) {
-	assert(len(count) == len(indices), "len(count) != len(indices)", loc)
-	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_INT, (^rawptr)(raw_data(indices)), i32(len(count)))
+multi_draw_elements_u32 :: proc "contextless" (mode: Draw_Mode, count: []i32, indices: []u32) {
+	gl.MultiDrawElements(u32(mode), raw_data(count), gl.UNSIGNED_INT, (^rawptr)(raw_data(indices)), i32(min(len(count), len(indices))))
 }
 
 multi_draw_elements :: proc {
@@ -1037,7 +1037,11 @@ draw_elements_instanced_u32 :: proc "contextless" (mode: Draw_Mode, indices: []u
 	gl.DrawElementsInstanced(u32(mode), i32(len(indices)), gl.UNSIGNED_INT, raw_data(indices), instance_count)
 }
 
-draw_elements_instanced :: proc{draw_elements_instanced_byte, draw_elements_instanced_u16, draw_elements_instanced_u32}
+draw_elements_instanced :: proc {
+	draw_elements_instanced_byte, 
+	draw_elements_instanced_u16, 
+	draw_elements_instanced_u32,
+}
 
 tex_buffer :: proc "contextless" (tex: Tex, internal_format: Tex_Buffer_Internalformat, buffer: Buffer) {
 	gl.TextureBuffer(u32(tex), u32(internal_format), u32(buffer))
@@ -1060,6 +1064,116 @@ get_uniform_indices :: proc "contextless" (program: Program, uniform_names: []cs
 uniform_block_binding :: proc "contextless" (program: Program, uniform_block_index, uniform_block_binding: u32) {
 	gl.UniformBlockBinding(u32(program), uniform_block_index, uniform_block_binding)
 }
+
+
+// VERSION_3_2
+
+draw_elements_base_vertex_byte :: proc "contextless" (mode: Draw_Mode, indices: []byte, base_vertex: i32) {
+	gl.DrawElementsBaseVertex(u32(mode), i32(len(indices)), gl.UNSIGNED_BYTE, raw_data(indices), base_vertex)
+}
+
+draw_elements_base_vertex_u16 :: proc "contextless" (mode: Draw_Mode, indices: []u16, base_vertex: i32) {
+	gl.DrawElementsBaseVertex(u32(mode), i32(len(indices)), gl.UNSIGNED_SHORT, raw_data(indices), base_vertex)
+}
+
+draw_elements_base_vertex_u32 :: proc "contextless" (mode: Draw_Mode, indices: []u32, base_vertex: i32) {
+	gl.DrawElementsBaseVertex(u32(mode), i32(len(indices)), gl.UNSIGNED_INT, raw_data(indices), base_vertex)
+}
+
+draw_elements_base_vertex :: proc {
+	draw_elements_base_vertex_byte, 
+	draw_elements_base_vertex_u16, 
+	draw_elements_base_vertex_u32,
+}
+
+draw_range_elements_base_vertex_byte :: proc "contextless" (mode: Draw_Mode, start, end: u32, indices: []byte, base_vertex: i32) {
+	gl.DrawRangeElementsBaseVertex(u32(mode), start, end, i32(len(indices)), gl.UNSIGNED_BYTE, raw_data(indices), base_vertex)
+}
+
+draw_range_elements_base_vertex_u16 :: proc "contextless" (mode: Draw_Mode, start, end: u32, indices: []u16, base_vertex: i32) {
+	gl.DrawRangeElementsBaseVertex(u32(mode), start, end, i32(len(indices)), gl.UNSIGNED_SHORT, raw_data(indices), base_vertex)
+}
+
+draw_range_elements_base_vertex_u32 :: proc "contextless" (mode: Draw_Mode, start, end: u32, indices: []u32, base_vertex: i32) {
+	gl.DrawRangeElementsBaseVertex(u32(mode), start, end, i32(len(indices)), gl.UNSIGNED_INT, raw_data(indices), base_vertex)
+}
+
+draw_range_elements_base_vertex :: proc {
+	draw_range_elements_base_vertex_byte, 
+	draw_range_elements_base_vertex_u16, 
+	draw_range_elements_base_vertex_u32,
+}
+
+draw_elements_instanced_base_vertex_byte :: proc "contextless" (mode: Draw_Mode, indices: []byte, instance_count, base_vertex: i32) {
+	gl.DrawElementsInstancedBaseVertex(u32(mode), i32(len(indices)), gl.UNSIGNED_BYTE, raw_data(indices), instance_count, base_vertex)
+}
+
+draw_elements_instanced_base_vertex_u16 :: proc "contextless" (mode: Draw_Mode, indices: []u16, instance_count, base_vertex: i32) {
+	gl.DrawElementsInstancedBaseVertex(u32(mode), i32(len(indices)), gl.UNSIGNED_SHORT, raw_data(indices), instance_count, base_vertex)
+}
+
+draw_elements_instanced_base_vertex_u32 :: proc "contextless" (mode: Draw_Mode, indices: []u32, instance_count, base_vertex: i32) {
+	gl.DrawElementsInstancedBaseVertex(u32(mode), i32(len(indices)), gl.UNSIGNED_INT, raw_data(indices), instance_count, base_vertex)
+}
+
+draw_elements_instanced_base_vertex :: proc {
+	draw_elements_instanced_base_vertex_byte, 
+	draw_elements_instanced_base_vertex_u16, 
+	draw_elements_instanced_base_vertex_u32,
+}
+
+multi_draw_elements_base_vertex_byte :: proc "contextless" (mode: Draw_Mode, count: []i32, indices: [][^]byte, base_vertex: []i32) {
+	gl.MultiDrawElementsBaseVertex(u32(mode), raw_data(count), gl.UNSIGNED_BYTE, ([^]rawptr)(raw_data(indices)), i32(min(len(count), len(indices), len(base_vertex))), raw_data(base_vertex))
+}
+
+multi_draw_elements_base_vertex_u16 :: proc "contextless" (mode: Draw_Mode, count: []i32, indices: [][^]u16, base_vertex: []i32) {
+	gl.MultiDrawElementsBaseVertex(u32(mode), raw_data(count), gl.UNSIGNED_SHORT, ([^]rawptr)(raw_data(indices)), i32(min(len(count), len(indices), len(base_vertex))), raw_data(base_vertex))
+}
+
+multi_draw_elements_base_vertex_u32 :: proc "contextless" (mode: Draw_Mode, count: []i32, indices: [][^]u32, base_vertex: []i32) {
+	gl.MultiDrawElementsBaseVertex(u32(mode), raw_data(count), gl.UNSIGNED_INT, ([^]rawptr)(raw_data(indices)), i32(min(len(count), len(indices), len(base_vertex))), raw_data(base_vertex))
+}
+
+multi_draw_elements_base_vertex :: proc {
+	multi_draw_elements_base_vertex_byte,
+	multi_draw_elements_base_vertex_u16,
+	multi_draw_elements_base_vertex_u32,
+}
+
+provoking_vertex :: proc "contextless" (mode: Provoking_Vertex_Mode) {
+	gl.ProvokingVertex(u32(mode))
+}
+
+fence_sync :: proc "contextless" () -> Sync {
+	return gl.FenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
+}
+
+is_sync :: proc "contextless" (sync: rawptr) -> bool {
+	return gl.IsSync(Sync(sync))
+}
+
+delete_sync :: proc "contextless" (sync: Sync) {
+	gl.DeleteSync(sync)
+}
+
+client_wait_sync :: proc "contextless" (sync: Sync, flush_commands: bool, timeout: u64) -> Client_Wait_Sync_Status {
+	return Client_Wait_Sync_Status(gl.ClientWaitSync(sync, flush_commands ? gl.SYNC_FLUSH_COMMANDS_BIT : 0, timeout))
+}
+
+wait_sync :: proc "contextless" (sync: Sync, timeout: u64) {
+	gl.WaitSync(sync, 0, timeout)
+}
+
+// ...
+
+sample_mask :: proc "contextless" (mask_number, mask: u32) {
+	gl.SampleMaski(mask_number, mask)
+}
+
+
+// VERSION_3_3
+
+
 
 /*
 
