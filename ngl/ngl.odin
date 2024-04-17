@@ -1173,6 +1173,42 @@ sample_mask :: proc "contextless" (mask_number, mask: u32) {
 
 // VERSION_3_3
 
+bind_frag_data_location_indexed :: proc "contextless" (program: Program, color_number: u32, index: u32, name: cstring) {
+	gl.BindFragDataLocationIndexed(u32(program), color_number, index, name)
+}
+
+get_frag_data_index :: proc "contextless" (program: Program, name: cstring) -> i32 {
+	return gl.GetFragDataIndex(u32(program), name)
+}
+
+gen_samplers :: proc "contextless" (samplers: []Sampler) {
+	gl.CreateSamplers(i32(len(samplers)), ([^]u32)(raw_data(samplers)))
+}
+
+delete_samplers :: proc "contextless" (samplers: []Sampler) {
+	gl.DeleteSamplers(i32(len(samplers)), ([^]u32)(raw_data(samplers)))
+}
+
+is_sampler :: proc "contextless" (sampler: u32) -> bool {
+	return gl.IsSampler(sampler)
+}
+
+bind_sampler :: proc "contextless" (unit: u32, sampler: Sampler) {
+	gl.BindSampler(unit, u32(sampler))
+}
+
+// sampler_parameter, get_sampler_parameter - see sampler_parameter.odin (TODO)
+
+query_counter :: proc "contextless" (query: Query) {
+	gl.QueryCounter(u32(query), gl.TIMESTAMP)
+}
+
+// ...
+
+// vertex_binding_divisor ?
+
+// ...
+
 
 
 /*
