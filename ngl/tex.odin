@@ -94,8 +94,8 @@ tex_compare_func :: proc "contextless" (tex: Tex, compare_func: Comparison_Func)
 }
 
 Compare_Mode :: enum i32 {
-	None = 0,
-	Ref_To_Texture = 0x884E,
+	None = gl.NONE,
+	Compare_Ref_To_Texture = gl.COMPARE_REF_TO_TEXTURE,
 }
 
 tex_compare_mode :: proc "contextless" (tex: Tex, compare_mode: Compare_Mode) {
@@ -103,12 +103,12 @@ tex_compare_mode :: proc "contextless" (tex: Tex, compare_mode: Compare_Mode) {
 }
 
 Min_Filter :: enum i32 {
-	Nearest = 0x2600,
-	Linear = 0x2601,
-	Nearest_Mipmap_Nearest = 0x2700,
-	Linear_Mipmap_Nearest = 0x2701,
-	Nearest_Mipmap_Linear = 0x2702,
-	Linear_Mipmap_Linear = 0x2703,
+	Nearest = gl.NEAREST,
+	Linear = gl.LINEAR,
+	Nearest_Mipmap_Nearest = gl.NEAREST_MIPMAP_NEAREST,
+	Linear_Mipmap_Nearest = gl.LINEAR_MIPMAP_NEAREST,
+	Nearest_Mipmap_Linear = gl.NEAREST_MIPMAP_LINEAR,
+	Linear_Mipmap_Linear = gl.LINEAR_MIPMAP_LINEAR,
 }
 
 tex_min_filter :: proc "contextless" (tex: Tex, min_filter: Min_Filter) {
@@ -116,8 +116,8 @@ tex_min_filter :: proc "contextless" (tex: Tex, min_filter: Min_Filter) {
 }
 
 Mag_Filter :: enum i32 {
-	Nearest = 0x2600,
-	Linear = 0x2601,
+	Nearest = gl.NEAREST,
+	Linear = gl.LINEAR,
 }
 
 tex_mag_filter :: proc "contextless" (tex: Tex, mag_filter: Mag_Filter) {

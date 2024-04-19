@@ -573,7 +573,15 @@ is_query :: proc "contextless" (query: u32) -> bool {
 	return gl.IsQuery(query)
 }
 
-// TODO
+begin_query :: proc "contextless" (target: Query_Target, id: Query) {
+	gl.BeginQuery(u32(target), u32(id))
+}
+
+end_query :: proc "contextless" (target: Query_Target) {
+	gl.EndQuery(u32(target))
+}
+
+// get_query - see query.odin
 
 delete_buffers :: proc "contextless" (buffers: []Buffer) {
 	gl.DeleteBuffers(i32(len(buffers)), ([^]u32)(raw_data(buffers)))
@@ -644,8 +652,7 @@ attach_shader :: proc "contextless" (program: Program, shader: Shader) {
 	gl.AttachShader(u32(program), u32(shader))
 }
 
-bind_attrib_location :: proc(program: Program, index: u32, name: string) {
-	name := strings.clone_to_cstring(name)
+bind_attrib_location :: proc "contextless" (program: Program, index: u32, name: cstring) {
 	gl.BindAttribLocation(u32(program), index, name)
 }
 
@@ -844,22 +851,8 @@ end_transform_feedback :: proc "contextless" () {
 	gl.EndTransformFeedback()
 }
 
-transform_feedback_varyings_cstring :: proc "contextless" (program: Program, varyings: []cstring, buffer_mode: Transform_Feedback_Buffer_Mode) {
+transform_feedback_varyings :: proc "contextless" (program: Program, varyings: []cstring, buffer_mode: Transform_Feedback_Buffer_Mode) {
 	gl.TransformFeedbackVaryings(u32(program), i32(len(varyings)), raw_data(varyings), u32(buffer_mode))
-}
-
-transform_feedback_varyings_string :: proc(program: Program, varyings: []string, buffer_mode: Transform_Feedback_Buffer_Mode) -> mem.Allocator_Error {
-	varyings_cstring := make([]cstring, len(varyings), context.temp_allocator) or_return
-	for _, i in varyings_cstring {
-		varyings_cstring[i] = strings.clone_to_cstring(varyings[i], context.temp_allocator) or_return
-	}
-	transform_feedback_varyings_cstring(program, varyings_cstring, buffer_mode)
-	return .None
-}
-
-transform_feedback_varyings :: proc {
-	transform_feedback_varyings_cstring,
-	transform_feedback_varyings_string,
 }
 
 // ...
@@ -1197,7 +1190,7 @@ bind_sampler :: proc "contextless" (unit: u32, sampler: Sampler) {
 	gl.BindSampler(unit, u32(sampler))
 }
 
-// sampler_parameter, get_sampler_parameter - see sampler_parameter.odin (TODO)
+// sampler_parameter, get_sampler_parameter - see sampler.odin (TODO)
 
 query_counter :: proc "contextless" (query: Query) {
 	gl.QueryCounter(u32(query), gl.TIMESTAMP)
@@ -1208,6 +1201,13 @@ query_counter :: proc "contextless" (query: Query) {
 // vertex_binding_divisor ?
 
 // ...
+
+
+// VERSION_4_0
+
+min_sample_shading :: proc "contextless" (value: f32) {
+	gl.MinSampleShading(value)
+}
 
 
 
