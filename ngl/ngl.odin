@@ -973,7 +973,7 @@ framebuffer_renderbuffer :: proc "contextless" (framebuffer: Framebuffer, attach
 	gl.NamedFramebufferRenderbuffer(u32(framebuffer), u32(attachment), gl.RENDERBUFFER, u32(renderbuffer))
 }
 
-// get_framebuffer_attachment_parameter - see framebuffer_parameter.odin (TODO)
+// get_framebuffer_attachment_parameter - see framebuffer.odin
 
 generate_mipmap :: proc "contextless" (tex: Tex) {
 	gl.GenerateTextureMipmap(u32(tex))
