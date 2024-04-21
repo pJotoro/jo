@@ -1270,6 +1270,28 @@ draw_elements_indirect :: proc "contextless" (mode: Draw_Mode, type: Draw_Type, 
 
 // ...
 
+delete_transform_feedbacks :: proc "contextless" (transform_feedbacks: []Transform_Feedback) {
+	gl.DeleteTransformFeedbacks(i32(len(transform_feedbacks)), ([^]u32)(raw_data(transform_feedbacks)))
+}
+
+gen_transform_feedbacks :: proc "contextless" (transform_feedbacks: []Transform_Feedback) {
+	gl.CreateTransformFeedbacks(i32(len(transform_feedbacks)), ([^]u32)(raw_data(transform_feedbacks)))
+}
+
+is_transform_feedback :: proc "contextless" (transform_feedback: u32) -> bool {
+	return gl.IsTransformFeedback(transform_feedback)
+}
+
+// ...
+
+begin_query_indexed :: proc "contextless" (target: Query_Target, index: u32, query: Query) {
+	gl.BeginQueryIndexed(u32(target), index, u32(query))
+}
+
+end_query_indexed :: proc "contextless" (target: Query_Target, index: u32) {
+	gl.EndQueryIndexed(u32(target), index)
+}
+
 
 
 /*

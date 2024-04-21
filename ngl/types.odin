@@ -12,5 +12,6 @@ Framebuffer :: distinct u32
 Renderbuffer :: distinct u32
 Query :: distinct u32
 Sampler :: distinct u32
+Transform_Feedback :: distinct u32
 
 Sync :: gl.sync_t
