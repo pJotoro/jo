@@ -945,7 +945,7 @@ renderbuffer_storage :: proc "contextless" (renderbuffer: Renderbuffer, internal
 	gl.NamedRenderbufferStorage(u32(renderbuffer), u32(internal_format), width, height)
 }
 
-// get_renderbuffer_parameter - see renderbuffer_parameter.odin (TODO)
+// get_renderbuffer_parameter - see renderbuffer.odin
 
 is_framebuffer :: proc "contextless" (framebuffer: u32) -> bool {
 	return gl.IsFramebuffer(framebuffer)
@@ -1190,7 +1190,7 @@ bind_sampler :: proc "contextless" (unit: u32, sampler: Sampler) {
 	gl.BindSampler(unit, u32(sampler))
 }
 
-// sampler_parameter, get_sampler_parameter - see sampler.odin (TODO)
+// sampler_parameter, get_sampler_parameter - see sampler.odin
 
 query_counter :: proc "contextless" (query: Query) {
 	gl.QueryCounter(u32(query), gl.TIMESTAMP)
