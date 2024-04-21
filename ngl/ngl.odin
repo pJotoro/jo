@@ -206,8 +206,17 @@ flush :: proc "contextless" () {
 	gl.Flush()
 }
 
-blend_func :: proc "contextless" (sfactor, dfactor: Blend_Function) {
+blend_func_no_i :: proc "contextless" (sfactor, dfactor: Blend_Function) {
 	gl.BlendFunc(u32(sfactor), u32(dfactor))
+}
+
+blend_func_i :: proc "contextless" (buf: u32, src, dst: Blend_Function) {
+	gl.BlendFunci(buf, u32(src), u32(dst))
+}
+
+blend_func :: proc {
+	blend_func_no_i,
+	blend_func_i,
 }
 
 logic_op :: proc "contextless" (opcode: Logical_Operation) {
@@ -511,8 +520,17 @@ get_compressed_tex_image :: proc "contextless" (tex: Tex, level, xoffset, yoffse
 
 // VERSION_1_4
 
-blend_func_separate :: proc "contextless" (s_factor_rgb, d_factor_rgb, s_factor_alpha, d_factor_alpha: Blend_Function) {
+blend_func_separate_no_i :: proc "contextless" (s_factor_rgb, d_factor_rgb, s_factor_alpha, d_factor_alpha: Blend_Function) {
 	gl.BlendFuncSeparate(u32(s_factor_rgb), u32(d_factor_rgb), u32(s_factor_alpha), u32(d_factor_alpha))
+}
+
+blend_func_separate_i :: proc "contextless" (buf: u32, s_factor_rgb, d_factor_rgb, s_factor_alpha, d_factor_alpha: Blend_Function) {
+	gl.BlendFuncSeparate(u32(s_factor_rgb), u32(d_factor_rgb), u32(s_factor_alpha), u32(d_factor_alpha))
+}
+
+blend_func_separate :: proc {
+	blend_func_separate_no_i,
+	blend_func_separate_i,
 }
 
 multi_draw_arrays :: proc "contextless" (mode: Draw_Mode, first, count: []i32) {
@@ -554,8 +572,17 @@ blend_color :: proc "contextless" (red, green, blue, alpha: f32) {
 	gl.BlendColor(red, green, blue, alpha)
 }
 
-blend_equation :: proc "contextless" (mode: Blend_Mode) {
+blend_equation_no_i :: proc "contextless" (mode: Blend_Mode) {
 	gl.BlendEquation(u32(mode))
+}
+
+blend_equation_i :: proc "contextless" (buf: u32, mode: Blend_Mode) {
+	gl.BlendEquationi(buf, u32(mode))
+}
+
+blend_equation :: proc {
+	blend_equation_no_i,
+	blend_equation_i,
 }
 
 
@@ -628,8 +655,17 @@ get_buffer_pointer :: proc "contextless" (buffer: Buffer) -> (pointer: rawptr) {
 
 // VERSION_2_0
 
-blend_equation_separate :: proc "contextless" (mode_rgb, mode_alpha: Blend_Mode) {
+blend_equation_separate_no_i :: proc "contextless" (mode_rgb, mode_alpha: Blend_Mode) {
 	gl.BlendEquationSeparate(u32(mode_rgb), u32(mode_alpha))
+}
+
+blend_equation_separate_i :: proc "contextless" (buf: u32, mode_rgb, mode_alpha: Blend_Mode) {
+	gl.BlendEquationSeparatei(buf, u32(mode_rgb), u32(mode_alpha))
+}
+
+blend_equation_separate :: proc {
+	blend_equation_no_i,
+	blend_equation_i,
 }
 
 draw_buffers :: proc "contextless" (framebuffer: Framebuffer, bufs: []Draw_Buffers) {
@@ -1208,6 +1244,31 @@ query_counter :: proc "contextless" (query: Query) {
 min_sample_shading :: proc "contextless" (value: f32) {
 	gl.MinSampleShading(value)
 }
+
+Draw_Arrays_Indirect_Command :: struct {
+	count:          u32,
+	instance_count: u32,
+	first:          u32,
+	base_instance:  u32,
+}
+
+draw_arrays_indirect :: proc "contextless" (mode: Draw_Mode, indirect: ^Draw_Arrays_Indirect_Command) {
+	gl.DrawArraysIndirect(u32(mode), auto_cast indirect)
+}
+
+Draw_Elements_Indirect_Command :: struct {
+	count:          u32,
+	instance_count: u32,
+	first_index:    u32,
+	base_vertex:    u32,
+	base_instance:  u32,
+}
+
+draw_elements_indirect :: proc "contextless" (mode: Draw_Mode, type: Draw_Type, indirect: ^Draw_Elements_Indirect_Command) {
+	gl.DrawElementsIndirect(u32(mode), u32(type), auto_cast indirect)
+}
+
+// ...
 
 
 
