@@ -147,8 +147,17 @@ clear_stencil :: proc "contextless" (s: i32) {
 	gl.ClearStencil(s)
 }
 
-clear_depth :: proc "contextless" (depth: f64) {
+clear_depth_f64 :: proc "contextless" (depth: f64) {
 	gl.ClearDepth(depth)
+}
+
+clear_depth_f32 :: proc "contextless" (depth: f32) {
+	gl.ClearDepthf(depth)
+}
+
+clear_depth :: proc {
+	clear_depth_f64,
+	clear_depth_f32,
 }
 
 stencil_mask :: proc "contextless" (mask: u32) {
@@ -373,8 +382,17 @@ is_enabled :: proc {
 	is_enabled_i,
 }
 
-depth_range :: proc "contextless" (near, far: f64) {
+depth_range_f64 :: proc "contextless" (near, far: f64) {
 	gl.DepthRange(near, far)
+}
+
+depth_range_f32 :: proc "contextless" (near, far: f32) {
+	gl.DepthRangef(near, far)
+}
+
+depth_range :: proc {
+	depth_range_f64,
+	depth_range_f32,
 }
 
 viewport :: proc "contextless" (x, y, width, height: i32) {
@@ -1291,6 +1309,103 @@ begin_query_indexed :: proc "contextless" (target: Query_Target, index: u32, que
 end_query_indexed :: proc "contextless" (target: Query_Target, index: u32) {
 	gl.EndQueryIndexed(u32(target), index)
 }
+
+
+// VERSION_4_1
+
+shader_binary :: proc "contextless" (shaders: []Shader, binary_format: Shader_Binary_Format, binary: []byte) {
+	gl.ShaderBinary(i32(len(shaders)), ([^]u32)(raw_data(shaders)), u32(binary_format), raw_data(binary), i32(len(binary)))
+}
+
+get_shader_precision_format :: proc "contextless" (shader_type: Shader_Precision_Format_Shader_Type, precision_type: Shader_Precision_Type) -> (range: [2]i32, precision: i32) {
+	gl.GetShaderPrecisionFormat(u32(shader_type), u32(precision_type), raw_data(&range), &precision)
+	return
+}
+
+get_program_binary :: proc(program: Program, allocator := context.allocator) -> (binary: []byte, binary_format: Shader_Binary_Format) {
+	buf_size: i32 = ---
+	gl.GetProgramiv(u32(program), gl.PROGRAM_BINARY_LENGTH, &buf_size)
+	binary = make([]byte, buf_size, allocator)
+	length: i32 = ---
+	gl.GetProgramBinary(u32(program), buf_size, &length, (^u32)(&binary_format), raw_data(binary))
+	binary = binary[:int(length)]
+	return
+}
+
+program_binary :: proc "contextless" (program: Program, binary_format: Program_Binary_Format, binary: []byte) {
+	gl.ProgramBinary(u32(program), u32(binary_format), raw_data(binary), i32(len(binary)))
+}
+
+// ...
+
+delete_pipelines :: proc "contextless" (pipelines: []Pipeline) {
+	gl.DeleteProgramPipelines(i32(len(pipelines)), ([^]u32)(raw_data(pipelines)))
+}
+
+gen_pipelines :: proc "contextless" (pipelines: []Pipeline) {
+	gl.CreateProgramPipelines(i32(len(pipelines)), ([^]u32)(raw_data(pipelines)))
+}
+
+is_pipeline :: proc "contextless" (pipeline: u32) -> bool {
+	return gl.IsProgramPipeline(pipeline)
+}
+
+// ...
+
+
+// VERSION_4_2
+
+draw_arrays_instanced_base_instance :: proc "contextless" (mode: Draw_Mode, first, count, instance_count: i32, base_instance: u32) {
+	gl.DrawArraysInstancedBaseInstance(u32(mode), first, count, instance_count, base_instance)
+}
+
+draw_elements_instanced_base_instance_byte :: proc "contextless" (mode: Draw_Mode, indices: []byte, instance_count: i32, base_instance: u32) {
+	gl.DrawElementsInstancedBaseInstance(u32(mode), i32(len(indices)), gl.UNSIGNED_BYTE, raw_data(indices), instance_count, base_instance)
+}
+
+draw_elements_instanced_base_instance_u16 :: proc "contextless" (mode: Draw_Mode, indices: []u16, instance_count: i32, base_instance: u32) {
+	gl.DrawElementsInstancedBaseInstance(u32(mode), i32(len(indices)), gl.UNSIGNED_SHORT, raw_data(indices), instance_count, base_instance)
+}
+
+draw_elements_instanced_base_instance_u32 :: proc "contextless" (mode: Draw_Mode, indices: []u32, instance_count: i32, base_instance: u32) {
+	gl.DrawElementsInstancedBaseInstance(u32(mode), i32(len(indices)), gl.UNSIGNED_INT, raw_data(indices), instance_count, base_instance)
+}
+
+draw_elements_instanced_base_instance :: proc {
+	draw_elements_instanced_base_instance_byte,
+	draw_elements_instanced_base_instance_u16,
+	draw_elements_instanced_base_instance_u32,
+}
+
+draw_elements_instanced_base_vertex_base_instance_byte :: proc "contextless" (mode: Draw_Mode, indices: []byte, instance_count, base_vertex: i32, base_instance: u32) {
+	gl.DrawElementsInstancedBaseVertexBaseInstance(u32(mode), i32(len(indices)), gl.UNSIGNED_BYTE, raw_data(indices), instance_count, base_vertex, base_instance)
+}
+
+draw_elements_instanced_base_vertex_base_instance_u16 :: proc "contextless" (mode: Draw_Mode, indices: []u16, instance_count, base_vertex: i32, base_instance: u32) {
+	gl.DrawElementsInstancedBaseVertexBaseInstance(u32(mode), i32(len(indices)), gl.UNSIGNED_SHORT, raw_data(indices), instance_count, base_vertex, base_instance)
+}
+
+draw_elements_instanced_base_vertex_base_instance_u32 :: proc "contextless" (mode: Draw_Mode, indices: []u32, instance_count, base_vertex: i32, base_instance: u32) {
+	gl.DrawElementsInstancedBaseVertexBaseInstance(u32(mode), i32(len(indices)), gl.UNSIGNED_INT, raw_data(indices), instance_count, base_vertex, base_instance)
+}
+
+draw_elements_instanced_base_vertex_base_instance :: proc {
+	draw_elements_instanced_base_vertex_base_instance_byte,
+	draw_elements_instanced_base_vertex_base_instance_u16,
+	draw_elements_instanced_base_vertex_base_instance_u32,
+}
+
+// ...
+
+
+// VERSION_4_3
+
+/*
+TODO(pJotoro): How should this work?
+clear_buffer_data :: proc "contextless" (buffer: Buffer, internal_format: Buffer_Internalformat, format: Buffer_Format, data: []byte) {
+	gl.ClearNamedBufferData()
+}
+*/
 
 
 
