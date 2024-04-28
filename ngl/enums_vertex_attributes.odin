@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_vertex_attributes.odin
+
 /* void GetActiveAttrib(uint program, uint index, sizei bufSize, sizei *length, int *size, enum *type, char *name); */
 Attribute_Type :: enum u32 {
 	None              = gl.NONE, // NOTE(tarik): Only according to Ref. Card.

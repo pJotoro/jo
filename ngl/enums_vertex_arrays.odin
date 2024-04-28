@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_vertex_arrays.odin
+
 /* Generic Vertex Attribute Arrays [10.3.2] */
 
 /* void VertexAttribFormat(uint attribindex, int size, enum type, boolean normalized, unit relativeoffset); */

@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_synchronization.odin
+
 /* Sync Objects and Fences [4.1] */
 
 /* sync FenceSync(enum condition, bitfield flags); */

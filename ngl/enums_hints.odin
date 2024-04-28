@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_hints.odin
+
 /* void Hint(enum target, enum hint); */
 Hint_Target :: enum u32 {
 	Line_Smooth_Hint                = gl.LINE_SMOOTH_HINT,

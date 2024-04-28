@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_textures_and_samplers.odin
+
 /* void ActiveTexture(enum texture); */
 Active_Texture :: enum u32 {
 	Texture0  = gl.TEXTURE0,

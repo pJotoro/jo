@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_framebuffer_objects.odin
+
 /* Binding and Managing [9.2] */
 
 /* void BindFramebuffer(enum target, uint framebuffer); */

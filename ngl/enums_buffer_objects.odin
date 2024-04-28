@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_buffer_objects.odin
+
 /* Create and Bind Buffer Objects [6.1] */
 
 /* void BindBuffer(enum target, uint buffer); */

@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_asynchronous_queries.odin
+
 /* void CreateQueries(enum target, sizei n, uint *ids); */
 Query_And_Timestamp_Target :: enum u32 {
 	Any_Samples_Passed                    = gl.ANY_SAMPLES_PASSED,

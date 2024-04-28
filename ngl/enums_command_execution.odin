@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_command_execution.odin
+
 /* OpenGL Errors [2.3.1] */
 
 /* enum GetError(void); */

@@ -1,7 +1,8 @@
-
 package ngl
 
 import gl "vendor:OpenGL"
+
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_whole_framebuffer.odin
 
 /* Selecting Buffers for Writing [17.4.1] */
 

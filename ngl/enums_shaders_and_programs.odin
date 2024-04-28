@@ -3,6 +3,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_shaders_and_programs.odin
+
 /* Shader Objects [7.1-2] */
 
 /* uint CreateShader(enum type); */

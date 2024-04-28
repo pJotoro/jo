@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_rasterization.odin
+
 /* Multisampling [14.3.1] */
 
 /* void GetMultisamplefv(enum pname, uint index, float *val); */

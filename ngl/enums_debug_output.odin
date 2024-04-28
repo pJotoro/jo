@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_debug_output.odin
+
 /* Debug Message Callback [20.2] */
 
 /* void DebugMessageCallback(DEBUGPROC callback, const void *userParam); */

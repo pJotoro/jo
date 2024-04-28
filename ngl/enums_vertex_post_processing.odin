@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_vertex_post_processing.odin
+
 /* Transform Feedback [13.2] */
 
 /* void BindTransformFeedback(enum target, uint id); */

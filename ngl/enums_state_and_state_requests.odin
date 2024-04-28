@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_state_and_state_requests.odin
+
 /* Simple Queries [22.1] */
 
 /* void GetBooleanv(enum pname, boolean *data); */

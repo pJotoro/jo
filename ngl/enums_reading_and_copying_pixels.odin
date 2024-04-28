@@ -2,6 +2,8 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+// Modified from: https://github.com/mtarik34b/opengl46-enum-wrapper/blob/master/OpenGL/enums_reading_and_copying_pixels.odin
+
 /* Reading Pixels [18.2] */
 
 /* void ReadBuffer(enum src); */
