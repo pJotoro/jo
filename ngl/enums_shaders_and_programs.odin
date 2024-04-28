@@ -1,3 +1,4 @@
+
 package ngl
 
 import gl "vendor:OpenGL"
@@ -5,7 +6,7 @@ import gl "vendor:OpenGL"
 /* Shader Objects [7.1-2] */
 
 /* uint CreateShader(enum type); */
-// NOTE(tarik): Since helpers.odin defined an own Shader_Type, this is unused.
+// NOTE: Since helpers.odin defined an own Shader_Type, this is unused.
 _Shader_Type :: enum u32 {
 	Compute_Shader         = gl.COMPUTE_SHADER,
 	Fragment_Shader        = gl.FRAGMENT_SHADER,
@@ -16,7 +17,7 @@ _Shader_Type :: enum u32 {
 }
 
 /* void ShaderBinary(sizei count, const uint *shaders, enum binaryformat, const void *binary, sizei length); */
-Shader_Binary_Format :: enum u32 {
+Binary_Format :: enum u32 {
 	Shader_Binary_Format_SPIR_V = gl.SHADER_BINARY_FORMAT_SPIR_V,
 }
 
@@ -156,34 +157,27 @@ Program_Resource_Location_Index :: enum u32 {
 /* Program Pipeline Objects [7.4] */
 
 /* void UseProgramStages(uint pipeline, bitfield stages, uint program); */
-Program_Stages_Bits :: enum u32 {
-	Compute_Shader_Bit         = gl.COMPUTE_SHADER_BIT,
-	Vertex_Shader_Bit          = gl.VERTEX_SHADER_BIT,
-	Tess_Control_Shader_Bit    = gl.TESS_CONTROL_SHADER_BIT,
-	Tess_Evaluation_Shader_Bit = gl.TESS_EVALUATION_SHADER_BIT,
-	Geometry_Shader_Bit        = gl.GEOMETRY_SHADER_BIT,
-	Fragment_Shader_Bit        = gl.FRAGMENT_SHADER_BIT,
+Program_Stage_Flag :: enum u32 {
+	Vertex_Shader          = 0, // VERTEX_SHADER_BIT          :: 0x00000001
+	Fragment_Shader        = 1, // FRAGMENT_SHADER_BIT        :: 0x00000002
+	Geometry_Shader        = 2, // GEOMETRY_SHADER_BIT        :: 0x00000004
+	Tess_Control_Shader    = 3, // TESS_CONTROL_SHADER_BIT    :: 0x00000008
+	Tess_Evaluation_Shader = 4, // TESS_EVALUATION_SHADER_BIT :: 0x00000010
+	Compute_Shader         = 5, // COMPUTE_SHADER_BIT         :: 0x00000020
 
-	All_Shader_Bits            = gl.ALL_SHADER_BITS,
+	// NOTE: Removed ALL_SHADER_BITS :: 0xFFFFFFFF
 }
+
+Program_Stages :: bit_set[Program_Stage_Flag; u32]
 
 
 /* Program Binaries [7.5] */
 
 /* void GetProgramBinary(uint program, sizei bufSize, sizei *length, enum *binaryFormat, void *binary); */
-Program_Binary_Format :: enum u32 {
-	// TODO(tarik): Not sure if this is correct
-
-	// "OpenGL defines no specific binary formats. Queries of
-	// values NUM_PROGRAM_BINARY_FORMATS and PROGRAM_BINARY_FORMATS return
-	// the number of program binary formats and the list of program binary
-	// format values supported by an implementation. The binaryFormat
-	// returned by GetProgramBinary must be present in this list."
-}
+// binaryFormat: Binary_Format
 
 /* void ProgramBinary(uint program, enum binaryFormat, const void *binary, sizei length); */
-// TODO(tarik): Not sure if this is correct
-// binaryFormat: Program_Binary_Format
+// binaryFormat: Binary_Format
 
 
 /* Uniform Variables [7.6] */
@@ -356,7 +350,7 @@ Active_Atomic_Counter_Buffer_Parameter :: enum u32 {
 /* Subroutine Uniform Variables [7.9] */
 
 /* int GetSubroutineUniformLocation(uint program, enum shadertype, const char *name); */
-// TODO(tarik): See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
+// TODO: See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
 Subroutine_Uniform_Shader_Type :: enum u32 {
 	Compute_Shader         = gl.COMPUTE_SHADER,
 	Fragment_Shader        = gl.FRAGMENT_SHADER,
@@ -367,26 +361,26 @@ Subroutine_Uniform_Shader_Type :: enum u32 {
 }
 
 /* uint GetSubroutineIndex(uint program, enum shadertype, const char *name); */
-// TODO(tarik): See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
+// TODO: See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
 // shadertype: Subroutine_Uniform_Shader_Type
 
 /* void GetActiveSubroutineName(uint program, enum shadertype, uint index, sizei bufsize, sizei *length, char *name); */
-// TODO(tarik): See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
+// TODO: See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
 // shadertype: Subroutine_Uniform_Shader_Type
 
 /* void GetActiveSubroutineUniformName(uint program, enum shadertype, uint index, sizei bufsize, sizei *length, char *name); */
-// TODO(tarik): See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
+// TODO: See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
 // shadertype: Subroutine_Uniform_Shader_Type
 
 /* void GetActiveSubroutineUniformiv(uint program, enum shadertype, uint index, enum pname, int *values); */
-// TODO(tarik): See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
+// TODO: See comment on _Shader_Type. Probably should be using Shader_Type from helpers.odin here.
 // shadertype: Subroutine_Uniform_Shader_Type
 
 Active_Subroutine_Uniform_Parameter :: enum u32 {
 	Compatible_Subroutines     = gl.COMPATIBLE_SUBROUTINES,
 	Num_Compatible_Subroutines = gl.NUM_COMPATIBLE_SUBROUTINES,
 
-	// NOTE(tarik): These shouldn't exist according to Quick Reference Card
+	// NOTE: These shouldn't exist according to Quick Reference Card
 	//              or the specification on page 156, but should exist
 	//              according to page 620 of specification.
 	Uniform_Size               = gl.UNIFORM_SIZE,
@@ -401,37 +395,41 @@ Active_Subroutine_Uniform_Parameter :: enum u32 {
 /* Shader Memory Access [7.12.2] */
 
 /* void MemoryBarrier(bitfield barriers); */
-Memory_Barrier_Bits :: enum u32 {
-	Vertex_Attrib_Array_Barrier_Bit  = gl.VERTEX_ATTRIB_ARRAY_BARRIER_BIT,
-	Element_Array_Barrier_Bit        = gl.ELEMENT_ARRAY_BARRIER_BIT,
-	Uniform_Barrier_Bit              = gl.UNIFORM_BARRIER_BIT,
-	Texture_Fetch_Barrier_Bit        = gl.TEXTURE_FETCH_BARRIER_BIT,
-	Shader_Image_Access_Barrier_Bit  = gl.SHADER_IMAGE_ACCESS_BARRIER_BIT,
-	Command_Barrier_Bit              = gl.COMMAND_BARRIER_BIT,
-	Pixel_Buffer_Barrier_Bit         = gl.PIXEL_BUFFER_BARRIER_BIT,
-	Texture_Update_Barrier_Bit       = gl.TEXTURE_UPDATE_BARRIER_BIT,
-	Buffer_Update_Barrier_Bit        = gl.BUFFER_UPDATE_BARRIER_BIT,
-	Client_Mapped_Buffer_Barrier_Bit = gl.CLIENT_MAPPED_BUFFER_BARRIER_BIT,
-	Query_Buffer_Barrier_Bit         = gl.QUERY_BUFFER_BARRIER_BIT,
-	Framebuffer_Barrier_Bit          = gl.FRAMEBUFFER_BARRIER_BIT,
-	Transform_Feedback_Barrier_Bit   = gl.TRANSFORM_FEEDBACK_BARRIER_BIT,
-	Atomic_Counter_Barrier_Bit       = gl.ATOMIC_COUNTER_BARRIER_BIT,
-	Shader_Storage_Barrier_Bit       = gl.SHADER_STORAGE_BARRIER_BIT,
+Memory_Barrier_Flag :: enum u32 {
+	Vertex_Attrib_Array_Barrier  = 0,  // VERTEX_ATTRIB_ARRAY_BARRIER_BIT  :: 0x00000001
+	Element_Array_Barrier        = 1,  // ELEMENT_ARRAY_BARRIER_BIT        :: 0x00000002
+	Uniform_Barrier              = 2,  // UNIFORM_BARRIER_BIT              :: 0x00000004
+	Texture_Fetch_Barrier        = 3,  // TEXTURE_FETCH_BARRIER_BIT        :: 0x00000008
+	Shader_Image_Access_Barrier  = 5,  // SHADER_IMAGE_ACCESS_BARRIER_BIT  :: 0x00000020
+	Command_Barrier              = 6,  // COMMAND_BARRIER_BIT              :: 0x00000040
+	Pixel_Buffer_Barrier         = 7,  // PIXEL_BUFFER_BARRIER_BIT         :: 0x00000080
+	Texture_Update_Barrier       = 8,  // TEXTURE_UPDATE_BARRIER_BIT       :: 0x00000100
+	Buffer_Update_Barrier        = 9,  // BUFFER_UPDATE_BARRIER_BIT        :: 0x00000200
+	Framebuffer_Barrier          = 10, // FRAMEBUFFER_BARRIER_BIT          :: 0x00000400
+	Transform_Feedback_Barrier   = 11, // TRANSFORM_FEEDBACK_BARRIER_BIT   :: 0x00000800
+	Atomic_Counter_Barrier       = 12, // ATOMIC_COUNTER_BARRIER_BIT       :: 0x00001000
+	Shader_Storage_Barrier       = 13, // SHADER_STORAGE_BARRIER_BIT       :: 0x00002000
+	Client_Mapped_Buffer_Barrier = 14, // CLIENT_MAPPED_BUFFER_BARRIER_BIT :: 0x00004000
+	Query_Buffer_Barrier         = 15, // QUERY_BUFFER_BARRIER_BIT         :: 0x00008000
 
-	All_Barrier_Bits                 = gl.ALL_BARRIER_BITS,
+	// NOTE: Removed ALL_BARRIER_BITS :: 0xFFFFFFFF
 }
+
+Memory_Barrier_Flags :: bit_set[Memory_Barrier_Flag; u32]
 
 /* void MemoryBarrierByRegion(bitfield barriers); */
-Memory_Barrier_By_Region_Bits :: enum u32 {
-	Atomic_Counter_Barrier_Bit      = gl.ATOMIC_COUNTER_BARRIER_BIT,
-	Framebuffer_Barrier_Bit         = gl.FRAMEBUFFER_BARRIER_BIT,
-	Shader_Image_Access_Barrier_Bit = gl.SHADER_IMAGE_ACCESS_BARRIER_BIT,
-	Shader_Storage_Barrier_Bit      = gl.SHADER_STORAGE_BARRIER_BIT,
-	Texture_Fetch_Barrier_Bit       = gl.TEXTURE_FETCH_BARRIER_BIT,
-	Uniform_Barrier_Bit             = gl.UNIFORM_BARRIER_BIT,
+Memory_Barrier_By_Region_Flag :: enum u32 {
+	Uniform_Barrier              = 2,  // UNIFORM_BARRIER_BIT             :: 0x00000004
+	Texture_Fetch_Barrier        = 3,  // TEXTURE_FETCH_BARRIER_BIT       :: 0x00000008
+	Shader_Image_Access_Barrier  = 5,  // SHADER_IMAGE_ACCESS_BARRIER_BIT :: 0x00000020
+	Framebuffer_Barrier          = 10, // FRAMEBUFFER_BARRIER_BIT         :: 0x00000400
+	Atomic_Counter_Barrier       = 12, // ATOMIC_COUNTER_BARRIER_BIT      :: 0x00001000
+	Shader_Storage_Barrier       = 13, // SHADER_STORAGE_BARRIER_BIT      :: 0x00002000
 
-	All_Barrier_Bits                = gl.ALL_BARRIER_BITS,
+	// NOTE: Removed ALL_BARRIER_BITS :: 0xFFFFFFFF
 }
+
+Memory_Barrier_By_Region_Flags :: bit_set[Memory_Barrier_By_Region_Flag; u32]
 
 
 /* Shader and Program Queries [7.13] */
@@ -445,7 +443,7 @@ Get_Shader_Parameter :: enum u32 {
 	Shader_Source_Length = gl.SHADER_SOURCE_LENGTH,
 	SPIR_V_Binary        = gl.SPIR_V_BINARY,
 
-	// TODO(tarik): Exists on Quick Reference Card, but not Specification.
+	// TODO: Exists on Quick Reference Card, but not Specification.
 	//              See pages 167, 612.
 	// Compute_Shader       = gl.COMPUTE_SHADER,
 }
@@ -480,7 +478,7 @@ Get_Program_Parameter :: enum u32 {
 	Program_Binary_Retrievable_Hint       = gl.PROGRAM_BINARY_RETRIEVABLE_HINT,
 	Active_Atomic_Counter_Buffers         = gl.ACTIVE_ATOMIC_COUNTER_BUFFERS,
 
-	// NOTE(tarik): This was not listed under the command description.
+	// NOTE: This was not listed under the command description.
 	// However at other places, this usage was shown (p. 131 of specification).
 	Program_Binary_Length                 = gl.PROGRAM_BINARY_LENGTH,
 }

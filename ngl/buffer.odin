@@ -1,6 +1,51 @@
 package ngl
 
 import gl "vendor:OpenGL"
+import "core:mem"
+
+flush_mapped_buffer_range :: proc "contextless" (buffer: Buffer, offset, length: int) {
+	gl.FlushMappedNamedBufferRange(u32(buffer), offset, length)
+}
+
+delete_buffers :: proc "contextless" (buffers: []Buffer) {
+	gl.DeleteBuffers(i32(len(buffers)), ([^]u32)(raw_data(buffers)))
+}
+
+gen_buffers :: proc "contextless" (buffers: []Buffer) {
+	gl.CreateBuffers(i32(len(buffers)), ([^]u32)(raw_data(buffers)))
+}
+
+is_buffer :: proc "contextless" (buffer: u32) -> bool {
+	return gl.IsBuffer(buffer)
+}
+
+buffer_data :: proc "contextless" (buffer: Buffer, data: []byte, usage: Buffer_Data_Usage) {
+	gl.NamedBufferData(u32(buffer), len(data), raw_data(data), u32(usage))
+}
+
+buffer_sub_data :: proc "contextless" (buffer: Buffer, offset: int, data: []byte) {
+	gl.NamedBufferSubData(u32(buffer), offset, len(data), raw_data(data))
+}
+
+get_buffer_sub_data :: proc "contextless" (buffer: Buffer, offset: int, data: []byte) {
+	gl.GetNamedBufferSubData(u32(buffer), offset, len(data), raw_data(data))
+}
+
+map_buffer :: proc "contextless" (buffer: Buffer, offset, length: int, access: Access_Bits) -> []byte {
+	data: mem.Raw_Slice
+	data.len = length
+	data.data = gl.MapNamedBufferRange(u32(buffer), offset, length, u32(access))
+	return transmute([]byte)data
+}
+
+unmap_buffer :: proc "contextless" (buffer: Buffer) {
+	gl.UnmapNamedBuffer(u32(buffer))
+}
+
+get_buffer_pointer :: proc "contextless" (buffer: Buffer) -> (pointer: rawptr) {
+	gl.GetNamedBufferPointerv(u32(buffer), gl.BUFFER_MAP_POINTER, &pointer)
+	return
+}
 
 get_buffer_access :: proc "contextless" (buffer: Buffer) -> Access_Bits {
     p: i64
@@ -48,4 +93,8 @@ get_buffer_usage :: proc "contextless" (buffer: Buffer) -> Buffer_Data_Usage {
     p: i64
     gl.GetNamedBufferParameteri64v(u32(buffer), gl.BUFFER_USAGE, &p)
     return Buffer_Data_Usage(p)
+}
+
+copy_buffer_sub_data :: proc "contextless" (read_buffer, write_buffer: Buffer, read_offset, write_offset, size: int) {
+	gl.CopyNamedBufferSubData(u32(read_buffer), u32(write_buffer), read_offset, write_offset, size)
 }

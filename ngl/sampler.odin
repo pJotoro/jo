@@ -2,6 +2,22 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+gen_samplers :: proc "contextless" (samplers: []Sampler) {
+	gl.CreateSamplers(i32(len(samplers)), ([^]u32)(raw_data(samplers)))
+}
+
+delete_samplers :: proc "contextless" (samplers: []Sampler) {
+	gl.DeleteSamplers(i32(len(samplers)), ([^]u32)(raw_data(samplers)))
+}
+
+is_sampler :: proc "contextless" (sampler: u32) -> bool {
+	return gl.IsSampler(sampler)
+}
+
+bind_sampler :: proc "contextless" (unit: u32, sampler: Sampler) {
+	gl.BindSampler(unit, u32(sampler))
+}
+
 sampler_min_filter :: proc "contextless" (sampler: Sampler, min_filter: Min_Filter) {
     gl.SamplerParameteri(u32(sampler), gl.TEXTURE_MIN_FILTER, i32(min_filter))
 }

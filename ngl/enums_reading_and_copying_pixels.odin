@@ -36,23 +36,8 @@ Color_Clamping :: enum u32 {
 /* Copying Pixels [18.3] */
 
 /* void BlitFramebuffer(int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0, int dstX1, int dstY1, bitfield mask, enum filter); */
-Blit_Mask_Bits :: enum u32 {
-	Color_Buffer_Bit   = gl.COLOR_BUFFER_BIT,
-	Depth_Buffer_Bit   = gl.DEPTH_BUFFER_BIT,
-	Stencil_Buffer_Bit = gl.STENCIL_BUFFER_BIT,
-}
-
-// NOTE(tarik): This shall suffice until Odin has real bitfields.
-Blit_Mask :: enum u32 {
-	None                     = gl.NONE,
-	Color_Buffer_Bit         = gl.COLOR_BUFFER_BIT,
-	Depth_Buffer_Bit         = gl.DEPTH_BUFFER_BIT,
-	Stencil_Buffer_Bit       = gl.STENCIL_BUFFER_BIT,
-	Color_Depth_Bits         = gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT,
-	Color_Stencil_Bits       = gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT,
-	Depth_Stencil_Bits       = gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT,
-	Color_Depth_Stencil_Bits = gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT,
-}
+// mask: Buffer_Flag // NOTE: The field None = NONE is disregarded
+Blit_Mask :: Clear_Mask
 
 Blit_Framebuffer_Filter :: enum u32 {
 	Linear  = gl.LINEAR,

@@ -9,9 +9,9 @@ Fence_Sync_Condition :: enum u32 {
 	Sync_GPU_Commands_Complete = gl.SYNC_GPU_COMMANDS_COMPLETE,
 }
 
-Fence_Sync_Bits :: enum u32 {
-	Zero = gl.ZERO,
-}
+Fence_Sync_Flag :: enum u32 {}
+
+Fence_Sync_Flags :: bit_set[Fence_Sync_Flag; u32]
 
 
 /* Waiting for Sync Objects [4.1.1] */
@@ -24,15 +24,16 @@ Client_Wait_Sync_Status :: enum u32 {
 	Wait_Failed         = gl.WAIT_FAILED,
 }
 
-Client_Wait_Sync_Bits :: enum u32 {
-	Zero = gl.ZERO,
-	Sync_Flush_Commands_Bit = gl.SYNC_FLUSH_COMMANDS_BIT,
+Client_Wait_Sync_Flag :: enum u32 {
+	Sync_Flush_Commands = 0 // SYNC_FLUSH_COMMANDS_BIT :: 0x00000001,
 }
 
+Client_Wait_Sync_Flags :: bit_set[Client_Wait_Sync_Flag; u32]
+
 /* void WaitSync(sync sync, bitfield flags, uint64 timeout); */
-Wait_Sync_Bits :: enum u32 {
-	Zero = gl.ZERO,
-}
+Wait_Sync_Flag :: enum u32 {}
+
+Wait_Sync_Flags :: bit_set[Wait_Sync_Flag; u32]
 
 Wait_Sync_Timeout :: enum u64 {
 	Timeout_Ignored = gl.TIMEOUT_IGNORED,

@@ -2,6 +2,38 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+gen_queries :: proc "contextless" (target: Query_And_Timestamp_Target, ids: []Query) {
+	gl.CreateQueries(u32(target), i32(len(ids)), ([^]u32)(raw_data(ids)))
+}
+
+delete_queries :: proc "contextless" (ids: []Query) {
+	gl.DeleteQueries(i32(len(ids)), ([^]u32)(raw_data(ids)))
+}
+
+is_query :: proc "contextless" (query: u32) -> bool {
+	return gl.IsQuery(query)
+}
+
+begin_query :: proc "contextless" (target: Query_Target, id: Query) {
+	gl.BeginQuery(u32(target), u32(id))
+}
+
+end_query :: proc "contextless" (target: Query_Target) {
+	gl.EndQuery(u32(target))
+}
+
+query_counter :: proc "contextless" (query: Query) {
+	gl.QueryCounter(u32(query), gl.TIMESTAMP)
+}
+
+begin_query_indexed :: proc "contextless" (target: Query_Target, index: u32, query: Query) {
+	gl.BeginQueryIndexed(u32(target), index, u32(query))
+}
+
+end_query_indexed :: proc "contextless" (target: Query_Target, index: u32) {
+	gl.EndQueryIndexed(u32(target), index)
+}
+
 get_query_samples_passed :: proc "contextless" () -> (res: i64, n_bits: i32) {
     @static _n_bits := i32(0)
     if _n_bits != 0 {

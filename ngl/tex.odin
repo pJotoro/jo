@@ -2,6 +2,246 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+tex_buffer :: proc "contextless" (tex: Tex, internal_format: Tex_Buffer_Internalformat, buffer: Buffer) {
+	gl.TextureBuffer(u32(tex), u32(internal_format), u32(buffer))
+}
+
+tex_image_1d_byte :: proc "contextless" (tex: Tex, level, offset: i32, format: Pixel_Data_Format, pixels: []byte) {
+	gl.TextureSubImage1D(u32(tex), level, offset, i32(len(pixels)), u32(format), gl.UNSIGNED_BYTE, raw_data(pixels))
+}
+
+tex_image_1d_i8 :: proc "contextless" (tex: Tex, level, offset: i32, format: Pixel_Data_Format, pixels: []i8) {
+	gl.TextureSubImage1D(u32(tex), level, offset, i32(len(pixels)), u32(format), gl.BYTE, raw_data(pixels))
+}
+
+tex_image_1d_u16 :: proc "contextless" (tex: Tex, level, offset: i32, format: Pixel_Data_Format, pixels: []u16) {
+	gl.TextureSubImage1D(u32(tex), level, offset, i32(len(pixels)), u32(format), gl.UNSIGNED_SHORT, raw_data(pixels))
+}
+
+tex_image_1d_i16 :: proc "contextless" (tex: Tex, level, offset: i32, format: Pixel_Data_Format, pixels: []i16) {
+	gl.TextureSubImage1D(u32(tex), level, offset, i32(len(pixels)), u32(format), gl.SHORT, raw_data(pixels))
+}
+
+tex_image_1d_u32 :: proc "contextless" (tex: Tex, level, offset: i32, format: Pixel_Data_Format, pixels: []u32) {
+	gl.TextureSubImage1D(u32(tex), level, offset, i32(len(pixels)), u32(format), gl.UNSIGNED_INT, raw_data(pixels))
+}
+
+tex_image_1d_i32 :: proc "contextless" (tex: Tex, level, offset: i32, format: Pixel_Data_Format, pixels: []i32) {
+	gl.TextureSubImage1D(u32(tex), level, offset, i32(len(pixels)), u32(format), gl.INT, raw_data(pixels))
+}
+
+tex_image_1d_f16 :: proc "contextless" (tex: Tex, level, offset: i32, format: Pixel_Data_Format, pixels: []f16) {
+	gl.TextureSubImage1D(u32(tex), level, offset, i32(len(pixels)), u32(format), gl.HALF_FLOAT, raw_data(pixels))
+}
+
+tex_image_1d_f32 :: proc "contextless" (tex: Tex, level, offset: i32, format: Pixel_Data_Format, pixels: []f32) {
+	gl.TextureSubImage1D(u32(tex), level, offset, i32(len(pixels)), u32(format), gl.FLOAT, raw_data(pixels))
+}
+
+tex_image_1d :: proc {
+	tex_image_1d_byte,
+	tex_image_1d_i8,
+	tex_image_1d_u16,
+	tex_image_1d_i16,
+	tex_image_1d_u32,
+	tex_image_1d_i32,
+	tex_image_1d_f16,
+	tex_image_1d_f32,
+}
+
+tex_image_2d_byte :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []byte, loc := #caller_location) {
+	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
+	gl.TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.UNSIGNED_BYTE, raw_data(pixels))
+}
+
+tex_image_2d_i8 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []i8, loc := #caller_location) {
+	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
+	gl.TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.BYTE, raw_data(pixels))
+}
+
+tex_image_2d_u16 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []u16, loc := #caller_location) {
+	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
+	gl.TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.UNSIGNED_SHORT, raw_data(pixels))
+}
+
+tex_image_2d_i16 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []i16, loc := #caller_location) {
+	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
+	gl.TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.SHORT, raw_data(pixels))
+}
+
+tex_image_2d_u32 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []u32, loc := #caller_location) {
+	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
+	gl.TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.UNSIGNED_INT, raw_data(pixels))
+}
+
+tex_image_2d_i32 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []i32, loc := #caller_location) {
+	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
+	gl.TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.INT, raw_data(pixels))
+}
+
+tex_image_2d_f16 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []f16, loc := #caller_location) {
+	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
+	gl.TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.HALF_FLOAT, raw_data(pixels))
+}
+
+tex_image_2d_f32 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []f32, loc := #caller_location) {
+	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
+	gl.TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.FLOAT, raw_data(pixels))
+}
+
+tex_image_2d :: proc {
+	tex_image_2d_byte,
+	tex_image_2d_i8,
+	tex_image_2d_u16,
+	tex_image_2d_i16,
+	tex_image_2d_u32,
+	tex_image_2d_i32,
+	tex_image_2d_f16,
+	tex_image_2d_f32,
+}
+
+get_tex_image_byte :: proc "contextless" (tex: Tex, level: i32, format: Pixel_Data_Format, buf: []byte) {
+	gl.GetTextureImage(u32(tex), level, u32(format), gl.UNSIGNED_BYTE, i32(len(buf)), raw_data(buf))
+}
+
+get_tex_image_i8 :: proc "contextless" (tex: Tex, level: i32, format: Pixel_Data_Format, buf: []i8) {
+	gl.GetTextureImage(u32(tex), level, u32(format), gl.BYTE, i32(len(buf)), raw_data(buf))
+}
+
+get_tex_image_u16 :: proc "contextless" (tex: Tex, level: i32, format: Pixel_Data_Format, buf: []u16) {
+	gl.GetTextureImage(u32(tex), level, u32(format), gl.UNSIGNED_SHORT, i32(len(buf)), raw_data(buf))
+}
+
+get_tex_image_i16 :: proc "contextless" (tex: Tex, level: i32, format: Pixel_Data_Format, buf: []i16) {
+	gl.GetTextureImage(u32(tex), level, u32(format), gl.SHORT, i32(len(buf)), raw_data(buf))
+}
+
+get_tex_image_u32 :: proc "contextless" (tex: Tex, level: i32, format: Pixel_Data_Format, buf: []u32) {
+	gl.GetTextureImage(u32(tex), level, u32(format), gl.UNSIGNED_INT, i32(len(buf)), raw_data(buf))
+}
+
+get_tex_image_i32 :: proc "contextless" (tex: Tex, level: i32, format: Pixel_Data_Format, buf: []i32) {
+	gl.GetTextureImage(u32(tex), level, u32(format), gl.INT, i32(len(buf)), raw_data(buf))
+}
+
+get_tex_image_f16 :: proc "contextless" (tex: Tex, level: i32, format: Pixel_Data_Format, buf: []f16) {
+	gl.GetTextureImage(u32(tex), level, u32(format), gl.HALF_FLOAT, i32(len(buf)), raw_data(buf))
+}
+
+get_tex_image_f32 :: proc "contextless" (tex: Tex, level: i32, format: Pixel_Data_Format, buf: []f32) {
+	gl.GetTextureImage(u32(tex), level, u32(format), gl.FLOAT, i32(len(buf)), raw_data(buf))
+}
+
+get_tex_image :: proc {
+	get_tex_image_byte,
+	get_tex_image_i8,
+	get_tex_image_u16,
+	get_tex_image_i16,
+	get_tex_image_u32,
+	get_tex_image_i32,
+	get_tex_image_f16,
+	get_tex_image_f32,
+}
+
+copy_tex_image_1d :: proc "contextless" (tex: Tex, level, xoffset, x, y, width: i32) {
+	gl.CopyTextureSubImage1D(u32(tex), level, xoffset, x, y, width)
+}
+
+copy_tex_image_2d :: proc "contextless" (tex: Tex, level, xoffset, yoffset, x, y, width, height: i32) {
+	gl.CopyTextureSubImage2D(u32(tex), level, xoffset, yoffset, x, y, width, height)
+}
+
+delete_textures :: proc "contextless" (textures: []Tex) {
+	gl.DeleteTextures(i32(len(textures)), (^u32)(raw_data(textures)))
+}
+
+gen_textures :: proc "contextless" (target: Texture_Target, textures: []Tex) {
+	gl.CreateTextures(u32(target), i32(len(textures)), (^u32)(raw_data(textures)))
+}
+
+is_texture :: proc "contextless" (texture: u32) -> bool {
+	return gl.IsTexture(texture)
+}
+
+tex_image_3d_byte :: proc(tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Pixel_Data_Format, pixels: []byte, loc := #caller_location) {
+	assert(int(width) * int(height) * int(depth) == len(pixels), "width * height * depth != len(pixels)", loc)
+	gl.TextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), gl.UNSIGNED_BYTE, raw_data(pixels))
+}
+
+tex_image_3d_i8 :: proc(tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Pixel_Data_Format, pixels: []i8, loc := #caller_location) {
+	assert(int(width) * int(height) * int(depth) == len(pixels), "width * height * depth != len(pixels)", loc)
+	gl.TextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), gl.BYTE, raw_data(pixels))
+}
+
+tex_image_3d_u16 :: proc(tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Pixel_Data_Format, pixels: []u16, loc := #caller_location) {
+	assert(int(width) * int(height) * int(depth) == len(pixels), "width * height * depth != len(pixels)", loc)
+	gl.TextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), gl.UNSIGNED_SHORT, raw_data(pixels))
+}
+
+tex_image_3d_i16 :: proc(tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Pixel_Data_Format, pixels: []i16, loc := #caller_location) {
+	assert(int(width) * int(height) * int(depth) == len(pixels), "width * height * depth != len(pixels)", loc)
+	gl.TextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), gl.SHORT, raw_data(pixels))
+}
+
+tex_image_3d_u32 :: proc(tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Pixel_Data_Format, pixels: []u32, loc := #caller_location) {
+	assert(int(width) * int(height) * int(depth) == len(pixels), "width * height * depth != len(pixels)", loc)
+	gl.TextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), gl.UNSIGNED_INT, raw_data(pixels))
+}
+
+tex_image_3d_i32 :: proc(tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Pixel_Data_Format, pixels: []i32, loc := #caller_location) {
+	assert(int(width) * int(height) * int(depth) == len(pixels), "width * height * depth != len(pixels)", loc)
+	gl.TextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), gl.INT, raw_data(pixels))
+}
+
+tex_image_3d_f16 :: proc(tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Pixel_Data_Format, pixels: []f16, loc := #caller_location) {
+	assert(int(width) * int(height) * int(depth) == len(pixels), "width * height * depth != len(pixels)", loc)
+	gl.TextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), gl.HALF_FLOAT, raw_data(pixels))
+}
+
+tex_image_3d_f32 :: proc(tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Pixel_Data_Format, pixels: []f32, loc := #caller_location) {
+	assert(int(width) * int(height) * int(depth) == len(pixels), "width * height * depth != len(pixels)", loc)
+	gl.TextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), gl.FLOAT, raw_data(pixels))
+}
+
+tex_image_3d :: proc {
+	tex_image_3d_byte,
+	tex_image_3d_i8,
+	tex_image_3d_u16,
+	tex_image_3d_i16,
+	tex_image_3d_u32,
+	tex_image_3d_i32,
+	tex_image_3d_f16,
+	tex_image_3d_f32,
+}
+
+copy_tex_image_3d :: proc "contextless" (tex: Tex, level, xoffset, yoffset, zoffset, x, y, width, height: i32) {
+	gl.CopyTextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, x, y, width, height)
+}
+
+active_texture :: proc "contextless" (unit: u32, tex: Tex) {
+	gl.BindTextureUnit(unit, u32(tex))
+}
+
+compressed_tex_image_1d :: proc "contextless" (tex: Tex, level, xoffset, width: i32, format: Texture_Internalformat, compressed_image: []byte) {
+	gl.CompressedTextureSubImage1D(u32(tex), level, xoffset, width, u32(format), i32(len(compressed_image)), raw_data(compressed_image))
+}
+
+compressed_tex_image_2d :: proc "contextless" (tex: Tex, level, xoffset, yoffset, width, height: i32, format: Texture_Internalformat, compressed_image: []byte) {
+	gl.CompressedTextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), i32(len(compressed_image)), raw_data(compressed_image))
+}
+
+compressed_tex_image_3d :: proc "contextless" (tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, format: Texture_Internalformat, compressed_image: []byte) {
+	gl.CompressedTextureSubImage3D(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, u32(format), i32(len(compressed_image)), raw_data(compressed_image))
+}
+
+get_compressed_tex_image :: proc "contextless" (tex: Tex, level, xoffset, yoffset, zoffset, width, height, depth: i32, compressed_image: []byte) {
+	gl.GetCompressedTextureSubImage(u32(tex), level, xoffset, yoffset, zoffset, width, height, depth, i32(len(compressed_image)), raw_data(compressed_image))
+}
+
+generate_mipmap :: proc "contextless" (tex: Tex) {
+	gl.GenerateTextureMipmap(u32(tex))
+}
+
 tex_lod_bias :: proc "contextless" (tex: Tex, lod_bias: f32) {
 	gl.TextureParameterf(u32(tex), gl.TEXTURE_LOD_BIAS, lod_bias)
 }
