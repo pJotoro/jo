@@ -1,4 +1,3 @@
-// +build windows
 package misc
 
 import win32 "core:sys/windows"
