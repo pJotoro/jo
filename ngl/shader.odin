@@ -190,7 +190,7 @@ bind_frag_data_location_indexed :: proc "contextless" (program: Program, color_n
 	gl.BindFragDataLocationIndexed(u32(program), color_number, index, name)
 }
 
-shader_binary :: proc "contextless" (shaders: []Shader, binary_format: Shader_Binary_Format, binary: []byte) {
+shader_binary :: proc "contextless" (shaders: []Shader, binary_format: Binary_Format, binary: []byte) {
 	gl.ShaderBinary(i32(len(shaders)), ([^]u32)(raw_data(shaders)), u32(binary_format), raw_data(binary), i32(len(binary)))
 }
 
@@ -199,7 +199,7 @@ get_shader_precision_format :: proc "contextless" (shader_type: Shader_Precision
 	return
 }
 
-get_program_binary :: proc(program: Program, allocator := context.allocator) -> (binary: []byte, binary_format: Shader_Binary_Format) {
+get_program_binary :: proc(program: Program, allocator := context.allocator) -> (binary: []byte, binary_format: Binary_Format) {
 	buf_size: i32 = ---
 	gl.GetProgramiv(u32(program), gl.PROGRAM_BINARY_LENGTH, &buf_size)
 	binary = make([]byte, buf_size, allocator)
@@ -209,7 +209,7 @@ get_program_binary :: proc(program: Program, allocator := context.allocator) -> 
 	return
 }
 
-program_binary :: proc "contextless" (program: Program, binary_format: Program_Binary_Format, binary: []byte) {
+program_binary :: proc "contextless" (program: Program, binary_format: Binary_Format, binary: []byte) {
 	gl.ProgramBinary(u32(program), u32(binary_format), raw_data(binary), i32(len(binary)))
 }
 

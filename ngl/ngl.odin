@@ -33,7 +33,7 @@ scissor :: proc "contextless" (x, y, width, height: i32) {
 	gl.Scissor(x, y, width, height)
 }
 
-clear :: proc "contextless" (flags: Clear_Bits) {
+clear :: proc "contextless" (flags: Clear_Mask) {
 	gl.Clear(transmute(u32)flags)
 }
 
