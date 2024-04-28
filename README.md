@@ -1,6 +1,6 @@
 # jo:app
 
-A stupidly easy to use alternative to SDL, GLFW, Raylib, and others.
+A stupidly easy to use platform layer.
 
 You can move a window around with the arrow keys:
 
@@ -47,16 +47,18 @@ main :: proc() {
 }
 ```
 
-## Why another library?
+## Why another platform layer?
 
-Libraries like SDL, GLFW, Raylib, Sokol, and others aren't good enough for me. 
+SDL is too low level. Raylib is too high level.
 
-So far, these are the principles I've been running with when developing jo:app:
+Currently, these are the principles I am developing jo:app with:
 
-1. Flexibility isn't always good. Most programs don't need multiple windows, for example. Strategic *inflexibility* can make a library much nicer to use in 99% of cases.
-2. Reduce the number of *necessary* API calls as much as possible.
-3. Avoid returning results. Most errors in platform specific code are just that: *errors*. If they happen, it means there's something wrong with the *library*. Where this isn't the case, such as with `app.gl_init`, a boolean result is acceptable. If it fails, it simply means that version of OpenGL isn't present on the user's machine.
-4. NEVER EVER make a procedure like `app.get_last_error`. If the library is being used in a blatantly incorrect way, it should panic with a useful error message. Forcing the user to get an error and print it out themsevles is completely pointless.
+1. Prioritize game development.
+2. There should be good defaults.
+3. Don't be too flexible or general purpose.
+4. Don't return errors. Log them.
+
+This library isn't for everyone. For example, you can't create multiple windows.
 
 # IMPORTANT:
 
