@@ -15,7 +15,7 @@ gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = nil, user_d
     }
 
     if !((major == 4 && minor <= 6) || (major == 3 && minor <= 3) || (major == 2 && minor <= 1) || (major == 1) && (minor <= 5)) {
-        log.panicf("Invalid OpenGL version %v.%v used. See https://www.khronos.org/opengl/wiki/History_of_OpenGL for valid OpenGL versions.", major, minor)
+        log.panicf("OpenGL: invalid version %v.%v used. See https://www.khronos.org/opengl/wiki/History_of_OpenGL for valid OpenGL versions.", major, minor)
     }
 
     if _gl_init(major, minor) {
