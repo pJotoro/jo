@@ -4,6 +4,7 @@ import gl "vendor:OpenGL"
 import "core:log"
 import "core:fmt"
 import "base:runtime"
+import "base:intrinsics"
 
 gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = nil, user_data: rawptr = nil) -> bool {
     if !ctx.app_initialized {
@@ -20,22 +21,29 @@ gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = nil, user_d
     if _gl_init(major, minor) {
         log.infof("OpenGL: loaded up to version %v.%v.", major, minor)
 
-        if major == 4 && minor >= 3 {
-            when gl.GL_DEBUG {
-                log.warn("OpenGL: cannot use debug message callback when GL_DEBUG == true. Consider adding command line argument -define:GL_DEBUG=false")
+        when ODIN_DEBUG {
+            if major == 4 && minor >= 3 {
+                if gl.GL_DEBUG && !intrinsics.is_package_imported("ngl") {
+                    log.warn("OpenGL: cannot use debug message callback when GL_DEBUG == true. Consider adding command line argument -define:GL_DEBUG=false.")
+                    log.info("OpenGL: debug output disabled.")
+                } else {
+                    gl.Enable(gl.DEBUG_OUTPUT)
+                    gl.DebugMessageCallback(debug_callback if debug_callback != nil else gl_debug_callback, user_data)
+                    log.info("OpenGL: debug output enabled.")
+                }
             } else {
-                gl.Enable(gl.DEBUG_OUTPUT)
-                gl.DebugMessageCallback(debug_callback if debug_callback != nil else gl_debug_callback, user_data)
+                log.info("OpenGL: debug output disabled.")
             }
+        } else {
+            log.info("OpenGL: debug output disabled.")
         }
         
         gl.Viewport(0, 0, i32(width()), i32(height()))
         log.infof("OpenGL: set viewport to x = %v, y = %v, width = %v, height = %v.", 0, 0, width(), height())
 
         ctx.gl_initialized = true
-        return true
     }
-    return false
+    return ctx.gl_initialized
 }
 
 gl_swap_buffers :: proc(loc := #caller_location) {
