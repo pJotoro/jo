@@ -6,51 +6,51 @@ import "core:strings"
 import "../misc"
 
 cull_face :: proc "contextless" (mode: Cull_Face_Mode) {
-	gl.CullFace(u32(mode))
+	gl.impl_CullFace(u32(mode))
 }
 
 front_face :: proc "contextless" (mode: Front_Face_Direction) {
-	gl.FrontFace(u32(mode))
+	gl.impl_FrontFace(u32(mode))
 }
 
 hint :: proc "contextless" (target: Hint_Target, mode: Hint_Mode) {
-	gl.Hint(u32(target), u32(mode))
+	gl.impl_Hint(u32(target), u32(mode))
 }
 
 line_width :: proc "contextless" (width: f32) {
-	gl.LineWidth(width)
+	gl.impl_LineWidth(width)
 }
 
 point_size :: proc "contextless" (size: f32) {
-	gl.PointSize(size)
+	gl.impl_PointSize(size)
 }
 
 polygon_mode :: proc "contextless" (mode: Polygon_Mode_Face) {
-	gl.PolygonMode(gl.FRONT_AND_BACK, u32(mode))
+	gl.impl_PolygonMode(gl.FRONT_AND_BACK, u32(mode))
 }
 
 scissor :: proc "contextless" (x, y, width, height: i32) {
-	gl.Scissor(x, y, width, height)
+	gl.impl_Scissor(x, y, width, height)
 }
 
 clear :: proc "contextless" (flags: Clear_Mask) {
-	gl.Clear(transmute(u32)flags)
+	gl.impl_Clear(transmute(u32)flags)
 }
 
 clear_color :: proc "contextless" (red, green, blue, alpha: f32) {
-	gl.ClearColor(red, green, blue, alpha)
+	gl.impl_ClearColor(red, green, blue, alpha)
 }
 
 clear_stencil :: proc "contextless" (s: i32) {
-	gl.ClearStencil(s)
+	gl.impl_ClearStencil(s)
 }
 
 clear_depth_f64 :: proc "contextless" (depth: f64) {
-	gl.ClearDepth(depth)
+	gl.impl_ClearDepth(depth)
 }
 
 clear_depth_f32 :: proc "contextless" (depth: f32) {
-	gl.ClearDepthf(depth)
+	gl.impl_ClearDepthf(depth)
 }
 
 clear_depth :: proc {
@@ -59,15 +59,15 @@ clear_depth :: proc {
 }
 
 stencil_mask :: proc "contextless" (mask: u32) {
-	gl.StencilMask(mask)
+	gl.impl_StencilMask(mask)
 }
 
 color_mask_no_i :: proc "contextless" (red, green, blue, alpha: bool) {
-	gl.ColorMask(red, green, blue, alpha)
+	gl.impl_ColorMask(red, green, blue, alpha)
 }
 
 color_mask_i :: proc "contextless" (index: u32, r: bool, g: bool, b: bool, a: bool) {
-	gl.ColorMaski(index, r, g, b, a)
+	gl.impl_ColorMaski(index, r, g, b, a)
 }
 
 color_mask :: proc {
@@ -76,15 +76,15 @@ color_mask :: proc {
 }
 
 depth_mask :: proc "contextless" (flag: bool) {
-	gl.DepthMask(flag)
+	gl.impl_DepthMask(flag)
 }
 
 disable_no_i :: proc "contextless" (cap: Disable_Target) {
-	gl.Disable(u32(cap))
+	gl.impl_Disable(u32(cap))
 }
 
 disable_i :: proc "contextless" (target: Disable_Target, index: u32) {
-	gl.Disablei(u32(target), index)
+	gl.impl_Disablei(u32(target), index)
 }
 
 disable :: proc {
@@ -93,11 +93,11 @@ disable :: proc {
 }
 
 enable_no_i :: proc "contextless" (cap: Enable_Target) {
-	gl.Enable(u32(cap))
+	gl.impl_Enable(u32(cap))
 }
 
 enable_i :: proc "contextless" (target: Enable_Target, index: u32) {
-	gl.Enablei(u32(target), index)
+	gl.impl_Enablei(u32(target), index)
 }
 
 enable :: proc {
@@ -106,19 +106,19 @@ enable :: proc {
 }
 
 finish :: proc "contextless" () {
-	gl.Finish()
+	gl.impl_Finish()
 }
 
 flush :: proc "contextless" () {
-	gl.Flush()
+	gl.impl_Flush()
 }
 
 blend_func_no_i :: proc "contextless" (sfactor, dfactor: Blend_Function) {
-	gl.BlendFunc(u32(sfactor), u32(dfactor))
+	gl.impl_BlendFunc(u32(sfactor), u32(dfactor))
 }
 
 blend_func_i :: proc "contextless" (buf: u32, src, dst: Blend_Function) {
-	gl.BlendFunci(buf, u32(src), u32(dst))
+	gl.impl_BlendFunci(buf, u32(src), u32(dst))
 }
 
 blend_func :: proc {
@@ -127,61 +127,61 @@ blend_func :: proc {
 }
 
 logic_op :: proc "contextless" (opcode: Logical_Operation) {
-	gl.LogicOp(u32(opcode))
+	gl.impl_LogicOp(u32(opcode))
 }
 
 stencil_func :: proc "contextless" (func: Comparison_Func, ref: i32, mask: u32) {
-	gl.StencilFunc(u32(func), ref, mask)
+	gl.impl_StencilFunc(u32(func), ref, mask)
 }
 
 stencil_op :: proc "contextless" (sfail, dpfail, dppass: Stencil_Operation) {
-	gl.StencilOp(u32(sfail), u32(dpfail), u32(dppass))
+	gl.impl_StencilOp(u32(sfail), u32(dpfail), u32(dppass))
 }
 
 depth_func :: proc "contextless" (func: Comparison_Func) {
-	gl.DepthFunc(u32(func))
+	gl.impl_DepthFunc(u32(func))
 }
 
 pixel_store_f :: proc "contextless" (pname: Pixel_Store_Parameter, param: f32) {
-	gl.PixelStoref(u32(pname), param)
+	gl.impl_PixelStoref(u32(pname), param)
 }
 
 pixel_store_i :: proc "contextless" (pname: Pixel_Store_Parameter, param: i32) {
-	gl.PixelStorei(u32(pname), param)
+	gl.impl_PixelStorei(u32(pname), param)
 }
 
 pixel_store :: proc{pixel_store_f, pixel_store_i}
 
 read_pixels_byte :: proc "contextless" (x, y, width, height: i32, format: Pixel_Data_Format, buf: []byte) {
-	gl.ReadnPixels(x, y, width, height, u32(format), gl.UNSIGNED_BYTE, i32(len(buf)), raw_data(buf))
+	gl.impl_ReadnPixels(x, y, width, height, u32(format), gl.UNSIGNED_BYTE, i32(len(buf)), raw_data(buf))
 }
 
 read_pixels_i8 :: proc "contextless" (x, y, width, height: i32, format: Pixel_Data_Format, buf: []i8) {
-	gl.ReadnPixels(x, y, width, height, u32(format), gl.BYTE, i32(len(buf)), raw_data(buf))
+	gl.impl_ReadnPixels(x, y, width, height, u32(format), gl.BYTE, i32(len(buf)), raw_data(buf))
 }
 
 read_pixels_u16 :: proc "contextless" (x, y, width, height: i32, format: Pixel_Data_Format, buf: []u16) {
-	gl.ReadnPixels(x, y, width, height, u32(format), gl.UNSIGNED_SHORT, i32(len(buf)), raw_data(buf))
+	gl.impl_ReadnPixels(x, y, width, height, u32(format), gl.UNSIGNED_SHORT, i32(len(buf)), raw_data(buf))
 }
 
 read_pixels_i16 :: proc "contextless" (x, y, width, height: i32, format: Pixel_Data_Format, buf: []i16) {
-	gl.ReadnPixels(x, y, width, height, u32(format), gl.SHORT, i32(len(buf)), raw_data(buf))
+	gl.impl_ReadnPixels(x, y, width, height, u32(format), gl.SHORT, i32(len(buf)), raw_data(buf))
 }
 
 read_pixels_u32 :: proc "contextless" (x, y, width, height: i32, format: Pixel_Data_Format, buf: []u32) {
-	gl.ReadnPixels(x, y, width, height, u32(format), gl.UNSIGNED_INT, i32(len(buf)), raw_data(buf))
+	gl.impl_ReadnPixels(x, y, width, height, u32(format), gl.UNSIGNED_INT, i32(len(buf)), raw_data(buf))
 }
 
 read_pixels_i32 :: proc "contextless" (x, y, width, height: i32, format: Pixel_Data_Format, buf: []i32) {
-	gl.ReadnPixels(x, y, width, height, u32(format), gl.INT, i32(len(buf)), raw_data(buf))
+	gl.impl_ReadnPixels(x, y, width, height, u32(format), gl.INT, i32(len(buf)), raw_data(buf))
 }
 
 read_pixels_f16 :: proc "contextless" (x, y, width, height: i32, format: Pixel_Data_Format, buf: []f16) {
-	gl.ReadnPixels(x, y, width, height, u32(format), gl.HALF_FLOAT, i32(len(buf)), raw_data(buf))
+	gl.impl_ReadnPixels(x, y, width, height, u32(format), gl.HALF_FLOAT, i32(len(buf)), raw_data(buf))
 }
 
 read_pixels_f32 :: proc "contextless" (x, y, width, height: i32, format: Pixel_Data_Format, buf: []f32) {
-	gl.ReadnPixels(x, y, width, height, u32(format), gl.FLOAT, i32(len(buf)), raw_data(buf))
+	gl.impl_ReadnPixels(x, y, width, height, u32(format), gl.FLOAT, i32(len(buf)), raw_data(buf))
 }
 
 read_pixels :: proc {
@@ -196,15 +196,15 @@ read_pixels :: proc {
 }
 
 get_error :: proc "contextless" () -> Error {
-    return Error(gl.GetError())
+    return Error(gl.impl_GetError())
 }
 
 get_string_no_i :: proc "contextless" (name: Get_String_Name) -> string {
-	return string(gl.GetString(u32(name)))
+	return string(gl.impl_GetString(u32(name)))
 }
 
 get_string_i :: proc "contextless" (name: Get_Stringi_Name, index: u32) -> cstring {
-	return gl.GetStringi(u32(name), index)
+	return gl.impl_GetStringi(u32(name), index)
 }
 
 get_string :: proc {
@@ -213,7 +213,7 @@ get_string :: proc {
 }
 
 is_enabled_no_i :: proc "contextless" (cap: Is_Enabled_Cap) -> bool {
-	return gl.IsEnabled(u32(cap))
+	return gl.impl_IsEnabled(u32(cap))
 }
 
 is_enabled :: proc {
@@ -222,11 +222,11 @@ is_enabled :: proc {
 }
 
 depth_range_f64 :: proc "contextless" (near, far: f64) {
-	gl.DepthRange(near, far)
+	gl.impl_DepthRange(near, far)
 }
 
 depth_range_f32 :: proc "contextless" (near, far: f32) {
-	gl.DepthRangef(near, far)
+	gl.impl_DepthRangef(near, far)
 }
 
 depth_range :: proc {
@@ -235,23 +235,23 @@ depth_range :: proc {
 }
 
 viewport :: proc "contextless" (x, y, width, height: i32) {
-	gl.Viewport(x, y, width, height)
+	gl.impl_Viewport(x, y, width, height)
 }
 
 polygon_offset :: proc "contextless" (factor, units: f32) {
-	gl.PolygonOffset(factor, units)
+	gl.impl_PolygonOffset(factor, units)
 }
 
 sample_coverage :: proc "contextless" (value: f32, invert: bool) {
-	gl.SampleCoverage(value, invert)
+	gl.impl_SampleCoverage(value, invert)
 }
 
 blend_func_separate_no_i :: proc "contextless" (s_factor_rgb, d_factor_rgb, s_factor_alpha, d_factor_alpha: Blend_Function) {
-	gl.BlendFuncSeparate(u32(s_factor_rgb), u32(d_factor_rgb), u32(s_factor_alpha), u32(d_factor_alpha))
+	gl.impl_BlendFuncSeparate(u32(s_factor_rgb), u32(d_factor_rgb), u32(s_factor_alpha), u32(d_factor_alpha))
 }
 
 blend_func_separate_i :: proc "contextless" (buf: u32, s_factor_rgb, d_factor_rgb, s_factor_alpha, d_factor_alpha: Blend_Function) {
-	gl.BlendFuncSeparate(u32(s_factor_rgb), u32(d_factor_rgb), u32(s_factor_alpha), u32(d_factor_alpha))
+	gl.impl_BlendFuncSeparate(u32(s_factor_rgb), u32(d_factor_rgb), u32(s_factor_alpha), u32(d_factor_alpha))
 }
 
 blend_func_separate :: proc {
@@ -260,7 +260,7 @@ blend_func_separate :: proc {
 }
 
 point_fade_threshold_size :: proc "contextless" (value: f32) {
-	gl.PointParameterf(gl.POINT_FADE_THRESHOLD_SIZE, value)
+	gl.impl_PointParameterf(gl.POINT_FADE_THRESHOLD_SIZE, value)
 }
 
 Point_Sprite_Coord_Origin :: enum i32 {
@@ -269,19 +269,19 @@ Point_Sprite_Coord_Origin :: enum i32 {
 }
 
 point_sprite_coord_origin :: proc "contextless" (value: Point_Sprite_Coord_Origin) {
-	gl.PointParameteri(gl.POINT_SPRITE_COORD_ORIGIN, i32(value))
+	gl.impl_PointParameteri(gl.POINT_SPRITE_COORD_ORIGIN, i32(value))
 }
 
 blend_color :: proc "contextless" (red, green, blue, alpha: f32) {
-	gl.BlendColor(red, green, blue, alpha)
+	gl.impl_BlendColor(red, green, blue, alpha)
 }
 
 blend_equation_no_i :: proc "contextless" (mode: Blend_Mode) {
-	gl.BlendEquation(u32(mode))
+	gl.impl_BlendEquation(u32(mode))
 }
 
 blend_equation_i :: proc "contextless" (buf: u32, mode: Blend_Mode) {
-	gl.BlendEquationi(buf, u32(mode))
+	gl.impl_BlendEquationi(buf, u32(mode))
 }
 
 blend_equation :: proc {
@@ -290,11 +290,11 @@ blend_equation :: proc {
 }
 
 blend_equation_separate_no_i :: proc "contextless" (mode_rgb, mode_alpha: Blend_Mode) {
-	gl.BlendEquationSeparate(u32(mode_rgb), u32(mode_alpha))
+	gl.impl_BlendEquationSeparate(u32(mode_rgb), u32(mode_alpha))
 }
 
 blend_equation_separate_i :: proc "contextless" (buf: u32, mode_rgb, mode_alpha: Blend_Mode) {
-	gl.BlendEquationSeparatei(buf, u32(mode_rgb), u32(mode_alpha))
+	gl.impl_BlendEquationSeparatei(buf, u32(mode_rgb), u32(mode_alpha))
 }
 
 blend_equation_separate :: proc {
@@ -303,89 +303,89 @@ blend_equation_separate :: proc {
 }
 
 stencil_op_separate :: proc "contextless" (face: Stencil_Face, sfail, dpfail, dppass: Stencil_Operation) {
-	gl.StencilOpSeparate(u32(face), u32(sfail), u32(dpfail), u32(dppass))
+	gl.impl_StencilOpSeparate(u32(face), u32(sfail), u32(dpfail), u32(dppass))
 }
 
 stencil_func_separate :: proc "contextless" (face: Stencil_Face, func: Comparison_Func, ref: i32, mask: u32) {
-	gl.StencilFuncSeparate(u32(face), u32(func), ref, mask)
+	gl.impl_StencilFuncSeparate(u32(face), u32(func), ref, mask)
 }
 
 stencil_mask_separate :: proc "contextless" (face: Stencil_Face, mask: u32) {
-	gl.StencilMaskSeparate(u32(face), mask)
+	gl.impl_StencilMaskSeparate(u32(face), mask)
 }
 
 is_enabled_i :: proc "contextless" (target: Is_Enabledi_Target, index: u32) {
-	gl.IsEnabledi(u32(target), index)
+	gl.impl_IsEnabledi(u32(target), index)
 }
 
 begin_transform_feedback :: proc "contextless" (primitive_mode: Transform_Feedback_Primitive_Mode) {
-	gl.BeginTransformFeedback(u32(primitive_mode))
+	gl.impl_BeginTransformFeedback(u32(primitive_mode))
 }
 
 end_transform_feedback :: proc "contextless" () {
-	gl.EndTransformFeedback()
+	gl.impl_EndTransformFeedback()
 }
 
 transform_feedback_varyings :: proc "contextless" (program: Program, varyings: []cstring, buffer_mode: Transform_Feedback_Buffer_Mode) {
-	gl.TransformFeedbackVaryings(u32(program), i32(len(varyings)), raw_data(varyings), u32(buffer_mode))
+	gl.impl_TransformFeedbackVaryings(u32(program), i32(len(varyings)), raw_data(varyings), u32(buffer_mode))
 }
 
 clamp_color :: proc "contextless" (clamp: bool) {
-	gl.ClampColor(gl.CLAMP_READ_COLOR, u32(clamp))
+	gl.impl_ClampColor(gl.CLAMP_READ_COLOR, u32(clamp))
 }
 
 begin_conditional_render :: proc "contextless" (id: Query, mode: Conditional_Render_Mode) {
-	gl.BeginConditionalRender(u32(id), u32(mode))
+	gl.impl_BeginConditionalRender(u32(id), u32(mode))
 }
 
 end_conditional_render :: proc "contextless" () {
-	gl.EndConditionalRender()
+	gl.impl_EndConditionalRender()
 }
 
 primitive_restart_index :: proc "contextless" (index: u32) {
-	gl.PrimitiveRestartIndex(index)
+	gl.impl_PrimitiveRestartIndex(index)
 }
 
 provoking_vertex :: proc "contextless" (mode: Provoking_Vertex_Mode) {
-	gl.ProvokingVertex(u32(mode))
+	gl.impl_ProvokingVertex(u32(mode))
 }
 
 sample_mask :: proc "contextless" (mask_number, mask: u32) {
-	gl.SampleMaski(mask_number, mask)
+	gl.impl_SampleMaski(mask_number, mask)
 }
 
 min_sample_shading :: proc "contextless" (value: f32) {
-	gl.MinSampleShading(value)
+	gl.impl_MinSampleShading(value)
 }
 
 delete_transform_feedbacks :: proc "contextless" (transform_feedbacks: []Transform_Feedback) {
-	gl.DeleteTransformFeedbacks(i32(len(transform_feedbacks)), ([^]u32)(raw_data(transform_feedbacks)))
+	gl.impl_DeleteTransformFeedbacks(i32(len(transform_feedbacks)), ([^]u32)(raw_data(transform_feedbacks)))
 }
 
 gen_transform_feedbacks :: proc "contextless" (transform_feedbacks: []Transform_Feedback) {
-	gl.CreateTransformFeedbacks(i32(len(transform_feedbacks)), ([^]u32)(raw_data(transform_feedbacks)))
+	gl.impl_CreateTransformFeedbacks(i32(len(transform_feedbacks)), ([^]u32)(raw_data(transform_feedbacks)))
 }
 
 is_transform_feedback :: proc "contextless" (transform_feedback: u32) -> bool {
-	return gl.IsTransformFeedback(transform_feedback)
+	return gl.impl_IsTransformFeedback(transform_feedback)
 }
 
 get_aliased_line_width_range :: proc "contextless" () -> (lo, hi: i32) {
 	arr: [2]i32 = ---
-	gl.GetIntegerv(gl.ALIASED_LINE_WIDTH_RANGE, raw_data(&arr))
+	gl.impl_GetIntegerv(gl.ALIASED_LINE_WIDTH_RANGE, raw_data(&arr))
 	lo = arr[0]
 	hi = arr[1]
 	return
 }
 
 get_blend_enabled :: proc "contextless" () -> (res: bool) {
-    gl.GetBooleanv(gl.BLEND, &res)
+    gl.impl_GetBooleanv(gl.BLEND, &res)
     return
 }
 
 get_blend_color :: proc "contextless" () -> (r, g, b, a: f32) {
     arr: [4]f32 = ---
-    gl.GetFloatv(gl.BLEND_COLOR, raw_data(&arr))
+    gl.impl_GetFloatv(gl.BLEND_COLOR, raw_data(&arr))
     r = arr[0]
     g = arr[1]
     b = arr[2]
