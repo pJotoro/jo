@@ -284,7 +284,7 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
     return
 }
 
-_init :: proc() {
+_init :: proc() -> bool {
     ctx.visible = -1
 
     ctx.windowed_flags = WINDOWED_FLAGS
@@ -301,7 +301,6 @@ _init :: proc() {
     ctx.cursor = GetCursor()
     
     {
-
         if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
             log.error("Failed to make process DPI aware.")
         } else {
@@ -403,7 +402,8 @@ _init :: proc() {
         {
             module_handle := win32.GetModuleHandleW(nil)
             if module_handle == nil {
-                log.panicf("Failed to get module handle. %v", misc.get_last_error_message())
+                log.fatalf("Failed to get module handle. %v", misc.get_last_error_message())
+                return false
             }
             log.debug("Succeeded to get module handle.")
             ctx.instance = win32.HINSTANCE(module_handle)
@@ -418,7 +418,8 @@ _init :: proc() {
                 lpszClassName = L("app_class_name"),
             }
             if win32.RegisterClassExW(&window_class) == 0 { 
-                log.panicf("Failed to register window class. %v", misc.get_last_error_message())
+                log.fatalf("Failed to register window class. %v", misc.get_last_error_message())
+                return false
             }
             log.debug("Succeeded to register window class.")
         }
@@ -457,7 +458,8 @@ _init :: proc() {
             }
             
             if ctx.window == nil {
-                log.panicf("Failed to create window. %v", misc.get_last_error_message())
+                log.fatalf("Failed to create window. %v", misc.get_last_error_message())
+                return false
             }
             log.debug("Succeeded to create window.")
         }
@@ -477,6 +479,8 @@ _init :: proc() {
     {
         ctx.can_connect_gamepad = xinput.init()
     }
+
+    return true
 }
 
 _running :: proc() -> bool {
@@ -500,10 +504,12 @@ _running :: proc() -> bool {
     return ctx.running
 }
 
-_swap_buffers :: proc(buffer: []u32) {
+_swap_buffers :: proc(buffer: []u32) -> bool {
     hdc := win32.GetDC(win32.HWND(ctx.window))
     if hdc == nil {
-        log.panic("Failed to get window device context.")
+        log.fatal("Failed to get window device context.")
+        ctx.running = false
+        return false
     }
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
@@ -516,12 +522,15 @@ _swap_buffers :: proc(buffer: []u32) {
     }
     result := win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
     if result == 0 {
-        log.panic("Failed to render bitmap.")
+        log.fatal("Failed to render bitmap.")
+        ctx.running = false
+        return false
     }
     result = win32.ReleaseDC(win32.HWND(ctx.window), hdc)
     if result == 0 {
-        log.panic("Failed to release window device context.")
+        log.error("Failed to release window device context.")
     }
+    return true
 }
 
 _cursor_position :: proc() -> (x, y: int) {

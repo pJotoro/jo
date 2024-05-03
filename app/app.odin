@@ -96,16 +96,18 @@ Fullscreen_Mode :: enum {
 init :: proc(title := "", width := 0, height := 0, 
              fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, 
              spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil, 
-             allocator := context.allocator) {
+             allocator := context.allocator) -> bool {
     context.allocator = allocator
 
     if ctx.app_initialized {
-        log.panic("App already initialized.")
+        log.warn("App already initialized.")
+        return false
     }
 
     when SPALL_ENABLED {
         if spall_ctx == nil || spall_buffer == nil {
-            log.panic("Must set spall_ctx and spall_buffer when spall is enabled.")
+            log.fatal("Must set spall_ctx and spall_buffer when spall is enabled.")
+            return false
         }
         ctx.spall_ctx = spall_ctx
         ctx.spall_buffer = spall_buffer
@@ -128,7 +130,10 @@ init :: proc(title := "", width := 0, height := 0,
     ctx.events = make([dynamic]Event)
     ctx.cursor_enabled = true
 
-    _init()
+    if !_init() {
+        log.fatal("App failed to initialize.")
+        return false
+    }
 
     if !ctx.fullscreen {
         ctx.windowed_width = ctx.width
@@ -148,6 +153,8 @@ init :: proc(title := "", width := 0, height := 0,
 
     ctx.app_initialized = true
     ctx.running = true
+
+    return true
 }
 
 @(deprecated="use running")
@@ -157,7 +164,8 @@ should_close :: proc() -> bool {
 
 running :: proc() -> bool {
     if !ctx.app_initialized {
-        log.panic("App not initialized.")
+        log.fatal("App not initialized.")
+        return false
     }
 
     for &k in ctx.keyboard_keys_pressed { 
@@ -187,11 +195,9 @@ running :: proc() -> bool {
                 }
             }
         }
- 
-        return true
     }
 
-    return false
+    return ctx.running
 }
 
 @(deprecated="use swap_buffers")
@@ -199,26 +205,34 @@ render :: proc(buffer: []u32) {
     swap_buffers(buffer)
 }
 
-swap_buffers :: proc(buffer: []u32) {
+swap_buffers :: proc(buffer: []u32) -> bool {
     if !ctx.app_initialized {
-        log.panic("App not initialized.")
+        log.fatal("App not initialized.")
+        ctx.running = false
+        return false
     }
     if ctx.gl_initialized {
-        log.panic("Cannot mix software rendering with OpenGL.")
+        log.fatal("Cannot mix software rendering with OpenGL.")
+        ctx.running = false
+        return false
     }
 
     if width() == 0 || height() == 0 || ctx.minimized {
-        return
+        return false
     }
 
     if len(buffer) < width() * height() {
-        log.panic("Buffer too small.")
+        log.fatalf("Buffer with length %v too small for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height())
+        ctx.running = false
+        return false
     }
     if len(buffer) > width() * height() {
-        log.panic("Buffer too big.")
+        log.fatalf("Buffer with length %v too big for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height())
+        ctx.running = false
+        return false
     }
 
-    _swap_buffers(buffer)
+    return _swap_buffers(buffer)
 }
 
 window :: proc "contextless" () -> rawptr {
