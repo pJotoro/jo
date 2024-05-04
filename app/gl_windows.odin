@@ -281,7 +281,7 @@ _gl_init :: proc(major, minor: int) -> bool {
 
 _gl_swap_buffers :: proc() -> bool {
     if !win32.SwapBuffers(ctx.gl_hdc) {
-        log.fatal("OpenGL: failed to swap buffers.")
+        log.fatalf("OpenGL: failed to swap buffers. %v", misc.get_last_error_message())
         ctx.running = false
     }
     return ctx.running

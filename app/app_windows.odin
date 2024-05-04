@@ -530,12 +530,9 @@ _swap_buffers :: proc(buffer: []u32) -> bool {
         ctx.running = false
         return false
     }
-    log.debug("Succeeded to render bitmap")
 
     if win32.ReleaseDC(win32.HWND(ctx.window), hdc) == 0 {
         log.error("Failed to release window device context.")
-    } else {
-        log.debug("Succeeded to release window device context.")
     }
     return true
 }
