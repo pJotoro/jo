@@ -308,6 +308,7 @@ _init :: proc() -> bool {
             ctx.dpi_aware = true
         }
         ctx.dpi = int(GetDpiForSystem())
+        log.infof("DPI: %v.", ctx.dpi)
     }
     
     set_window_rect :: proc() -> (window_rect: win32.RECT, ok: bool) {
@@ -324,6 +325,7 @@ _init :: proc() -> bool {
 
             ctx.monitor_width = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
             ctx.monitor_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
+            log.infof("Monitor dimensions: %v by %v.", ctx.monitor_width, ctx.monitor_height)
         }
     
         {
@@ -360,6 +362,8 @@ _init :: proc() -> bool {
                     ctx.height = ctx.monitor_height
                     ctx.fullscreen = true
             }
+
+            log.infof("App dimensions: %v by %v.", ctx.width, ctx.height)
         
             {
                 client_left := (ctx.monitor_width - ctx.width) / 2

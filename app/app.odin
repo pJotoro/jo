@@ -113,7 +113,11 @@ init :: proc(title := "", width := 0, height := 0,
         ctx.spall_buffer = spall_buffer
     }
 
-    if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
+    if fullscreen == .On {
+        if width != 0 || height != 0 {
+            log.warn("Width and height are ignored when fullscreen is on.")
+        }
+    } else if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
         log.warn("Width and height must be set or unset together.")
     } else {
         ctx.width = width
