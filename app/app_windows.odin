@@ -302,7 +302,7 @@ _init :: proc() -> bool {
     
     {
         if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
-            log.error("Failed to make process DPI aware.")
+            log.errorf("Failed to make process DPI aware. %v", misc.get_last_error_message())
         } else {
             log.debug("Succeeded to make process DPI aware.")
             ctx.dpi_aware = true
@@ -515,6 +515,7 @@ _swap_buffers :: proc(buffer: []u32) -> bool {
         ctx.running = false
         return false
     }
+
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
         biSize = size_of(win32.BITMAPINFOHEADER),
@@ -524,15 +525,17 @@ _swap_buffers :: proc(buffer: []u32) -> bool {
         biBitCount = 32,
         biCompression = win32.BI_RGB,
     }
-    result := win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
-    if result == 0 {
+    if win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY) == 0 {
         log.fatal("Failed to render bitmap.")
         ctx.running = false
         return false
     }
-    result = win32.ReleaseDC(win32.HWND(ctx.window), hdc)
-    if result == 0 {
+    log.debug("Succeeded to render bitmap")
+
+    if win32.ReleaseDC(win32.HWND(ctx.window), hdc) == 0 {
         log.error("Failed to release window device context.")
+    } else {
+        log.debug("Succeeded to release window device context.")
     }
     return true
 }
@@ -540,18 +543,21 @@ _swap_buffers :: proc(buffer: []u32) -> bool {
 _cursor_position :: proc() -> (x, y: int) {
     @static point: win32.POINT
     p := point
-    ok := win32.GetCursorPos(&point)
-    if !ok {
-        log.error("Failed to get cursor position. Returning last cursor position instead.")
+
+    if !win32.GetCursorPos(&point) {
+        log.errorf("Failed to get cursor position. %v Returning last cursor position instead.", misc.get_last_error_message())
         point = p
         return int(point.x), -int(point.y) + height()
     }
-    ok = win32.ScreenToClient(win32.HWND(ctx.window), &point)
-    if !ok {
+    log.debug("Succeeded to get cursor position.")
+
+    if !win32.ScreenToClient(win32.HWND(ctx.window), &point) {
         log.error("Failed to convert cursor screen position to client position. Returning last cursor position instead.")
         point = p
         return int(point.x), -int(point.y) + height()
     }
+    log.debug("Succeeded to convert cursor screen position to client position.")
+
     return int(point.x), -int(point.y) + height()
 }
 
@@ -564,6 +570,7 @@ _cursor_visible :: proc() -> bool {
         log.errorf("Failed to get cursor info. %v", misc.get_last_error_message())
         return false
     }
+    log.debug("Succeeded to get cursor info.")
     return (info.flags & CURSOR_SHOWING) != 0
 }
 
@@ -639,6 +646,7 @@ _set_position :: proc(x, y: int) -> bool {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
     }
+    log.debug("Succeeded to set window position.")
     return true
 }
 
@@ -647,6 +655,7 @@ _set_windowed :: proc() -> bool {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
     }
+    log.debug("Succeeded to set window long pointer.")
 
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         i32(ctx.windowed_x), i32(ctx.windowed_y), i32(ctx.windowed_width), i32(ctx.windowed_height), 
@@ -654,6 +663,7 @@ _set_windowed :: proc() -> bool {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
     }
+    log.debug("Succeeded to set window position.")
 
     return true
 }
@@ -670,6 +680,7 @@ _set_fullscreen :: proc() -> bool {
             ctx.windowed_y = int(rect.top)
             ctx.windowed_width = int(rect.right - rect.left)
             ctx.windowed_height = int(rect.bottom - rect.top)
+            log.debug("Succeeded to get window rectangle.")
         }
     } else {
         ctx.windowed_x = ctx.monitor_width / 4
@@ -682,6 +693,7 @@ _set_fullscreen :: proc() -> bool {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
         return false
     }
+    log.debug("Succeeded to get window long pointer.")
 
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         ctx.fullscreen_rect.left,
@@ -692,6 +704,7 @@ _set_fullscreen :: proc() -> bool {
         log.errorf("Failed to set window position. %v", misc.get_last_error_message())
         return false
     }
+    log.debug("Succeeded to set window position.")
 
     return true
 }
