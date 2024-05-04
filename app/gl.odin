@@ -8,14 +8,17 @@ import "base:intrinsics"
 
 gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = nil, user_data: rawptr = nil) -> bool {
     if !ctx.app_initialized {
-        log.panic("App not initialized.")
+        log.error("App not initialized.")
+        return false
     }
     if ctx.gl_initialized {
-        log.panic("OpenGL already initialized.")
+        log.warn("OpenGL already initialized.")
+        return false
     }
 
     if !((major == 4 && minor <= 6) || (major == 3 && minor <= 3) || (major == 2 && minor <= 1) || (major == 1) && (minor <= 5)) {
-        log.panicf("OpenGL: invalid version %v.%v used. See https://www.khronos.org/opengl/wiki/History_of_OpenGL for valid OpenGL versions.", major, minor)
+        log.errorf("OpenGL: invalid version %v.%v used. See https://www.khronos.org/opengl/wiki/History_of_OpenGL for valid OpenGL versions.", major, minor)
+        return false
     }
 
     if _gl_init(major, minor) {
@@ -46,14 +49,18 @@ gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = nil, user_d
     return ctx.gl_initialized
 }
 
-gl_swap_buffers :: proc(loc := #caller_location) {
+gl_swap_buffers :: proc(loc := #caller_location) -> bool {
     if !ctx.app_initialized {
-        log.panic("App not initialized.")
+        log.fatal("App not initialized.")
+        ctx.running = false
+        return ctx.running
     }
     if !ctx.gl_initialized {
-        log.panic("OpenGL not initialized.")
+        log.fatal("OpenGL not initialized.")
+        ctx.running = false
+        return ctx.running
     }
-    _gl_swap_buffers()
+    return _gl_swap_buffers()
 }
 
 gl_debug_callback :: proc "c" (source: u32, type: u32, id: u32, severity: u32, length: i32, message: cstring, user_param: rawptr) {

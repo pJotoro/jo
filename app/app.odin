@@ -208,7 +208,6 @@ render :: proc(buffer: []u32) {
 swap_buffers :: proc(buffer: []u32) -> bool {
     if !ctx.app_initialized {
         log.fatal("App not initialized.")
-        ctx.running = false
         return false
     }
     if ctx.gl_initialized {
