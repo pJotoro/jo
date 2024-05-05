@@ -2,7 +2,22 @@
 
 A stupidly easy to use platform layer.
 
-You can move a window around with the arrow keys:
+This is how easy it is to get a window open:
+
+```odin
+package main
+
+import "jo:app"
+
+main :: proc() {
+	app.init()
+	for app.running() {
+		if app.key_pressed(.Escape) do return
+	}
+}
+```
+
+In debug mode, the window is automatically centered and is 1/4 the size of the monitor. In release mode, it is automatically set to fullscreen. Of course, this is only the default behavior, and can be changed with parameters:
 
 ```odin
 package app_example
@@ -10,22 +25,51 @@ package app_example
 import "jo:app"
 
 main :: proc() {
-	app.init(fullscreen = .Off)
-
-	x, y: int
-
+	app.init(fullscreen = .Off) // can also be set to .On, or the default, .Auto
 	for app.running() {
-		if app.key_down(.Left) do x -= 1
-		if app.key_down(.Right) do x += 1
-		if app.key_down(.Up) do y -= 1
-		if app.key_down(.Down) do y += 1
-
-		app.set_position(x, y)
+		if app.key_pressed(.Escape) do return
 	}
 }
 ```
 
-You can also create an OpenGL context with just one procedure call:
+Create your own backbuffer which you can render to on the CPU:
+
+```odin
+package main
+
+import "jo:app"
+
+main :: proc() {
+	app.init()
+	backbuffer := make([]u32, app.width() * app.height())
+	for app.running() {
+		if app.key_pressed(.Escape) do return
+		// code to fill the backbuffer with pixels...
+		app.swap_buffers(backbuffer)
+	}
+}
+```
+
+Easily make it resizable:
+
+```odin
+package main
+
+import "jo:app"
+
+main :: proc() {
+	app.init(resizable = true)
+	backbuffer := make([dynamic]u32, app.width() * app.height())
+	for app.running() {
+		if app.key_pressed(.Escape) do return
+		resize(&backbuffer, app.width() * app.height())
+		// code to fill the backbuffer with pixels...
+		app.swap_buffers(backbuffer[:])
+	}
+}
+```
+
+Don't want to render on the CPU? You can also create an OpenGL context with just one procedure call:
 
 ```odin
 package app_gl_example
