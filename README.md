@@ -69,6 +69,23 @@ main :: proc() {
 }
 ```
 
+It is highly recommend to enable logging when using jo:app. To enable it, set the context.logger:
+
+```odin
+package main
+
+import "jo:app"
+import "core:log"
+
+main :: proc() {
+	context.logger = log.create_console_logger(.Debug, {.Terminal_Color, .Level})
+	app.init()
+	for app.running() {
+		if app.key_pressed(.Escape) do return
+	}
+}
+```
+
 Don't want to render on the CPU? You can also create an OpenGL context with just one procedure call:
 
 ```odin
