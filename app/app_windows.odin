@@ -332,7 +332,7 @@ _init :: proc() -> bool {
             switch ctx.fullscreen_mode {
                 case .Auto:
                     if ctx.width == 0 && ctx.height == 0 {
-                        when ODIN_DEBUG {
+                        if ODIN_DEBUG || ctx.resizable || ctx.minimize_box || ctx.maximize_box {
                             ctx.width = ctx.monitor_width / 2
                             ctx.height = ctx.monitor_height / 2
                             ctx.fullscreen = false
@@ -341,21 +341,17 @@ _init :: proc() -> bool {
                             ctx.height = ctx.monitor_height
                             ctx.fullscreen = true
                         }
-                    }
-                    else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
+                    } else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
                         ctx.fullscreen = true
                     } else {
                         ctx.fullscreen = false
                     }
                 case .Off:
-                    if ctx.width == 0 && ctx.height == 0 {
-                        ctx.width = ctx.monitor_width / 2
-                        ctx.height = ctx.monitor_height / 2
-                    } else if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
+                    if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
                         log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, ctx.monitor_width / 2, ctx.monitor_height / 2)
-                        ctx.width = ctx.monitor_width / 2
-                        ctx.height = ctx.monitor_height / 2
                     }
+                    ctx.width = ctx.monitor_width / 2
+                    ctx.height = ctx.monitor_height / 2
                     ctx.fullscreen = false 
                 case .On:
                     ctx.width = ctx.monitor_width

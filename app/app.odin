@@ -224,6 +224,11 @@ swap_buffers :: proc(buffer: []u32) -> bool {
         return false
     }
 
+    if buffer == nil {
+        log.fatalf("Buffer == nil.")
+        ctx.running = false
+        return false
+    }
     if len(buffer) < width() * height() {
         log.fatalf("Buffer with length %v too small for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height())
         ctx.running = false
