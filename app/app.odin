@@ -1,6 +1,7 @@
 package app
 
 import "core:log"
+import "core:mem"
 
 import "core:prof/spall"
 SPALL_ENABLED :: #config(JO_SPALL_ENABLED, false)
@@ -96,40 +97,32 @@ Fullscreen_Mode :: enum {
 init :: proc(title := "", width := 0, height := 0, 
              fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, 
              spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil, 
-             allocator := context.allocator) -> bool {
+             allocator := context.allocator) {
     context.allocator = allocator
 
-    {
-        ok := true
+    if ctx.app_initialized {
+        log.warn("App already initialized.")
+        return
+    }
 
-        if ctx.app_initialized {
-            log.warn("App already initialized.")
-            ok = false
+    when SPALL_ENABLED {
+        if spall_ctx == nil || spall_buffer == nil {
+            log.fatal("Must set spall_ctx and spall_buffer when spall is enabled.")
+            return
         }
-    
-        when SPALL_ENABLED {
-            if spall_ctx == nil || spall_buffer == nil {
-                log.fatal("Must set spall_ctx and spall_buffer when spall is enabled.")
-                ok = false
-            }
-            ctx.spall_ctx = spall_ctx
-            ctx.spall_buffer = spall_buffer
-        }
-    
-        if fullscreen == .On {
-            if width != 0 || height != 0 {
-                log.warn("Width and height are ignored when fullscreen is on.")
-            }
-        } else if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
-            log.warn("Width and height must be set or unset together.")
-        } else {
-            ctx.width = width
-            ctx.height = height
-        }
+        ctx.spall_ctx = spall_ctx
+        ctx.spall_buffer = spall_buffer
+    }
 
-        if !ok {
-            return false
+    if fullscreen == .On {
+        if width != 0 || height != 0 {
+            log.warn("Width and height are ignored when fullscreen is on.")
         }
+    } else if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
+        log.warn("Width and height must be set or unset together.")
+    } else {
+        ctx.width = width
+        ctx.height = height
     }
     
     ctx.title = title
@@ -142,7 +135,7 @@ init :: proc(title := "", width := 0, height := 0,
 
     if !_init() {
         log.fatal("App failed to initialize.")
-        return false
+        return
     }
 
     if !ctx.fullscreen {
@@ -163,8 +156,6 @@ init :: proc(title := "", width := 0, height := 0,
 
     ctx.app_initialized = true
     ctx.running = true
-
-    return true
 }
 
 @(deprecated="use running")
@@ -197,12 +188,12 @@ running :: proc() -> bool {
     clear(&ctx.events)
     ctx.event_index = 0
 
-    if _running() {
-        if can_connect_gamepad() {
-            for gamepad_index in 0..<len(ctx.gamepads) {
-                if gamepad_connected(gamepad_index) {
-                    try_connect_gamepad(gamepad_index)
-                }
+    _run()
+
+    if can_connect_gamepad() {
+        for gamepad_index in 0..<len(ctx.gamepads) {
+            if gamepad_connected(gamepad_index) {
+                try_connect_gamepad(gamepad_index)
             }
         }
     }
@@ -215,38 +206,44 @@ render :: proc(buffer: []u32) {
     swap_buffers(buffer)
 }
 
-swap_buffers :: proc(buffer: []u32) -> bool {
+swap_buffers :: proc(buffer: []u32) {
+    ok := true
+
     if !ctx.app_initialized {
         log.fatal("App not initialized.")
-        return false
+        ok = false
     }
     if ctx.gl_initialized {
         log.fatal("Cannot mix software rendering with OpenGL.")
         ctx.running = false
-        return false
+        ok = false
     }
 
     if width() == 0 || height() == 0 || ctx.minimized {
-        return false
+        ok = false
     }
 
     if buffer == nil {
         log.fatal("Buffer == nil.")
         ctx.running = false
-        return false
+        ok = false
     }
     if len(buffer) < width() * height() {
         log.fatalf("Buffer with length %v too small for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height())
         ctx.running = false
-        return false
+        ok = false
     }
     if len(buffer) > width() * height() {
         log.fatalf("Buffer with length %v too big for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height())
         ctx.running = false
-        return false
+        ok = false
     }
 
-    return _swap_buffers(buffer)
+    if !ok {
+        return
+    }
+
+    _swap_buffers(buffer)
 }
 
 window :: proc "contextless" () -> rawptr {

@@ -7,17 +7,23 @@ import "base:runtime"
 import "base:intrinsics"
 
 gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = nil, user_data: rawptr = nil) -> bool {
+    ok := true
+
     if !ctx.app_initialized {
-        log.error("App not initialized.")
-        return false
+        log.error("OpenGL: app not initialized.")
+        ok = false
     }
     if ctx.gl_initialized {
-        log.warn("OpenGL already initialized.")
-        return false
+        log.warn("OpenGL: already initialized.")
+        ok = false
     }
 
     if !((major == 4 && minor <= 6) || (major == 3 && minor <= 3) || (major == 2 && minor <= 1) || (major == 1) && (minor <= 5)) {
         log.errorf("OpenGL: invalid version %v.%v used. See https://www.khronos.org/opengl/wiki/History_of_OpenGL for valid OpenGL versions.", major, minor)
+        ok = false
+    }
+
+    if !ok {
         return false
     }
 
@@ -51,12 +57,12 @@ gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = nil, user_d
 
 gl_swap_buffers :: proc(loc := #caller_location) -> bool {
     if !ctx.app_initialized {
-        log.fatal("App not initialized.")
+        log.fatal("OpenGL: app not initialized.")
         ctx.running = false
         return ctx.running
     }
     if !ctx.gl_initialized {
-        log.fatal("OpenGL not initialized.")
+        log.fatal("OpenGL: not initialized.")
         ctx.running = false
         return ctx.running
     }

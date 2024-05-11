@@ -349,9 +349,12 @@ _init :: proc() -> bool {
                 case .Off:
                     if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
                         log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, ctx.monitor_width / 2, ctx.monitor_height / 2)
+                        ctx.width = ctx.monitor_width / 2
+                        ctx.height = ctx.monitor_height / 2
+                    } else if ctx.width == 0 && ctx.height == 0 {
+                        ctx.width = ctx.monitor_width / 2
+                        ctx.height = ctx.monitor_height / 2
                     }
-                    ctx.width = ctx.monitor_width / 2
-                    ctx.height = ctx.monitor_height / 2
                     ctx.fullscreen = false 
                 case .On:
                     ctx.width = ctx.monitor_width
@@ -476,14 +479,12 @@ _init :: proc() -> bool {
         }
     }
 
-    {
-        ctx.can_connect_gamepad = xinput.init()
-    }
+    ctx.can_connect_gamepad = xinput.init()
 
     return true
 }
 
-_running :: proc() -> bool {
+_run :: proc() {
     if ctx.visible == -1 {
         ctx.visible += 1
     } else if ctx.visible == 0 {
@@ -500,16 +501,14 @@ _running :: proc() -> bool {
         }
         break
     }
-
-    return ctx.running
 }
 
-_swap_buffers :: proc(buffer: []u32) -> bool {
+_swap_buffers :: proc(buffer: []u32) {
     hdc := win32.GetDC(win32.HWND(ctx.window))
     if hdc == nil {
         log.fatal("Failed to get window device context.")
         ctx.running = false
-        return false
+        return
     }
 
     bitmap_info: win32.BITMAPINFO
@@ -524,13 +523,11 @@ _swap_buffers :: proc(buffer: []u32) -> bool {
     if win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY) == 0 {
         log.fatal("Failed to render bitmap.")
         ctx.running = false
-        return false
     }
 
     if win32.ReleaseDC(win32.HWND(ctx.window), hdc) == 0 {
         log.error("Failed to release window device context.")
     }
-    return true
 }
 
 _cursor_position :: proc() -> (x, y: int) {
