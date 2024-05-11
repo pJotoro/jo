@@ -1,99 +1,28 @@
+// jo:app is a stupidly easy to use platform layer. 
+// If all you want is a window, an OpenGL context, and keyboard or gamepad input, this is for you. 
+// It takes inspiration from the simplicitly of Raylib while still being lightweight and fairly low level.
 package app
 
 import "core:log"
 import "core:mem"
 
 import "core:prof/spall"
-SPALL_ENABLED :: #config(JO_SPALL_ENABLED, false)
-
-@(private)
-Context :: struct {
-    // ----- init -----
-    title: string,
-    width, height: int,
-    fullscreen_mode: Fullscreen_Mode,
-
-    dpi: int,
-    refresh_rate: int,
-
-    window: rawptr,
-    windowed_x, windowed_y: int,
-    windowed_width, windowed_height: int,
-    monitor_width, monitor_height: int,
-
-    resizable: bool,
-    minimize_box: bool,
-    maximize_box: bool,
-    focused: bool,
-
-    app_initialized: bool,
-    gl_initialized: bool,
-    // ----------------
-
-    // ----- running -----
-    running: bool,
-    visible: int, // -1 and 0 mean invisible at first, 1 means visible, and 2 means invisible
-    fullscreen: bool,
-    minimized: bool,
-    maximized: bool,
-    // -------------------
-    
-    // ----- keyboard -----
-    keyboard_keys: #sparse [Keyboard_Key]bool,
-    keyboard_keys_pressed: #sparse [Keyboard_Key]bool,
-    keyboard_keys_released: #sparse [Keyboard_Key]bool,
-    // --------------------
-
-    // ----- mouse -----
-    left_mouse_down: bool,
-    left_mouse_pressed: bool,
-    left_mouse_released: bool,
-    left_mouse_double_click: bool,
-
-    right_mouse_down: bool,
-    right_mouse_pressed: bool,
-    right_mouse_released: bool,
-    right_mouse_double_click: bool,
-
-    middle_mouse_down: bool,
-    middle_mouse_pressed: bool,
-    middle_mouse_released: bool,
-    middle_mouse_double_click: bool,
-
-    mouse_wheel: int,
-    // -----------------
-
-    // ----- cursor -----
-    cursor_enabled: bool,
-    // ------------------
-
-    // ----- gamepad -----
-    can_connect_gamepad: bool,
-    gamepad_debug_flags: Gamepad_Debug_Flags,
-    gamepads: [4]Gamepad_Desc,
-    // -------------------
-
-    // ----- events -----
-    events: [dynamic]Event,
-    event_index: int,
-    // ------------------
-
-    // ----- profiling -----
-    spall_ctx: ^spall.Context,
-    spall_buffer: ^spall.Buffer,
-    // ---------------------
-
-    using os_specific: OS_Specific,
-}
-@(private)
-ctx: Context
+SPALL_ENABLED :: #config(SPALL_ENABLED, false)
 
 Fullscreen_Mode :: enum {
-    Auto,
-    Off,
-    On,
+    Auto, // windowed in debug mode, fullscreen otherwise
+    Off,  // always windowed
+    On,   // always fullscreen
 }
 
+// You must call this before any other procedure. 
+// It initializes the library. 
+// It is perfectly reasonable and acceptable to call this without passing any arguments whatsoever. 
+// Reasonable defaults will be chosen for you.
+//
+// Leaving width and height as 0 has different meanings depending on whether fullscreen is on. 
+// If fullscreen is off, then the width and height will be automatically set to half the monitor width and height, respectively. 
+// If fullscreen is on, then the width and height will be automatically set to the monitor width and height, respectively.
 init :: proc(title := "", width := 0, height := 0, 
              fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, 
              spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil, 
@@ -158,11 +87,8 @@ init :: proc(title := "", width := 0, height := 0,
     ctx.running = true
 }
 
-@(deprecated="use running")
-should_close :: proc() -> bool {
-    return !running()
-}
-
+// Call this at the beginning of every frame. 
+// Beyond checking for whether the app is still running, it also gets OS events and updates input.
 running :: proc() -> bool {
     if !ctx.app_initialized {
         log.fatal("App not initialized.")
@@ -201,11 +127,13 @@ running :: proc() -> bool {
     return ctx.running
 }
 
-@(deprecated="use swap_buffers")
-render :: proc(buffer: []u32) {
-    swap_buffers(buffer)
-}
-
+// Call this at the end of every frame to blit a new framebuffer from the CPU. 
+// Only use this if you are doing CPU rendering, not GPU rendering. 
+// So, if you are using OpenGL, Direct3D, or Vulkan, do NOT use this.
+//
+// This does not clear the buffer for you, so if you want it to be cleared after being blitted, you must do it yourself. 
+// It is as easy as writing mem.zero_slice(buffer). 
+// That said, clearing the entire buffer every frame is expensive, so it is recommended to not do this.
 swap_buffers :: proc(buffer: []u32) {
     ok := true
 
@@ -246,22 +174,31 @@ swap_buffers :: proc(buffer: []u32) {
     _swap_buffers(buffer)
 }
 
+// Returns the window handle.
+//
+// On Windows, it is actually just an HWND, so writing win32.HWND(app.window()) works.
 window :: proc "contextless" () -> rawptr {
     return ctx.window
 }
 
+// By client width or height, I mean the part of the window that you can actually draw into, not the entire window.
+
+// Returns the client width in pixels.
 width :: proc "contextless" () -> int {
     return ctx.width
 }
 
+// Returns the client height in pixels.
 height :: proc "contextless" () -> int {
     return ctx.height
 }
 
+// Returns the monitor width in pixels.
 monitor_width :: proc "contextless" () -> int {
     return ctx.monitor_width
 }
 
+// Returns the monitor height in pixels.
 monitor_height :: proc "contextless" () -> int {
     return ctx.monitor_height
 }
@@ -428,6 +365,8 @@ cursor_position :: proc() -> (x, y: int) {
     return _cursor_position()
 }
 
+// Actually, this returns whether the cursor is within the bounds of the app.
+// That way, it works the same whether fullscreen is on or off.
 cursor_on_screen :: proc() -> bool {
     x, y := cursor_position()
     return x >= 0 && x < ctx.width && y >= 0 && y < ctx.height
@@ -545,6 +484,24 @@ mouse_wheel :: proc "contextless" () -> int {
     return ctx.mouse_wheel
 }
 
+/*
+You can call this once like this:
+
+if event, ok := app.get_event(); ok {
+    // process the event
+}
+
+Or you can call this like an iterator:
+
+for event in app.get_event() {
+    // process the event
+}
+
+Either way works fine.
+
+Every time app.running() is called, the event array is reset, and then filled with whatever OS events have happened since last time app.running() was called.
+As a result, you don't have to worry about old events getting returned.
+*/
 get_event :: proc "contextless" () -> (event: Event, ok: bool) {
     if ctx.event_index >= len(ctx.events) {
         return

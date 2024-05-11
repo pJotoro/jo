@@ -6,6 +6,7 @@ import "core:fmt"
 import "base:runtime"
 import "base:intrinsics"
 
+// Initializes OpenGL.
 gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = nil, user_data: rawptr = nil) -> bool {
     ok := true
 
@@ -55,6 +56,9 @@ gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = nil, user_d
     return ctx.gl_initialized
 }
 
+// When using OpenGL, call at the end of every frame.
+//
+// Must call app.gl_init first.
 gl_swap_buffers :: proc(loc := #caller_location) -> bool {
     if !ctx.app_initialized {
         log.fatal("OpenGL: app not initialized.")

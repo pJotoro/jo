@@ -32,3 +32,8 @@ rgba_to_bgr_u32 :: #force_inline proc "contextless" (rgba: u32) -> (bgr: u32) {
     bgr = rgba_to_bgr_u8(r, g, b, a)
     return
 }
+
+rgba_to_bgr :: proc {
+    rgba_to_bgr_u8,
+    rgba_to_bgr_u32,
+}

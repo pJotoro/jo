@@ -46,10 +46,22 @@ Gamepad_Desc :: struct {
 	active: bool,
 }
 
+// Returns whether a gamepad can be connected.
+//
+// This will only be false if some platform specific library like XInput is not present on the user's machine.
+// Otherwise, it should always be true.
 can_connect_gamepad :: proc "contextless" () -> bool {
 	return ctx.can_connect_gamepad
 }
 
+// Called for every possible gamepad by app.init().
+// Called again by app.running() for every gamepad which is still connected.
+//
+// If the user already has their gamepad connected at initialization time and never disconnects it, then you'll never have to call this.
+// In practice, it is very common for people to plug their gamepad in *after* opening a game, which means you will have to call this.
+// The way I would recommend would be to make the player open a menu where they have to say they have connected a gamepad.
+// Then, call this procedure again.
+// If it fails, then the player lied to you. If it succeeds, then as long as their gamepad stays connected, you won't have to call this again.
 try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	return _try_connect_gamepad(gamepad_index)
@@ -75,22 +87,27 @@ gamepad_button_released :: proc "contextless" (gamepad_index: int, button: Gamep
 	return button not_in ctx.gamepads[gamepad_index].buttons && button in ctx.gamepads[gamepad_index].buttons_previous
 }
 
+// Returns left trigger as a normalized floating point value.
 gamepad_left_trigger :: proc "contextless" (gamepad_index: int) -> f32 {
 	return ctx.gamepads[gamepad_index].left_trigger
 }
 
+// Returns right trigger as a normalized floating point value.
 gamepad_right_trigger :: proc "contextless" (gamepad_index: int) -> f32 {
 	return ctx.gamepads[gamepad_index].right_trigger
 }
 
+// Returns left stick as a 2D vector of normalized floating point values.
 gamepad_left_stick :: proc "contextless" (gamepad_index: int) -> [2]f32 {
 	return ctx.gamepads[gamepad_index].left_stick
 }
 
+// Returns right stick as a 2D vector of normalized floating point values.
 gamepad_right_stick :: proc "contextless" (gamepad_index: int) -> [2]f32 {
 	return ctx.gamepads[gamepad_index].right_stick
 }
 
+// left_motor and right_motor must be normalized floating point values.
 gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
 	left_motor := left_motor
 	right_motor := right_motor

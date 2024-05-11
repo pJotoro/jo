@@ -17,10 +17,12 @@ Gamepad_Debug_Flag :: enum u32 {
 
 Gamepad_Debug_Flags :: distinct bit_set[Gamepad_Debug_Flag; u32]
 
+// Enables debug output for gamepad inputs specified by flags.
 gamepad_debug_enable :: proc "contextless" (flags: Gamepad_Debug_Flags) {
     ctx.gamepad_debug_flags += flags
 }
 
+// Disables debug output for gamepad inputs specified by flags.
 gamepad_debug_disable :: proc "contextless" (flags: Gamepad_Debug_Flags) {
     ctx.gamepad_debug_flags -= flags
 }
