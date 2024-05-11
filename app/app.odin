@@ -1,5 +1,5 @@
 // jo:app is a stupidly easy to use platform layer. 
-// If all you want is a window, an OpenGL context, and keyboard or gamepad input, this is for you. 
+// If all you want is a window, an OpenGL context, and keyboard or gamepad input, then this is for you. 
 // It takes inspiration from the simplicitly of Raylib while still being lightweight and fairly low level.
 package app
 
@@ -16,7 +16,8 @@ Fullscreen_Mode :: enum {
 }
 
 // You must call this before any other procedure. 
-// It initializes the library. 
+// It initializes the library.
+//
 // It is perfectly reasonable and acceptable to call this without passing any arguments whatsoever. 
 // Reasonable defaults will be chosen for you.
 //
@@ -87,7 +88,8 @@ init :: proc(title := "", width := 0, height := 0,
     ctx.running = true
 }
 
-// Call this at the beginning of every frame. 
+// Call this at the beginning of every frame.
+//
 // Beyond checking for whether the app is still running, it also gets OS events and updates input.
 running :: proc() -> bool {
     if !ctx.app_initialized {
@@ -127,7 +129,8 @@ running :: proc() -> bool {
     return ctx.running
 }
 
-// Call this at the end of every frame to blit a new framebuffer from the CPU. 
+// Call this at the end of every frame to blit a new framebuffer from the CPU.
+//
 // Only use this if you are doing CPU rendering, not GPU rendering. 
 // So, if you are using OpenGL, Direct3D, or Vulkan, do NOT use this.
 //
