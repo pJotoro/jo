@@ -66,8 +66,8 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 		gamepad.right_stick.y = f32(xinput_gamepad.sThumbRY) / RIGHT_THUMB_MAX
 	
 		cut_deadzones :: proc "contextless" (xinput_gamepad: ^xinput.GAMEPAD) {
-			xinput_gamepad.bLeftTrigger -= xinput_gamepad.bLeftTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) ? win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) : xinput_gamepad.bLeftTrigger
-			xinput_gamepad.bRightTrigger -= xinput_gamepad.bRightTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) ? win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) : xinput_gamepad.bRightTrigger
+			xinput_gamepad.bLeftTrigger -= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) if xinput_gamepad.bLeftTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) else xinput_gamepad.bLeftTrigger
+			xinput_gamepad.bRightTrigger -= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) if xinput_gamepad.bRightTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) else xinput_gamepad.bRightTrigger
 	
 			if xinput_gamepad.sThumbLX < xinput.GAMEPAD_LEFT_THUMB_DEADZONE && xinput_gamepad.sThumbLX > -xinput.GAMEPAD_LEFT_THUMB_DEADZONE { 
 				xinput_gamepad.sThumbLX = 0 

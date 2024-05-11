@@ -99,38 +99,44 @@ init :: proc(title := "", width := 0, height := 0,
              allocator := context.allocator) -> bool {
     context.allocator = allocator
 
-    if ctx.app_initialized {
-        log.warn("App already initialized.")
-        return false
-    }
+    {
+        ok := true
 
-    when SPALL_ENABLED {
-        if spall_ctx == nil || spall_buffer == nil {
-            log.fatal("Must set spall_ctx and spall_buffer when spall is enabled.")
+        if ctx.app_initialized {
+            log.warn("App already initialized.")
+            ok = false
+        }
+    
+        when SPALL_ENABLED {
+            if spall_ctx == nil || spall_buffer == nil {
+                log.fatal("Must set spall_ctx and spall_buffer when spall is enabled.")
+                ok = false
+            }
+            ctx.spall_ctx = spall_ctx
+            ctx.spall_buffer = spall_buffer
+        }
+    
+        if fullscreen == .On {
+            if width != 0 || height != 0 {
+                log.warn("Width and height are ignored when fullscreen is on.")
+            }
+        } else if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
+            log.warn("Width and height must be set or unset together.")
+        } else {
+            ctx.width = width
+            ctx.height = height
+        }
+
+        if !ok {
             return false
         }
-        ctx.spall_ctx = spall_ctx
-        ctx.spall_buffer = spall_buffer
     }
-
-    if fullscreen == .On {
-        if width != 0 || height != 0 {
-            log.warn("Width and height are ignored when fullscreen is on.")
-        }
-    } else if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
-        log.warn("Width and height must be set or unset together.")
-    } else {
-        ctx.width = width
-        ctx.height = height
-    }
-
+    
     ctx.title = title
     ctx.fullscreen_mode = fullscreen
     ctx.resizable = resizable
-
     ctx.minimize_box = minimize_box
     ctx.maximize_box = maximize_box
-
     ctx.events = make([dynamic]Event)
     ctx.cursor_enabled = true
 
@@ -225,7 +231,7 @@ swap_buffers :: proc(buffer: []u32) -> bool {
     }
 
     if buffer == nil {
-        log.fatalf("Buffer == nil.")
+        log.fatal("Buffer == nil.")
         ctx.running = false
         return false
     }
@@ -344,7 +350,7 @@ toggle_fullscreen :: proc() {
 }
 
 visible :: proc "contextless" () -> bool {
-    return ctx.visible == 1 ? true : false
+    return true if ctx.visible == 1 else false
 }
 
 hide :: proc() {

@@ -1,10 +1,10 @@
 package app
 
 rgba_to_bgr_u8 :: #force_inline proc "contextless" (r, g, b, a: u8) -> (bgr: u32) {
-    src_r := r != 0 ? f32(r) / 255 : 0
-    src_g := g != 0 ? f32(g) / 255 : 0
-    src_b := b != 0 ? f32(b) / 255 : 0
-    src_a := a != 0 ? f32(a) / 255 : 0
+    src_r := f32(r) / 255.0
+    src_g := f32(g) / 255.0
+    src_b := f32(b) / 255.0
+    src_a := f32(a) / 255.0
 
     /*
     Target.R = 1 - Source.A + (Source.A * Source.R)

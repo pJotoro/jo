@@ -431,7 +431,7 @@ _init :: proc() -> bool {
                 ctx.window = win32.CreateWindowExW(
                     0, 
                     window_class.lpszClassName, 
-                    !ctx.fullscreen ? wname : nil,
+                    wname if !ctx.fullscreen else nil,
                     flags, 
                     window_rect.left, 
                     window_rect.top, 
@@ -445,7 +445,7 @@ _init :: proc() -> bool {
                 ctx.window = win32.CreateWindowExW(
                     0, 
                     window_class.lpszClassName, 
-                    !ctx.fullscreen ? wname : nil,
+                    wname if !ctx.fullscreen else nil,
                     flags,
                     win32.CW_USEDEFAULT, 
                     win32.CW_USEDEFAULT, 
