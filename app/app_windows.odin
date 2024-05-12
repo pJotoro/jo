@@ -43,7 +43,17 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             ctx.running = false
 
         case win32.WM_ACTIVATE:
-            ctx.focused = !ctx.focused
+            w_param := transmute([4]u16)w_param
+            if w_param[0] == win32.WA_INACTIVE {
+                ctx.focused = false
+            } else {
+                ctx.focused = true
+            }
+            if w_param[1] == 0 {
+                ctx.minimized = false
+            } else {
+                ctx.minimized = true
+            }
             if ctx.focused {
                 append(&ctx.events, Event_Focus{})
             }
@@ -64,11 +74,18 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                     ctx.maximized = false
             }
 
-            sizes := transmute([4]u16)l_param
+            sizes := transmute([4]i16)l_param
             ctx.width = int(sizes[0])
             ctx.height = int(sizes[1])
             
             event := Event_Size{}
+            append(&ctx.events, event)
+        
+        case win32.WM_MOVE:
+            pos := transmute([4]i16)l_param
+            x := int(pos[0])
+            y := int(pos[1])
+            event := Event_Move{x = x, y = y}
             append(&ctx.events, event)
 
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:

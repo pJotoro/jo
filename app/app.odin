@@ -177,9 +177,7 @@ swap_buffers :: proc(buffer: []u32) {
     _swap_buffers(buffer)
 }
 
-// Returns the window handle.
-//
-// On Windows, it is actually just an HWND, so writing win32.HWND(app.window()) works.
+// Returns the native window handle.
 window :: proc "contextless" () -> rawptr {
     return ctx.window
 }

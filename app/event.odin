@@ -61,6 +61,10 @@ Event_Unfocus :: struct {}
 
 Event_Size :: struct {}
 
+Event_Move :: struct {
+    x, y: int,
+}
+
 Event :: union {
     Event_Key_Down,
     Event_Char,
@@ -84,4 +88,5 @@ Event :: union {
     Event_Unfocus,
 
     Event_Size,
+    Event_Move,
 }
