@@ -1,3 +1,7 @@
+// This is a wrapper over postmodern OpenGL - that is, only direct state access is allowed, wherever possible.
+// The API is made much easier to use in Odin using slices, explicit procedure overloading, enums, and bit sets.
+//
+// If you would like to use jo:ngl with jo:app, it is enough to call app.gl_init(4, 6).
 package ngl
 
 import gl "vendor:OpenGL"
