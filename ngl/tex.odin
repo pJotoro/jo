@@ -49,44 +49,36 @@ tex_image_1d :: proc {
 	tex_image_1d_f32,
 }
 
-tex_image_2d_byte :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []byte, loc := #caller_location) {
-	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
-	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.UNSIGNED_BYTE, raw_data(pixels))
+tex_image_2d_byte :: proc "contextless" (tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: [^]byte) {
+	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.UNSIGNED_BYTE, pixels)
 }
 
-tex_image_2d_i8 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []i8, loc := #caller_location) {
-	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
-	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.BYTE, raw_data(pixels))
+tex_image_2d_i8 :: proc "contextless" (tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: [^]i8) {
+	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.BYTE, pixels)
 }
 
-tex_image_2d_u16 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []u16, loc := #caller_location) {
-	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
-	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.UNSIGNED_SHORT, raw_data(pixels))
+tex_image_2d_u16 :: proc "contextless" (tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: [^]u16) {
+	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.UNSIGNED_SHORT, pixels)
 }
 
-tex_image_2d_i16 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []i16, loc := #caller_location) {
-	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
-	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.SHORT, raw_data(pixels))
+tex_image_2d_i16 :: proc "contextless" (tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: [^]i16) {
+	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.SHORT, pixels)
 }
 
-tex_image_2d_u32 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []u32, loc := #caller_location) {
-	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
-	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.UNSIGNED_INT, raw_data(pixels))
+tex_image_2d_u32 :: proc "contextless" (tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: [^]u32) {
+	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.UNSIGNED_INT, pixels)
 }
 
-tex_image_2d_i32 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []i32, loc := #caller_location) {
-	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
-	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.INT, raw_data(pixels))
+tex_image_2d_i32 :: proc "contextless" (tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: [^]i32) {
+	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.INT, pixels)
 }
 
-tex_image_2d_f16 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []f16, loc := #caller_location) {
-	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
-	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.HALF_FLOAT, raw_data(pixels))
+tex_image_2d_f16 :: proc "contextless" (tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: [^]f16) {
+	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.HALF_FLOAT, pixels)
 }
 
-tex_image_2d_f32 :: proc(tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: []f32, loc := #caller_location) {
-	assert(int(width) * int(height) == len(pixels), "width * height != len(pixels)", loc)
-	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.FLOAT, raw_data(pixels))
+tex_image_2d_f32 :: proc "contextless" (tex: Tex, level, xoffset, yoffset, width, height: i32, format: Pixel_Data_Format, pixels: [^]f32) {
+	gl.impl_TextureSubImage2D(u32(tex), level, xoffset, yoffset, width, height, u32(format), gl.FLOAT, pixels)
 }
 
 tex_image_2d :: proc {

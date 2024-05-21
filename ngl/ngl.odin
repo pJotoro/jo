@@ -146,15 +146,77 @@ depth_func :: proc "contextless" (func: Comparison_Func) {
 	gl.impl_DepthFunc(u32(func))
 }
 
-pixel_store_f :: proc "contextless" (pname: Pixel_Store_Parameter, param: f32) {
-	gl.impl_PixelStoref(u32(pname), param)
+pack_swap_bytes :: proc "contextless" () {
+	gl.impl_PixelStorei(gl.PACK_SWAP_BYTES, 1)
 }
 
-pixel_store_i :: proc "contextless" (pname: Pixel_Store_Parameter, param: i32) {
-	gl.impl_PixelStorei(u32(pname), param)
+pack_lsb_first :: proc "contextless" () {
+	gl.impl_PixelStorei(gl.PACK_LSB_FIRST, 1)
 }
 
-pixel_store :: proc{pixel_store_f, pixel_store_i}
+pack_lsb_last :: proc "contextless" () {
+	gl.impl_PixelStorei(gl.PACK_LSB_FIRST, 0)
+}
+
+pack_row_length :: proc "contextless" (length: i32) {
+	gl.impl_PixelStorei(gl.PACK_ROW_LENGTH, length)
+}
+
+pack_image_height :: proc "contextless" (image_height: i32) {
+	gl.impl_PixelStorei(gl.PACK_IMAGE_HEIGHT, image_height)
+}
+
+pack_skip_pixels :: proc "contextless" (pixels: i32) {
+	gl.impl_PixelStorei(gl.PACK_SKIP_PIXELS, pixels)
+}
+
+pack_skip_rows :: proc "contextless" (rows: i32) {
+	gl.impl_PixelStorei(gl.PACK_SKIP_ROWS, rows)
+}
+
+pack_skip_images :: proc "contextless" (images: i32) {
+	gl.impl_PixelStorei(gl.PACK_SKIP_IMAGES, images)
+}
+
+pack_alignment :: proc "contextless" (alignment: i32) {
+	gl.impl_PixelStorei(gl.PACK_ALIGNMENT, alignment)
+}
+
+unpack_swap_bytes :: proc "contextless" () {
+	gl.impl_PixelStorei(gl.UNPACK_SWAP_BYTES, 1)
+}
+
+unpack_lsb_first :: proc "contextless" () {
+	gl.impl_PixelStorei(gl.UNPACK_LSB_FIRST, 1)
+}
+
+unpack_lsb_last :: proc "contextless" () {
+	gl.impl_PixelStorei(gl.UNPACK_LSB_FIRST, 0)
+}
+
+unpack_row_length :: proc "contextless" (length: i32) {
+	gl.impl_PixelStorei(gl.UNPACK_ROW_LENGTH, length)
+}
+
+unpack_image_height :: proc "contextless" (image_height: i32) {
+	gl.impl_PixelStorei(gl.UNPACK_IMAGE_HEIGHT, image_height)
+}
+
+unpack_skip_pixels :: proc "contextless" (pixels: i32) {
+	gl.impl_PixelStorei(gl.UNPACK_SKIP_PIXELS, pixels)
+}
+
+unpack_skip_rows :: proc "contextless" (rows: i32) {
+	gl.impl_PixelStorei(gl.UNPACK_SKIP_ROWS, rows)
+}
+
+unpack_skip_images :: proc "contextless" (images: i32) {
+	gl.impl_PixelStorei(gl.UNPACK_SKIP_IMAGES, images)
+}
+
+unpack_alignment :: proc "contextless" (alignment: i32) {
+	gl.impl_PixelStorei(gl.UNPACK_ALIGNMENT, alignment)
+}
 
 read_pixels_byte :: proc "contextless" (x, y, width, height: i32, format: Pixel_Data_Format, buf: []byte) {
 	gl.impl_ReadnPixels(x, y, width, height, u32(format), gl.UNSIGNED_BYTE, i32(len(buf)), raw_data(buf))
