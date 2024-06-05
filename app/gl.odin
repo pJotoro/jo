@@ -75,5 +75,26 @@ gl_swap_buffers :: proc(loc := #caller_location) -> bool {
 
 gl_debug_callback :: proc "c" (source: u32, type: u32, id: u32, severity: u32, length: i32, message: cstring, user_param: rawptr) {
     context = runtime.default_context()
-    fmt.eprintf("GL CALLBACK: %v type = %v, severity = %v, message = %v\n", "** GL ERROR **" if type == gl.DEBUG_TYPE_ERROR else "", type, severity, message)
+    fmt.eprintf("GL CALLBACK: %v type = %v, severity = %v, message = %v\n", "** GL ERROR **" if type == gl.DEBUG_TYPE_ERROR else "", Debug_Type(type), Debug_Severity(severity), message)
+
+    Debug_Type :: enum u32 {
+        Debug_Type_Error               = gl.DEBUG_TYPE_ERROR,
+        Debug_Type_Deprecated_Behavior = gl.DEBUG_TYPE_DEPRECATED_BEHAVIOR,
+        Debug_Type_Undefined_Behavior  = gl.DEBUG_TYPE_UNDEFINED_BEHAVIOR,
+        Debug_Type_Performance         = gl.DEBUG_TYPE_PERFORMANCE,
+        Debug_Type_Portability         = gl.DEBUG_TYPE_PORTABILITY,
+        Debug_Type_Marker              = gl.DEBUG_TYPE_MARKER,
+        Debug_Type_Push_Group          = gl.DEBUG_TYPE_PUSH_GROUP,
+        Debug_Type_Pop_Group           = gl.DEBUG_TYPE_POP_GROUP,
+        Debug_Type_Other               = gl.DEBUG_TYPE_OTHER,
+        Dont_Care                      = gl.DONT_CARE,
+    }
+
+    Debug_Severity :: enum u32 {
+        Debug_Severity_High         = gl.DEBUG_SEVERITY_HIGH,
+        Debug_Severity_Medium       = gl.DEBUG_SEVERITY_MEDIUM,
+        Debug_Severity_Low          = gl.DEBUG_SEVERITY_LOW,
+        Debug_Severity_Notification = gl.DEBUG_SEVERITY_NOTIFICATION,
+        Dont_Care                   = gl.DONT_CARE,
+    }
 }
