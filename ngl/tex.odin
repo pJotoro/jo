@@ -409,3 +409,15 @@ tex_swizzle_rgba :: proc "contextless" (tex: Tex, r, g, b, a: Swizzle) {
 	swizzles := [4]i32{i32(r), i32(g), i32(b), i32(a)}
 	gl.impl_TextureParameterIiv(u32(tex), gl.TEXTURE_SWIZZLE_RGBA, raw_data(swizzles[:]))
 }
+
+tex_storage_1d :: proc "contextless" (tex: Tex, levels: i32, internal_format: Texture_Internalformat, width: i32) {
+	gl.impl_TextureStorage1D(u32(tex), levels, u32(internal_format), width)
+}
+
+tex_storage_2d :: proc "contextless" (tex: Tex, levels: i32, format: Texture_Internalformat, width, height: i32) {
+	gl.impl_TextureStorage2D(u32(tex), levels, u32(format), width, height)
+}
+
+tex_storage_3d :: proc "contextless" (tex: Tex, levels: i32, internal_format: Texture_Internalformat, width, height, depth: i32) {
+	gl.impl_TextureStorage3D(u32(tex), levels, u32(internal_format), width, height, depth)
+}
