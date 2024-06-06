@@ -27,7 +27,7 @@ Client_Wait_Sync_Status :: enum u32 {
 }
 
 Client_Wait_Sync_Flag :: enum u32 {
-	Sync_Flush_Commands = 0 // SYNC_FLUSH_COMMANDS_BIT :: 0x00000001,
+	Sync_Flush_Commands = 0, // SYNC_FLUSH_COMMANDS_BIT :: 0x00000001
 }
 
 Client_Wait_Sync_Flags :: bit_set[Client_Wait_Sync_Flag; u32]

@@ -5,9 +5,6 @@
 package ngl
 
 import gl "vendor:OpenGL"
-import "core:mem"
-import "core:strings"
-import "../misc"
 
 cull_face :: proc "contextless" (mode: Cull_Face_Mode) {
 	gl.impl_CullFace(u32(mode))

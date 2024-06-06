@@ -5,7 +5,6 @@ package ngl
 import gl "vendor:OpenGL"
 import "core:os"
 import "core:fmt"
-import "core:strings"
 import "base:runtime"
 _ :: fmt
 _ :: runtime
@@ -123,7 +122,6 @@ when gl.GL_DEBUG {
 // Compiling shaders are identical for any shader (vertex, geometry, fragment, tesselation, (maybe compute too))
 compile_shader_from_binary :: proc(binary: []byte, shader_type: Shader_Type) -> (shader: Shader, ok: bool) {
 	shader = create_shader(shader_type)
-	length := i32(len(binary))
     shader_binary([]Shader{shader}, binary)
     specialize_shader(shader, "main")
 	check_error(u32(shader), shader_type, gl.COMPILE_STATUS, gl.GetShaderiv, gl.GetShaderInfoLog) or_return

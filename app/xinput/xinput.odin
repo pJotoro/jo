@@ -62,7 +62,7 @@ CAPABILITIES :: struct {
 }
 
 DEVTYPE :: enum BYTE {
-	GAMEPAD = 0x00000001
+	GAMEPAD = 0x00000001,
 }
 
 DEVSUBTYPE :: enum BYTE {

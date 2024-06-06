@@ -4,7 +4,6 @@
 package app
 
 import "core:log"
-import "core:mem"
 
 import "core:prof/spall"
 SPALL_ENABLED :: #config(SPALL_ENABLED, false)
