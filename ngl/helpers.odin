@@ -160,6 +160,11 @@ load_compute_source :: proc(cs_data: []byte, binary_retrievable := false) -> (pr
 	return create_and_link_program([]Shader{compute_shader}, binary_retrievable)
 }
 
+load_compute :: proc {
+	load_compute_file,
+	load_compute_source,
+}
+
 load_shaders_file :: proc(vs_filename, fs_filename: string, binary_retrievable := false) -> (program: Program, ok: bool) {
 	vs_binary := os.read_entire_file(vs_filename) or_return
 	defer delete(vs_binary)
@@ -181,7 +186,10 @@ load_shaders_source :: proc(vs_binary, fs_binary: []byte, binary_retrievable := 
 	return create_and_link_program([]Shader{vertex_shader, fragment_shader}, binary_retrievable)
 }
 
-load_shaders :: proc{load_shaders_file}
+load_shaders :: proc{
+	load_shaders_file, 
+	load_shaders_source,
+}
 
 
 when ODIN_OS == .Windows {
