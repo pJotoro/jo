@@ -19,8 +19,17 @@ is_buffer :: proc "contextless" (buffer: u32) -> bool {
 	return gl.impl_IsBuffer(buffer)
 }
 
-buffer_data :: proc "contextless" (buffer: Buffer, data: []byte, usage: Buffer_Data_Usage) {
+buffer_data_nil :: proc "contextless" (buffer: Buffer, size: int, usage: Buffer_Data_Usage) {
+	gl.impl_NamedBufferData(u32(buffer), size, nil, u32(usage))
+}
+
+buffer_data_slice :: proc "contextless" (buffer: Buffer, data: []byte, usage: Buffer_Data_Usage) {
 	gl.impl_NamedBufferData(u32(buffer), len(data), raw_data(data), u32(usage))
+}
+
+buffer_data :: proc {
+    buffer_data_nil,
+    buffer_data_slice,
 }
 
 buffer_sub_data :: proc "contextless" (buffer: Buffer, offset: int, data: []byte) {
@@ -97,4 +106,17 @@ get_buffer_usage :: proc "contextless" (buffer: Buffer) -> Buffer_Data_Usage {
 
 copy_buffer_sub_data :: proc "contextless" (read_buffer, write_buffer: Buffer, read_offset, write_offset, size: int) {
 	gl.impl_CopyNamedBufferSubData(u32(read_buffer), u32(write_buffer), read_offset, write_offset, size)
+}
+
+buffer_storage_nil :: proc "contextless" (buffer: Buffer, size: int, flags: Buffer_Storage_Bits) {
+    gl.impl_NamedBufferStorage(u32(buffer), size, nil, u32(flags))
+}
+
+buffer_storage_slice :: proc "contextless" (buffer: Buffer, data: []byte, flags: Buffer_Storage_Bits) {
+    gl.impl_NamedBufferStorage(u32(buffer), len(data), raw_data(data), u32(flags))
+}
+
+buffer_storage :: proc {
+    buffer_storage_nil,
+    buffer_storage_slice,
 }
