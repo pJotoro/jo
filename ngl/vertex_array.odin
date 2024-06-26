@@ -35,5 +35,5 @@ is_vertex_array :: proc "contextless" (vertex_array: u32) -> bool {
 }
 
 bind_vertex_buffer :: proc "contextless" (vertex_array: Vertex_Array, binding_index: u32, buffer: Buffer, offset: int, stride: i32) {
-	gl.VertexArrayVertexBuffer(u32(vertex_array), binding_index, u32(buffer), offset, stride)
+	gl.impl_VertexArrayVertexBuffer(u32(vertex_array), binding_index, u32(buffer), offset, stride)
 }
