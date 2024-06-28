@@ -198,13 +198,12 @@ get_active_uniform_count :: proc "contextless" (program: Program) -> (active_uni
     return
 }
 
-get_active_uniform :: proc(program: Program, index: u32, allocator := context.allocator) -> (size: i32, type: Uniform_Type, name: string, location: i32) {
+get_active_uniform :: proc(program: Program, index: u32, allocator := context.allocator) -> (size: i32, type: Uniform_Type, name: string) {
     BUF_SIZE :: 256
     buf: [BUF_SIZE]byte
     length: i32 = ---
     gl.impl_GetActiveUniform(u32(program), index, BUF_SIZE, &length, &size, (^u32)(&type), raw_data(&buf))
     name = strings.clone(string(buf[:int(length)]), allocator)
-    location = get_uniform_location(program, cstring(raw_data(&buf)))
     return
 }
 

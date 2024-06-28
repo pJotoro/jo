@@ -275,7 +275,8 @@ get_uniforms_from_program :: proc(program: Program) -> (uniforms: Uniforms) {
 	for i in 0..<uniform_count {
 		uniform_info: Uniform_Info
 
-		uniform_info.size, uniform_info.kind, uniform_info.name, uniform_info.location = get_active_uniform(program, u32(i))
+		uniform_info.size, uniform_info.kind, uniform_info.name = get_active_uniform(program, u32(i))
+		uniform_info.location = i
 		uniforms[uniform_info.name] = uniform_info
 	}
 
