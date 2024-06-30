@@ -17,7 +17,7 @@ Shader_Type :: enum i32 {
 	COMPUTE_SHADER         = 0x91B9,
 	TESS_EVALUATION_SHADER = 0x8E87,
 	TESS_CONTROL_SHADER    = 0x8E88,
-	SHADER_LINK            = -1, // @Note: Not an OpenGL constant, but used for error checking.
+	SHADER_LINK            = -1,
 }
 
 
@@ -45,9 +45,6 @@ get_last_error_message :: proc() -> (compile_message: string, compile_type: Shad
 	return
 }
 
-// Shader checking and linking checking are identical
-// except for calling differently named GL functions
-// it's a bit ugly looking, but meh
 when gl.GL_DEBUG {
 	@private
 	check_error :: proc(
@@ -67,7 +64,6 @@ when gl.GL_DEBUG {
 				last_compile_error_type = type
 
 				log_func(id, i32(info_log_length), nil, raw_data(last_compile_error_message), loc)
-				//fmt.printf_err("Error in %v:\n%s", type, string(last_compile_error_message[0:len(last_compile_error_message)-1]));
 			} else {
 
 				delete(last_link_error_message)
@@ -75,7 +71,6 @@ when gl.GL_DEBUG {
 				last_compile_error_type = type
 
 				log_func(id, i32(info_log_length), nil, raw_data(last_link_error_message), loc)
-				//fmt.printf_err("Error in %v:\n%s", type, string(last_link_error_message[0:len(last_link_error_message)-1]));
 			}
 
 			return false
@@ -119,17 +114,18 @@ when gl.GL_DEBUG {
 	}
 }
 
-// Compiling shaders are identical for any shader (vertex, geometry, fragment, tesselation, (maybe compute too))
-compile_shader_from_binary :: proc(binary: []byte, shader_type: Shader_Type) -> (shader: Shader, ok: bool) {
+compile_shader_from_source :: proc(source: string, shader_type: Shader_Type) -> (shader: Shader, ok: bool) {
 	shader = create_shader(shader_type)
-    shader_binary([]Shader{shader}, binary)
-    specialize_shader(shader, "main")
+	length := i32(len(source))
+	shader_data_copy := cstring(raw_data(source))
+	shader_source(shader, source)
+	compile_shader(shader)
+
 	check_error(u32(shader), shader_type, gl.COMPILE_STATUS, gl.GetShaderiv, gl.GetShaderInfoLog) or_return
 	ok = true
 	return
 }
 
-// only used once, but I'd just make a subprocedure(?) for consistency
 create_and_link_program :: proc(shaders: []Shader, binary_retrievable := false) -> (program: Program, ok: bool) {
 	program = create_program()
 	for shader in shaders {
@@ -149,14 +145,12 @@ load_compute_file :: proc(filename: string, binary_retrievable := false) -> (pro
 	cs_data := os.read_entire_file(filename) or_return
 	defer delete(cs_data)
 
-	// Create the shaders
-	compute_shader := compile_shader_from_binary(cs_data, .COMPUTE_SHADER) or_return
+	compute_shader := compile_shader_from_source(string(cs_data), .COMPUTE_SHADER) or_return
 	return create_and_link_program([]Shader{compute_shader}, binary_retrievable)
 }
 
 load_compute_source :: proc(cs_data: []byte, binary_retrievable := false) -> (program: Program, ok: bool) {
-	// Create the shaders
-	compute_shader := compile_shader_from_binary(cs_data, .COMPUTE_SHADER) or_return
+	compute_shader := compile_shader_from_source(string(cs_data), .COMPUTE_SHADER) or_return
 	return create_and_link_program([]Shader{compute_shader}, binary_retrievable)
 }
 
@@ -166,30 +160,26 @@ load_compute :: proc {
 }
 
 load_shaders_file :: proc(vs_filename, fs_filename: string, binary_retrievable := false) -> (program: Program, ok: bool) {
-	vs_binary := os.read_entire_file(vs_filename) or_return
-	defer delete(vs_binary)
+	vs_source := os.read_entire_file(vs_filename) or_return
+	defer delete(vs_source)
 	
-	fs_binary := os.read_entire_file(fs_filename) or_return
-	defer delete(fs_binary)
+	fs_source := os.read_entire_file(fs_filename) or_return
+	defer delete(fs_source)
 
-	return load_shaders_source(vs_binary, fs_binary, binary_retrievable)
+	return load_shaders_source(string(vs_source), string(fs_source), binary_retrievable)
 }
 
-load_shaders_source :: proc(vs_binary, fs_binary: []byte, binary_retrievable := false) -> (program: Program, ok: bool) {
-	// actual function from here
-	vertex_shader := compile_shader_from_binary(vs_binary, .VERTEX_SHADER) or_return
+load_shaders_source :: proc(vs_source, fs_source: string, binary_retrievable := false) -> (program: Program, ok: bool) {
+	vertex_shader := compile_shader_from_source(vs_source, .VERTEX_SHADER) or_return
 	defer delete_shader(vertex_shader)
 
-	fragment_shader := compile_shader_from_binary(fs_binary, .FRAGMENT_SHADER) or_return
+	fragment_shader := compile_shader_from_source(fs_source, .FRAGMENT_SHADER) or_return
 	defer delete_shader(fragment_shader)
 
 	return create_and_link_program([]Shader{vertex_shader, fragment_shader}, binary_retrievable)
 }
 
-load_shaders :: proc{
-	load_shaders_file, 
-	load_shaders_source,
-}
+load_shaders :: proc{load_shaders_file}
 
 
 when ODIN_OS == .Windows {
@@ -254,7 +244,7 @@ Uniform_Info :: struct {
 	location: i32,
 	size:     i32,
 	kind:     Uniform_Type,
-	name:     string, // NOTE: This will need to be freed
+	name:     string,
 }
 
 Uniforms :: map[string]Uniform_Info

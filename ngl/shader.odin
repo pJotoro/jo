@@ -2,8 +2,19 @@ package ngl
 
 import gl "vendor:OpenGL"
 
+shader_source :: proc "contextless" (shader: Shader, source: string) {
+	source := source
+	length := i32(len(source))
+	shader_data_copy := cstring(raw_data(source))
+	gl.impl_ShaderSource(u32(shader), 1, &shader_data_copy, &length)
+}
+
 shader_binary :: proc "contextless" (shaders: []Shader, binary: []byte) {
 	gl.impl_ShaderBinary(i32(len(shaders)), ([^]u32)(raw_data(shaders)), gl.SHADER_BINARY_FORMAT_SPIR_V, raw_data(binary), i32(len(binary)))
+}
+
+compile_shader :: proc "contextless" (shader: Shader) {
+	gl.impl_CompileShader(u32(shader))
 }
 
 specialize_shader :: proc "contextless" (shader: Shader, entry_point: cstring, constants_indices: []u32 = nil, constants_values: []u32 = nil) {
