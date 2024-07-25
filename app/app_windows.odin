@@ -459,7 +459,7 @@ _init :: proc() -> bool {
                     window_rect.bottom - window_rect.top, 
                     nil, 
                     nil, 
-                    window_class.hInstance, 
+                    win32.HANDLE(ctx.instance), 
                     nil)
             } else {
                 ctx.window = win32.CreateWindowExW(
@@ -473,7 +473,7 @@ _init :: proc() -> bool {
                     win32.CW_USEDEFAULT, 
                     nil, 
                     nil, 
-                    window_class.hInstance, 
+                    win32.HANDLE(ctx.instance), 
                     nil)
             }
             
