@@ -26,6 +26,8 @@ OS_Specific :: struct {
 
     dpi_aware: bool,
 
+    sub_window_class: win32.WNDCLASSEXW,
+
     gl_hdc: win32.HDC,
     gl_vsync: bool,
     gl_procs_initialized: bool,
@@ -278,7 +280,7 @@ CURSORINFO :: struct {
     ptScreenPos: win32.POINT,
 }
 
-@(private="file")
+@(private)
 adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT, ok: bool) {
     rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
     
@@ -435,13 +437,27 @@ _init :: proc() -> bool {
                 cbSize = size_of(win32.WNDCLASSEXW),
                 lpfnWndProc = window_proc,
                 hInstance = win32.HANDLE(ctx.instance),
-                lpszClassName = L("app_class_name"),
+                lpszClassName = L("app_class"),
             }
             if win32.RegisterClassExW(&window_class) == 0 { 
                 log.fatalf("Failed to register window class. %v", misc.get_last_error_message())
                 return false
             }
             log.debug("Succeeded to register window class.")
+        }
+
+        {
+            ctx.sub_window_class = win32.WNDCLASSEXW{
+                cbSize = size_of(win32.WNDCLASSEXW),
+                lpfnWndProc = sub_window_proc,
+                hInstance = win32.HANDLE(ctx.instance),
+                lpszClassName = L("app_sub_class"),
+            }
+            if win32.RegisterClassExW(&ctx.sub_window_class) == 0 { 
+                log.fatalf("Failed to register sub window class. %v", misc.get_last_error_message())
+                return false
+            }
+            log.debug("Succeeded to register sub window class.")
         }
         
         {

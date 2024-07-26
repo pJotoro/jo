@@ -3,6 +3,7 @@
 // It takes inspiration from the simplicity of Raylib while still being lightweight and fairly low level.
 package app
 
+import "base:runtime"
 import "core:log"
 
 import "core:prof/spall"
@@ -25,10 +26,7 @@ Fullscreen_Mode :: enum {
 // If fullscreen is on, then the width and height will be automatically set to the monitor width and height, respectively.
 init :: proc(title := "", width := 0, height := 0, 
              fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, 
-             spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil, 
-             allocator := context.allocator) {
-    context.allocator = allocator
-
+             spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil) {
     if ctx.app_initialized {
         log.warn("App already initialized.")
         return
@@ -61,6 +59,9 @@ init :: proc(title := "", width := 0, height := 0,
     ctx.maximize_box = maximize_box
     ctx.events = make([dynamic]Event)
     ctx.cursor_enabled = true
+
+    ctx.ui_windows = make(map[runtime.Source_Code_Location]Window)
+    ctx.ui_parent_window_keys = make([dynamic]runtime.Source_Code_Location)
 
     if !_init() {
         log.fatal("App failed to initialize.")
@@ -116,6 +117,8 @@ running :: proc() -> bool {
     ctx.event_index = 0
 
     _run()
+
+    _ui_update()
 
     if can_connect_gamepad() {
         for gamepad_index in 0..<len(ctx.gamepads) {
