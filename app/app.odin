@@ -60,8 +60,10 @@ init :: proc(title := "", width := 0, height := 0,
     ctx.events = make([dynamic]Event)
     ctx.cursor_enabled = true
 
+    /*
     ctx.ui_windows = make(map[runtime.Source_Code_Location]Window)
     ctx.ui_parent_window_keys = make([dynamic]runtime.Source_Code_Location)
+    */
 
     if !_init() {
         log.fatal("App failed to initialize.")
@@ -118,7 +120,7 @@ running :: proc() -> bool {
 
     _run()
 
-    _ui_update()
+    //_ui_update()
 
     if can_connect_gamepad() {
         for gamepad_index in 0..<len(ctx.gamepads) {

@@ -446,7 +446,7 @@ _init :: proc() -> bool {
             log.debug("Succeeded to register window class.")
         }
 
-        {
+        /*{
             ctx.sub_window_class = win32.WNDCLASSEXW{
                 cbSize = size_of(win32.WNDCLASSEXW),
                 lpfnWndProc = sub_window_proc,
@@ -458,7 +458,7 @@ _init :: proc() -> bool {
                 return false
             }
             log.debug("Succeeded to register sub window class.")
-        }
+        }*/
         
         {
             wname := win32.utf8_to_wstring(ctx.title)

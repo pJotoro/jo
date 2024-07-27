@@ -1,6 +1,8 @@
 // +private
 package app
 
+/*
+
 import "base:runtime"
 import win32 "core:sys/windows"
 import "core:log"
@@ -119,3 +121,5 @@ _ui_update :: proc() {
     	window.updated = false
 	}
 }
+
+*/

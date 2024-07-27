@@ -1,5 +1,7 @@
 package app
 
+/*
+
 import "base:runtime"
 import "core:log"
 
@@ -66,3 +68,5 @@ ui_scoped_end_window :: proc(title: string, x, y, width, height: int, resizable:
 ui_window :: proc(title: string, x, y, width, height: int, resizable: bool, loc := #caller_location) -> bool {
 	return ui_begin_window(title, x, y, width, height, resizable, loc)
 }
+
+*/
