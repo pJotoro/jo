@@ -7,7 +7,14 @@ import "core:log"
 import "../misc"
 
 sub_window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
-    return win32.DefWindowProcW(window, message, w_param, l_param)
+    res := win32.LRESULT(0)
+
+    switch message {
+    	case:
+    		res = win32.DefWindowProcW(window, message, w_param, l_param)
+    }
+
+    return res
 }
 
 _ui_begin_window_create :: proc(window: ^Window, title: string, x, y, width, height: int, resizable: bool, loc := #caller_location) -> bool {
