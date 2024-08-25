@@ -195,8 +195,11 @@ _Gamepad_Event :: xinput.KEYSTROKE
 
 _gamepad_get_event :: proc(gamepad_index: int) -> (event: Gamepad_Event, ok: bool) {
 	if res := xinput.GetKeystroke(win32.DWORD(gamepad_index), 0, &event); res != win32.ERROR_SUCCESS {
-		win32.SetLastError(res)
-		log.errorf("Failed to get gamepad event. %v", misc.get_last_error_message())
+		ERROR_EMPTY :: 0x10D2
+		if res != ERROR_EMPTY {
+			win32.SetLastError(res)
+			log.errorf("Failed to get gamepad event. %v", misc.get_last_error_message())
+		}
 		return
 	}
 	ok = true

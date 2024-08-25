@@ -44,6 +44,9 @@ Gamepad_Desc :: struct {
 
 	packet_number: u32, // TODO(pJotoro): Do other platforms have a similar concept? I'm assuming they do.
 	active: bool,
+
+	events: [dynamic]Gamepad_Event,
+	event_index: int,
 }
 
 // Returns whether a gamepad can be connected.
@@ -188,5 +191,31 @@ Gamepad_Event :: _Gamepad_Event
 
 // Returns a platform-specific gamepad event.
 gamepad_get_event :: proc(gamepad_index: int) -> (event: Gamepad_Event, ok: bool) {
-	return _gamepad_get_event(gamepad_index)
+	if !ctx.gamepads[gamepad_index].active {
+		return
+	}
+	if !ctx.gamepad_events_enabled {
+		ctx.gamepad_events_enabled = true
+		get_gamepad_events()
+	}
+	if ctx.gamepads[gamepad_index].event_index >= len(ctx.gamepads[gamepad_index].events) {
+		return
+	}
+	event = ctx.gamepads[gamepad_index].events[ctx.gamepads[gamepad_index].event_index]
+	ctx.gamepads[gamepad_index].event_index += 1
+	ok = true
+	return
+}
+
+@(private)
+get_gamepad_events :: proc() {
+	for &gamepad, idx in ctx.gamepads {
+		if gamepad.active {
+			clear(&gamepad.events)
+			gamepad.event_index = 0
+			for event in _gamepad_get_event(idx) {
+				append(&gamepad.events, event)
+			}
+		}
+	}
 }

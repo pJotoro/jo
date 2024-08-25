@@ -128,6 +128,10 @@ running :: proc() -> bool {
                 try_connect_gamepad(gamepad_index)
             }
         }
+
+        if ctx.gamepad_events_enabled {
+            get_gamepad_events()
+        }
     }
 
     return ctx.running
