@@ -4,54 +4,55 @@ import win32 "core:sys/windows"
 import "core:dynlib"
 import "core:log"
 
-BOOL :: win32.BOOL
-DWORD :: win32.DWORD
-LPWSTR :: win32.LPWSTR
-UINT :: win32.UINT
-BYTE :: win32.BYTE
-WORD :: win32.WORD
-SHORT :: win32.SHORT
-WCHAR :: win32.WCHAR
+BATTERY_INFORMATION :: struct {
+	BatteryType: BATTERY_TYPE,
+	BatteryLevel: BATTERY_LEVEL,
+}
 
 @(private)
-GetState_stub :: proc "system" (dwUserIndex: DWORD, pState: ^STATE) -> DWORD { return 1 }
+GetBatteryInformation_stub :: proc "system" (dwUserIndex: win32.DWORD, devType: win32.BYTE, pBatteryInformation: ^BATTERY_INFORMATION) -> win32.DWORD { return 1 }
 @(private)
-SetState_stub :: proc "system" (dwUserIndex: DWORD, pVibration: ^VIBRATION) -> DWORD { return 1 }
+GetCapabilities_stub :: proc "system" (dwUserIndex: win32.DWORD, dwFlags: win32.DWORD, pCapabilities: ^CAPABILITIES) -> win32.DWORD { return 1 }
 @(private)
-GetCapabilities_stub :: proc "system" (dwUserIndex: DWORD, dwFlags: DWORD, pCapabilities: ^CAPABILITIES) -> DWORD { return 1 }
+GetState_stub :: proc "system" (dwUserIndex: win32.DWORD, pState: ^STATE) -> win32.DWORD { return 1 }
+@(private)
+SetState_stub :: proc "system" (dwUserIndex: win32.DWORD, pVibration: ^VIBRATION) -> win32.DWORD { return 1 }
 
+GetBatteryInformation := GetBatteryInformation_stub
+GetCapabilities := GetCapabilities_stub
 GetState := GetState_stub
 SetState := SetState_stub
-GetCapabilities := GetCapabilities_stub
+
+
 
 GAMEPAD :: struct {
-	wButtons: WORD,
-	bLeftTrigger: BYTE,
-	bRightTrigger: BYTE,
-	sThumbLX: SHORT,
-	sThumbLY: SHORT,
-	sThumbRX: SHORT,
-	sThumbRY: SHORT,
+	wButtons: win32.WORD,
+	bLeftTrigger: win32.BYTE,
+	bRightTrigger: win32.BYTE,
+	sThumbLX: win32.SHORT,
+	sThumbLY: win32.SHORT,
+	sThumbRX: win32.SHORT,
+	sThumbRY: win32.SHORT,
 }
 
 STATE :: struct {
-	dwPacketNumber: DWORD,
+	dwPacketNumber: win32.DWORD,
 	Gamepad: GAMEPAD,
 }
 
 VIBRATION :: struct {
-	wLeftMotorSpeed: WORD,
-	wRightMotorSpeed: WORD,
+	wLeftMotorSpeed: win32.WORD,
+	wRightMotorSpeed: win32.WORD,
 }
 
-CAP :: enum WORD {
+CAP :: enum win32.WORD {
 	FFB_SUPPORTED = 0,
 	WIRELESS = 1,
 	VOICE_SUPPORTED = 2,
 	PMD_SUPPORTED = 3,
 	NO_NAVIGATION = 4,
 }
-CAPS :: distinct bit_set[CAP; WORD]
+CAPS :: distinct bit_set[CAP; win32.WORD]
 
 CAPABILITIES :: struct {
 	Type: DEVTYPE,
@@ -61,11 +62,11 @@ CAPABILITIES :: struct {
 	Vibration: VIBRATION,
 }
 
-DEVTYPE :: enum BYTE {
+DEVTYPE :: enum win32.BYTE {
 	GAMEPAD = 0x00000001,
 }
 
-DEVSUBTYPE :: enum BYTE {
+DEVSUBTYPE :: enum win32.BYTE {
 	GAMEPAD = 0x01,
 	UNKNOWN = 0x00,
 	WHEEL = 0x02,
@@ -87,7 +88,7 @@ GAMEPAD_TRIGGER_THRESHOLD    :: 30
 
 // NOTE(pJotoro): I'm not even going to bother with XInputEnable. It's only relevant on Windows 8, which nobody uses.
 
-BATTERY_TYPE :: enum BYTE {
+BATTERY_TYPE :: enum win32.BYTE {
 	DISCONNECTED,
 	WIRED,
 	ALKALINE,
@@ -95,22 +96,18 @@ BATTERY_TYPE :: enum BYTE {
 	UNKNOWN = 0xFF,
 }
 
-BATTERY_LEVEL :: enum BYTE {
+BATTERY_LEVEL :: enum win32.BYTE {
 	EMPTY,
 	LOW,
 	MEDIUM,
 	FULL,
 }
 
-BATTERY_INFORMATION :: struct {
-	BatteryType: BATTERY_TYPE,
-	BatteryLevel: BATTERY_LEVEL,
-}
 
-@(private)
-GetBatteryInformation_stub :: proc "system" (dwUserIndex: DWORD, devType: BYTE, pBatteryInformation: ^BATTERY_INFORMATION) -> DWORD { return 1 }
 
-GetBatteryInformation := GetBatteryInformation_stub
+
+
+
 
 init :: proc() -> bool {
 	library: dynlib.Library
