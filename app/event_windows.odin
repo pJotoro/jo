@@ -2,6 +2,13 @@ package app
 
 import win32 "core:sys/windows"
 
+Event :: struct {
+    message: win32.UINT, 
+    w_param: win32.WPARAM, 
+    l_param: win32.LPARAM,
+    result: win32.LRESULT,
+}
+
 Event_Size_Type :: enum {
     Restored = win32.SIZE_RESTORED,
     Minimized = win32.SIZE_MINIMIZED,
