@@ -4,15 +4,12 @@ import win32 "core:sys/windows"
 import "core:dynlib"
 import "core:log"
 
-BATTERY_INFORMATION :: struct {
-	BatteryType: BATTERY_TYPE,
-	BatteryLevel: BATTERY_LEVEL,
-}
-
 @(private)
 GetBatteryInformation_stub :: proc "system" (dwUserIndex: win32.DWORD, devType: win32.BYTE, pBatteryInformation: ^BATTERY_INFORMATION) -> win32.DWORD { return 1 }
 @(private)
 GetCapabilities_stub :: proc "system" (dwUserIndex: win32.DWORD, dwFlags: win32.DWORD, pCapabilities: ^CAPABILITIES) -> win32.DWORD { return 1 }
+@(private)
+GetKeystroke_stub :: proc "system" (dwUserIndex, dwReserved: win32.DWORD, pKeystroke: ^KEYSTROKE) -> win32.DWORD { return 1 }
 @(private)
 GetState_stub :: proc "system" (dwUserIndex: win32.DWORD, pState: ^STATE) -> win32.DWORD { return 1 }
 @(private)
@@ -20,10 +17,25 @@ SetState_stub :: proc "system" (dwUserIndex: win32.DWORD, pVibration: ^VIBRATION
 
 GetBatteryInformation := GetBatteryInformation_stub
 GetCapabilities := GetCapabilities_stub
+GetKeystroke := GetKeystroke_stub
 GetState := GetState_stub
 SetState := SetState_stub
 
+// NOTE(pJotoro): I'm not even going to bother with XInputEnable. It's only relevant on Windows 8, which nobody uses.
 
+
+BATTERY_INFORMATION :: struct {
+	BatteryType: BATTERY_TYPE,
+	BatteryLevel: BATTERY_LEVEL,
+}
+
+CAPABILITIES :: struct {
+	Type: DEVTYPE,
+	SubType: DEVSUBTYPE,
+	Flags: CAPS,
+	Gamepad: GAMEPAD,
+	Vibration: VIBRATION,
+}
 
 GAMEPAD :: struct {
 	wButtons: win32.WORD,
@@ -33,6 +45,14 @@ GAMEPAD :: struct {
 	sThumbLY: win32.SHORT,
 	sThumbRX: win32.SHORT,
 	sThumbRY: win32.SHORT,
+}
+
+KEYSTROKE :: struct {
+  	VirtualKey: win32.WORD,
+  	Unicode: win32.WCHAR,
+  	Flags: win32.WORD,
+  	UserIndex: win32.BYTE,
+  	HidCode: win32.BYTE,
 }
 
 STATE :: struct {
@@ -45,6 +65,22 @@ VIBRATION :: struct {
 	wRightMotorSpeed: win32.WORD,
 }
 
+
+BATTERY_TYPE :: enum win32.BYTE {
+	DISCONNECTED,
+	WIRED,
+	ALKALINE,
+	NIMH,
+	UNKNOWN = 0xFF,
+}
+
+BATTERY_LEVEL :: enum win32.BYTE {
+	EMPTY,
+	LOW,
+	MEDIUM,
+	FULL,
+}
+
 CAP :: enum win32.WORD {
 	FFB_SUPPORTED = 0,
 	WIRELESS = 1,
@@ -53,14 +89,6 @@ CAP :: enum win32.WORD {
 	NO_NAVIGATION = 4,
 }
 CAPS :: distinct bit_set[CAP; win32.WORD]
-
-CAPABILITIES :: struct {
-	Type: DEVTYPE,
-	SubType: DEVSUBTYPE,
-	Flags: CAPS,
-	Gamepad: GAMEPAD,
-	Vibration: VIBRATION,
-}
 
 DEVTYPE :: enum win32.BYTE {
 	GAMEPAD = 0x00000001,
@@ -86,29 +114,6 @@ GAMEPAD_LEFT_THUMB_DEADZONE  :: 7849
 GAMEPAD_RIGHT_THUMB_DEADZONE :: 8689
 GAMEPAD_TRIGGER_THRESHOLD    :: 30
 
-// NOTE(pJotoro): I'm not even going to bother with XInputEnable. It's only relevant on Windows 8, which nobody uses.
-
-BATTERY_TYPE :: enum win32.BYTE {
-	DISCONNECTED,
-	WIRED,
-	ALKALINE,
-	NIMH,
-	UNKNOWN = 0xFF,
-}
-
-BATTERY_LEVEL :: enum win32.BYTE {
-	EMPTY,
-	LOW,
-	MEDIUM,
-	FULL,
-}
-
-
-
-
-
-
-
 init :: proc() -> bool {
 	library: dynlib.Library
 	ok: bool
@@ -122,18 +127,17 @@ init :: proc() -> bool {
 			if !ok {
 				log.debug("Failed to load XInput 9.1.0.")
 				return false
-			}
-			else {
+			} else {
 				log.debug("Succeeded to load XInput 9.1.0.")
 			}
-		}
-		else {
+		} else {
 			log.debug("Succeeded to load XInput 1.3.")
+			GetKeystroke = auto_cast dynlib.symbol_address(library, "XInputGetKeystroke")
 		}
-	}
-	else {
+	} else {
 		log.debug("Succeeded to load XInput 1.4.")
 		GetBatteryInformation = auto_cast dynlib.symbol_address(library, "XInputGetBatteryInformation")
+		GetKeystroke = auto_cast dynlib.symbol_address(library, "XInputGetKeystroke")
 	}
 	GetState = auto_cast dynlib.symbol_address(library, "XInputGetState")
 	SetState = auto_cast dynlib.symbol_address(library, "XInputSetState")

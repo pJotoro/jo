@@ -183,3 +183,10 @@ gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (ca
 	}
 	return _gamepad_capabilities(gamepad_index)
 }
+
+Gamepad_Event :: _Gamepad_Event
+
+// Returns a platform-specific gamepad event.
+gamepad_get_event :: proc(gamepad_index: int) -> (event: Gamepad_Event, ok: bool) {
+	return _gamepad_get_event(gamepad_index)
+}
