@@ -1,0 +1,15 @@
+# Initially ignore all.
+*
+
+# except directories,
+!*/
+
+# and these.
+!Makefile
+!.gitignore
+
+# Also don't ignore any file with extension,
+!*.*
+
+# except these.
+*.bin
