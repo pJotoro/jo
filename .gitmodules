@@ -1,0 +1,3 @@
+[submodule "ngl/opengl46_enum_wrapper"]
+	path = opengl46-enum-wrapper
+	url = https://github.com/mtarik34b/opengl46-enum-wrapper.git
