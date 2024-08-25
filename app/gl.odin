@@ -35,7 +35,7 @@ gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_ca
 
         when ODIN_DEBUG {
             if major == 4 && minor >= 3 {
-                if gl.GL_DEBUG && !intrinsics.is_package_imported("ngl") {
+                when gl.GL_DEBUG {
                     log.warn("OpenGL: cannot use debug message callback when GL_DEBUG == true. Consider adding command line argument -define:GL_DEBUG=false.")
                     log.info("OpenGL: debug output disabled.")
                 } else {
