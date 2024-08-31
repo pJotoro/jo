@@ -3,7 +3,6 @@
 // It takes inspiration from the simplicity of Raylib while still being lightweight and fairly low level.
 package app
 
-import "base:runtime"
 import "core:log"
 
 import "core:prof/spall"
@@ -59,11 +58,6 @@ init :: proc(title := "", width := 0, height := 0,
     ctx.maximize_box = maximize_box
     ctx.events = make([dynamic]Event)
     ctx.cursor_enabled = true
-
-    /*
-    ctx.ui_windows = make(map[runtime.Source_Code_Location]Window)
-    ctx.ui_parent_window_keys = make([dynamic]runtime.Source_Code_Location)
-    */
 
     if !_init() {
         log.fatal("App failed to initialize.")

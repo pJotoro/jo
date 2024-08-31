@@ -1,7 +1,6 @@
 // +private
 package app
 
-import "base:runtime"
 import "core:prof/spall"
 
 @(private)
@@ -76,14 +75,7 @@ Context :: struct {
     events: [dynamic]Event,
     event_index: int,
     // ------------------
-
-    // ----- ui -----
-    /*
-    ui_windows: map[runtime.Source_Code_Location]Window, // TODO: Other widgets than just windows?
-    ui_parent_window_keys: [dynamic]runtime.Source_Code_Location,
-    */
-    // --------------
-
+    
     // ----- profiling -----
     spall_ctx: ^spall.Context,
     spall_buffer: ^spall.Buffer,
