@@ -279,9 +279,9 @@ _gl_init :: proc(major, minor: int) -> bool {
     return true
 }
 
-_gl_swap_buffers :: proc() -> bool {
+_gl_swap_buffers :: proc(loc := #caller_location) -> bool {
     if !win32.SwapBuffers(ctx.gl_hdc) {
-        log.fatalf("OpenGL: failed to swap buffers. %v", misc.get_last_error_message())
+        log.fatalf("OpenGL: failed to swap buffers. %v", misc.get_last_error_message(), location = loc)
         ctx.running = false
     }
     return ctx.running

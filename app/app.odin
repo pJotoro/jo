@@ -25,15 +25,16 @@ Fullscreen_Mode :: enum {
 // If fullscreen is on, then the width and height will be automatically set to the monitor width and height, respectively.
 init :: proc(title := "", width := 0, height := 0, 
              fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, 
-             spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil) {
+             spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil,
+             loc := #caller_location) {
     if ctx.app_initialized {
-        log.warn("App already initialized.")
+        log.warn("App already initialized.", location = loc)
         return
     }
 
     when SPALL_ENABLED {
         if spall_ctx == nil || spall_buffer == nil {
-            log.fatal("Must set spall_ctx and spall_buffer when spall is enabled.")
+            log.fatal("Must set spall_ctx and spall_buffer when spall is enabled.", location = loc)
             return
         }
         ctx.spall_ctx = spall_ctx
@@ -42,10 +43,10 @@ init :: proc(title := "", width := 0, height := 0,
 
     if fullscreen == .On {
         if width != 0 || height != 0 {
-            log.warn("Width and height are ignored when fullscreen is on.")
+            log.warn("Width and height are ignored when fullscreen is on.", location = loc)
         }
     } else if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
-        log.warn("Width and height must be set or unset together.")
+        log.warn("Width and height must be set or unset together.", location = loc)
     } else {
         ctx.width = width
         ctx.height = height
@@ -59,8 +60,8 @@ init :: proc(title := "", width := 0, height := 0,
     ctx.events = make([dynamic]Event)
     ctx.cursor_enabled = true
 
-    if !_init() {
-        log.fatal("App failed to initialize.")
+    if !_init(loc) {
+        log.fatal("App failed to initialize.", location = loc)
         return
     }
 
@@ -76,7 +77,7 @@ init :: proc(title := "", width := 0, height := 0,
 
     if can_connect_gamepad() {
         for gamepad_index in 0..<len(ctx.gamepads) {
-            try_connect_gamepad(gamepad_index)
+            try_connect_gamepad(gamepad_index, loc)
         }
     }
 
@@ -87,9 +88,9 @@ init :: proc(title := "", width := 0, height := 0,
 // Call this at the beginning of every frame.
 //
 // Beyond checking for whether the app is still running, it also gets OS events and updates input.
-running :: proc() -> bool {
+running :: proc(loc := #caller_location) -> bool {
     if !ctx.app_initialized {
-        log.fatal("App not initialized.")
+        log.fatal("App not initialized.", location = loc)
         return false
     }
 
@@ -112,7 +113,7 @@ running :: proc() -> bool {
     clear(&ctx.events)
     ctx.event_index = 0
 
-    _run()
+    _run(loc)
 
     //_ui_update()
 
@@ -139,15 +140,15 @@ running :: proc() -> bool {
 // This does not clear the buffer for you, so if you want it to be cleared after being blitted, you must do it yourself. 
 // It is as easy as writing mem.zero_slice(buffer). 
 // That said, clearing the entire buffer every frame is expensive, so it is recommended to not do this.
-swap_buffers :: proc(buffer: []u32) {
+swap_buffers :: proc(buffer: []u32, loc := #caller_location) {
     ok := true
 
     if !ctx.app_initialized {
-        log.fatal("App not initialized.")
+        log.fatal("App not initialized.", location = loc)
         ok = false
     }
     if ctx.gl_initialized {
-        log.fatal("Cannot mix software rendering with OpenGL.")
+        log.fatal("Cannot mix software rendering with OpenGL.", location = loc)
         ctx.running = false
         ok = false
     }
@@ -157,17 +158,17 @@ swap_buffers :: proc(buffer: []u32) {
     }
 
     if buffer == nil {
-        log.fatal("Buffer == nil.")
+        log.fatal("Buffer == nil.", location = loc)
         ctx.running = false
         ok = false
     }
     if len(buffer) < width() * height() {
-        log.fatalf("Buffer with length %v too small for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height())
+        log.fatalf("Buffer with length %v too small for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height(), location = loc)
         ctx.running = false
         ok = false
     }
     if len(buffer) > width() * height() {
-        log.fatalf("Buffer with length %v too big for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height())
+        log.fatalf("Buffer with length %v too big for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height(), location = loc)
         ctx.running = false
         ok = false
     }
@@ -176,7 +177,7 @@ swap_buffers :: proc(buffer: []u32) {
         return
     }
 
-    _swap_buffers(buffer)
+    _swap_buffers(buffer, loc)
 }
 
 // Returns the native window handle.
@@ -218,39 +219,30 @@ title :: proc "contextless" () -> string {
     return ctx.title
 }
 
-set_title :: proc(title: string) {
-    _set_title(title)
+set_title :: proc(title: string, loc := #caller_location) {
+    _set_title(title, loc)
 }
 
-set_position :: proc(x, y: int) {
+set_position :: proc(x, y: int, loc := #caller_location) {
     if ctx.fullscreen {
-        log.error("Cannot set position in fullscreen.")
+        log.error("Cannot set position in fullscreen.", location = loc)
         return
     }
 
-    if !_set_position(x, y) {
-        log.error("Failed to set position.")
-    } else {
-        log.debug("Succeeded to set position.")
-    }
+    _set_position(x, y, loc)
 }
 
 fullscreen :: proc "contextless" () -> bool {
     return ctx.fullscreen
 }
 
-set_windowed :: proc() {
+set_windowed :: proc(loc := #caller_location) {
     if !ctx.fullscreen {
-        log.warn("Already windowed.")
+        log.warn("Already windowed.", location = loc)
         return
     }
     
-    if !_set_windowed() {
-        log.error("Failed to set windowed.")
-        return
-    } else {
-        log.debug("Succeeded to set windowed.")
-
+    if _set_windowed() {
         ctx.fullscreen = false
         ctx.width = ctx.windowed_width
         ctx.height = ctx.windowed_height
@@ -259,16 +251,16 @@ set_windowed :: proc() {
     }
 }
 
-set_fullscreen :: proc() {
+set_fullscreen :: proc(loc := #caller_location) {
     if ctx.fullscreen {
-        log.warn("Already fullscreen.")
+        log.warn("Already fullscreen.", location = loc)
         return
     }
 
-    if !_set_fullscreen() {
-        log.error("Failed to set fullscreen.")
+    if !_set_fullscreen(loc) {
+        log.error("Failed to set fullscreen.", location = loc)
     } else {
-        log.debug("Succeeded to set fullscreen.")
+        log.debug("Succeeded to set fullscreen.", location = loc)
 
         ctx.fullscreen = true
         ctx.width = ctx.monitor_width
@@ -278,11 +270,11 @@ set_fullscreen :: proc() {
     }
 }
 
-toggle_fullscreen :: proc() {
+toggle_fullscreen :: proc(loc := #caller_location) {
     if !ctx.fullscreen {
-        set_fullscreen()
+        set_fullscreen(loc)
     } else {
-        set_windowed()
+        set_windowed(loc)
     }
 }
 
@@ -290,30 +282,30 @@ visible :: proc "contextless" () -> bool {
     return true if ctx.visible == 1 else false
 }
 
-hide :: proc() {
+hide :: proc(loc := #caller_location) {
     if ctx.visible == 2 {
-        log.warn("Already hidden.")
+        log.warn("Already hidden.", location = loc)
         return
     }
 
     if !_hide() {
-        log.error("Failed to hide.")
+        log.error("Failed to hide.", location = loc)
     } else {
-        log.debug("Succeeded to hide.")
+        log.debug("Succeeded to hide.", location = loc)
         ctx.visible = 2
     }
 }
 
-show :: proc() {
+show :: proc(loc := #caller_location) {
     if ctx.visible == 1 {
-        log.warn("Already shown.")
+        log.warn("Already shown.", location = loc)
         return
     }
 
     if !_show() {
-        log.error("Failed to show.")
+        log.error("Failed to show.", location = loc)
     } else {
-        log.debug("Succeeded to show.")
+        log.debug("Succeeded to show.", location = loc)
         ctx.visible = 1
     }
 }
@@ -326,35 +318,35 @@ maximized :: proc "contextless" () -> bool {
     return ctx.maximized
 }
 
-minimize :: proc() {
+minimize :: proc(loc := #caller_location) {
     if ctx.minimized {
-        log.warn("Already minimized.")
+        log.warn("Already minimized.", location = loc)
         return
     }
     
     if !_minimize() {
-        log.error("Failed to minimize.")
+        log.error("Failed to minimize.", location = loc)
     } else {
-        log.debug("Succeeded to minimize.")
+        log.debug("Succeeded to minimize.", location = loc)
         ctx.minimized = true
         ctx.maximized = false
     }
 }
 
-maximize :: proc() {
+maximize :: proc(loc := #caller_location) {
     if ctx.maximized {
-        log.warn("Already maximized.")
+        log.warn("Already maximized.", location = loc)
         return
     }
     if ctx.fullscreen {
-        log.error("Cannot maximize while fullscreen.")
+        log.error("Cannot maximize while fullscreen.", location = loc)
         return
     }
 
     if !_maximize() {
-        log.error("Failed to maximize.")
+        log.error("Failed to maximize.", location = loc)
     } else {
-        log.debug("Succeeded to maximize.")
+        log.debug("Succeeded to maximize.", location = loc)
         ctx.maximized = true
         ctx.minimized = false
     }
@@ -364,44 +356,44 @@ focused :: proc "contextless" () -> bool {
     return ctx.focused
 }
 
-cursor_position :: proc() -> (x, y: int) {
-    return _cursor_position()
+cursor_position :: proc(loc := #caller_location) -> (x, y: int) {
+    return _cursor_position(loc)
 }
 
 // Actually, this returns whether the cursor is within the bounds of the app.
 // That way, it works the same whether fullscreen is on or off.
-cursor_on_screen :: proc() -> bool {
-    x, y := cursor_position()
+cursor_on_screen :: proc(loc := #caller_location) -> bool {
+    x, y := cursor_position(loc)
     return x >= 0 && x < ctx.width && y >= 0 && y < ctx.height
 }
 
-cursor_visible :: proc() -> bool {
-    return _cursor_visible()
+cursor_visible :: proc(loc := #caller_location) -> bool {
+    return _cursor_visible(loc)
 }
 
-show_cursor :: proc() {
-    if cursor_visible() {
-        log.warn("Cursor already visible.")
+show_cursor :: proc(loc := #caller_location) {
+    if cursor_visible(loc) {
+        log.warn("Cursor already visible.", location = loc)
         return
     }
     
-    if !_show_cursor() {
-        log.error("Failed to show cursor.")
+    if !_show_cursor(loc) {
+        log.error("Failed to show cursor.", location = loc)
     } else {
-        log.debug("Succeeded to show cursor.")
+        log.debug("Succeeded to show cursor.", location = loc)
     }
 }
 
-hide_cursor :: proc() {
-    if !cursor_visible() {
-        log.warn("Cursor already hidden.")
+hide_cursor :: proc(loc := #caller_location) {
+    if !cursor_visible(loc) {
+        log.warn("Cursor already hidden.", location = loc)
         return
     }
 
     if !_hide_cursor() { 
-        log.error("Failed to hide cursor.")
+        log.error("Failed to hide cursor.", location = loc)
     } else { 
-        log.debug("Succeeded to hide cursor.")
+        log.debug("Succeeded to hide cursor.", location = loc)
     }
 }
 
@@ -409,28 +401,28 @@ cursor_enabled :: proc "contextless" () -> bool {
     return _cursor_enabled()
 }
 
-enable_cursor :: proc() {
+enable_cursor :: proc(loc := #caller_location) {
     if ctx.cursor_enabled {
-        log.warn("Cursor already enabled.")
+        log.warn("Cursor already enabled.", location = loc)
         return
     }
     if !_enable_cursor() {
-        log.error("Failed to enable cursor.")
+        log.error("Failed to enable cursor.", location = loc)
     } else {
-        log.debug("Succeeded to enable cursor.")
+        log.debug("Succeeded to enable cursor.", location = loc)
         ctx.cursor_enabled = true
     }
 }
 
-disable_cursor :: proc() {
+disable_cursor :: proc(loc := #caller_location) {
     if !ctx.cursor_enabled {
-        log.warn("Cursor already disabled.")
+        log.warn("Cursor already disabled.", location = loc)
         return
     }
     if !_disable_cursor() {
-        log.error("Failed to disable cursor.")
+        log.error("Failed to disable cursor.", location = loc)
     } else {
-        log.debug("Succeeded to disable cursor.")
+        log.debug("Succeeded to disable cursor.", location = loc)
         ctx.cursor_enabled = false
     }
 }

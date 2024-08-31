@@ -67,7 +67,7 @@ can_connect_gamepad :: proc "contextless" () -> bool {
 // If it fails, then the player lied to you. If it succeeds, then as long as their gamepad stays connected, you won't have to call this again.
 try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
-	return _try_connect_gamepad(gamepad_index)
+	return _try_connect_gamepad(gamepad_index, loc)
 }
 
 gamepad_connected :: proc "contextless" (gamepad_index: int) -> bool {
@@ -115,14 +115,14 @@ gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, 
 	left_motor := left_motor
 	right_motor := right_motor
 	if !(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1) {
-		log.warnf("Motors must be in range [0.0, 1.0]. Got %v and %v.", left_motor, right_motor)
+		log.warnf("Motors must be in range [0.0, 1.0]. Got %v and %v.", left_motor, right_motor, location = loc)
 		left_motor = clamp(left_motor, 0.0, 1.0)
 		right_motor = clamp(right_motor, 0.0, 1.0)
 	}
 	if !ctx.gamepads[gamepad_index].active {
 		return
 	}
-	_gamepad_set_vibration(gamepad_index, left_motor, right_motor)
+	_gamepad_set_vibration(gamepad_index, left_motor, right_motor, loc)
 }
 
 gamepad_left_trigger_delta :: proc "contextless" (gamepad_index: int) -> f32 {
@@ -152,7 +152,7 @@ gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (b
 	if !ctx.gamepads[gamepad_index].active {
 		return
 	}
-	return _gamepad_battery_level(gamepad_index)
+	return _gamepad_battery_level(gamepad_index, loc)
 }
 
 Gamepad_Type :: enum {
@@ -184,7 +184,7 @@ gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (ca
 	if !ctx.gamepads[gamepad_index].active {
 		return
 	}
-	return _gamepad_capabilities(gamepad_index)
+	return _gamepad_capabilities(gamepad_index, loc)
 }
 
 Gamepad_Event :: _Gamepad_Event

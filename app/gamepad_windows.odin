@@ -7,17 +7,17 @@ import win32 "core:sys/windows"
 import "xinput"
 import "core:log"
 
-_try_connect_gamepad :: proc(gamepad_index: int) -> bool {
+_try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
 	state: xinput.STATE = ---
 	
 	result := xinput.GetState(win32.DWORD(gamepad_index), &state)
 	if result != win32.ERROR_SUCCESS {
-		log.infof("Gamepad %v disconnected.", gamepad_index)
+		log.infof("Gamepad %v disconnected.", gamepad_index, location = loc)
 		ctx.gamepads[gamepad_index].active = false
 		return false
 	}
 	if !ctx.gamepads[gamepad_index].active {
-		log.infof("Gamepad %v connected.", gamepad_index)
+		log.infof("Gamepad %v connected.", gamepad_index, location = loc)
 	}
 	ctx.gamepads[gamepad_index].active = true
 	if ctx.gamepads[gamepad_index].packet_number != state.dwPacketNumber {
@@ -108,26 +108,26 @@ _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 	return true
 }
 
-_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32) {
+_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
 	xinput_vibration: xinput.VIBRATION
 	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f32(max(u16)))
 	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f32(max(u16)))
 	result := xinput.SetState(win32.DWORD(gamepad_index), &xinput_vibration)
 	if result != win32.ERROR_SUCCESS {
-		log.errorf("Failed to set vibration for gamepad %v.", gamepad_index)
+		log.errorf("Failed to set vibration for gamepad %v.", gamepad_index, location = loc)
 	} else { 
-		log.debugf("Succeeded to set vibration for gamepad %v.", gamepad_index)
+		log.debugf("Succeeded to set vibration for gamepad %v.", gamepad_index, location = loc)
 	}
 }
 
-_gamepad_battery_level :: proc(gamepad_index: int) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
+_gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
 	info: xinput.BATTERY_INFORMATION
 	res := xinput.GetBatteryInformation(win32.DWORD(gamepad_index), 0, &info)
 	if res != win32.ERROR_SUCCESS {
-		log.errorf("Failed to get battery level for gamepad %v.", gamepad_index)
+		log.errorf("Failed to get battery level for gamepad %v.", gamepad_index, location = loc)
 		return
 	} else {
-		log.debugf("Succeeded to get vattery level for gamepad %v.", gamepad_index)
+		log.debugf("Succeeded to get vattery level for gamepad %v.", gamepad_index, location = loc)
 	}
 	switch info.BatteryType {
 		case .DISCONNECTED, .WIRED, .UNKNOWN:
@@ -138,14 +138,14 @@ _gamepad_battery_level :: proc(gamepad_index: int) -> (battery_level: Gamepad_Ba
 	return
 }
 
-_gamepad_capabilities :: proc(gamepad_index: int) -> (capabilities: Gamepad_Capabilities, ok: bool) {
+_gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (capabilities: Gamepad_Capabilities, ok: bool) {
 	c: xinput.CAPABILITIES
 	res := xinput.GetCapabilities(win32.DWORD(gamepad_index), 0, &c)
 	if res != win32.ERROR_SUCCESS {
-		log.errorf("Failed to get capabilities for gamepad %v.", gamepad_index)
+		log.errorf("Failed to get capabilities for gamepad %v.", gamepad_index, location = loc)
 		return
 	} else {
-		log.debugf("Succeeded to get capabilities for gamepad %v.", gamepad_index)
+		log.debugf("Succeeded to get capabilities for gamepad %v.", gamepad_index, location = loc)
 	}
 
 	switch c.SubType {
@@ -193,12 +193,12 @@ _gamepad_capabilities :: proc(gamepad_index: int) -> (capabilities: Gamepad_Capa
 
 _Gamepad_Event :: xinput.KEYSTROKE
 
-_gamepad_get_event :: proc(gamepad_index: int) -> (event: Gamepad_Event, ok: bool) {
+_gamepad_get_event :: proc(gamepad_index: int, loc := #caller_location) -> (event: Gamepad_Event, ok: bool) {
 	if res := xinput.GetKeystroke(win32.DWORD(gamepad_index), 0, &event); res != win32.ERROR_SUCCESS {
 		ERROR_EMPTY :: 0x10D2
 		if res != ERROR_EMPTY {
 			win32.SetLastError(res)
-			log.errorf("Failed to get gamepad event. %v", misc.get_last_error_message())
+			log.errorf("Failed to get gamepad event. %v", misc.get_last_error_message(), location = loc)
 		}
 		return
 	}

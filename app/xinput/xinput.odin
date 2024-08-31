@@ -114,28 +114,28 @@ GAMEPAD_LEFT_THUMB_DEADZONE  :: 7849
 GAMEPAD_RIGHT_THUMB_DEADZONE :: 8689
 GAMEPAD_TRIGGER_THRESHOLD    :: 30
 
-init :: proc() -> bool {
+init :: proc(loc := #caller_location) -> bool {
 	library: dynlib.Library
 	ok: bool
 	library, ok = dynlib.load_library("XINPUT1_4.DLL")
 	if !ok {
-		log.debug("Failed to load XInput 1.4, now trying XInput 1.3.")
+		log.debug("Failed to load XInput 1.4, now trying XInput 1.3.", location = loc)
 		library, ok = dynlib.load_library("XINPUT1_3.DLL")
 		if !ok {
-			log.debug("Failed to load XInput 1.3., now trying XInput 9.1.0.")
+			log.debug("Failed to load XInput 1.3., now trying XInput 9.1.0.", location = loc)
 			library, ok = dynlib.load_library("XINPUT9_1_0.DLL")
 			if !ok {
-				log.debug("Failed to load XInput 9.1.0.")
+				log.debug("Failed to load XInput 9.1.0.", location = loc)
 				return false
 			} else {
-				log.debug("Succeeded to load XInput 9.1.0.")
+				log.debug("Succeeded to load XInput 9.1.0.", location = loc)
 			}
 		} else {
-			log.debug("Succeeded to load XInput 1.3.")
+			log.debug("Succeeded to load XInput 1.3.", location = loc)
 			GetKeystroke = auto_cast dynlib.symbol_address(library, "XInputGetKeystroke")
 		}
 	} else {
-		log.debug("Succeeded to load XInput 1.4.")
+		log.debug("Succeeded to load XInput 1.4.", location = loc)
 		GetBatteryInformation = auto_cast dynlib.symbol_address(library, "XInputGetBatteryInformation")
 		GetKeystroke = auto_cast dynlib.symbol_address(library, "XInputGetKeystroke")
 	}

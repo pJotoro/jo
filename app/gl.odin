@@ -9,20 +9,20 @@ import "base:runtime"
 import "base:intrinsics"
 
 // Initializes OpenGL.
-gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_callback, user_data: rawptr = nil) -> bool {
+gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_callback, user_data: rawptr = nil, loc := #caller_location) -> bool {
     ok := true
 
     if !ctx.app_initialized {
-        log.error("OpenGL: app not initialized.")
+        log.error("OpenGL: app not initialized.", location = loc)
         ok = false
     }
     if ctx.gl_initialized {
-        log.warn("OpenGL: already initialized.")
+        log.warn("OpenGL: already initialized.", location = loc)
         ok = false
     }
 
     if !((major == 4 && minor <= 6) || (major == 3 && minor <= 3) || (major == 2 && minor <= 1) || (major == 1) && (minor <= 5)) {
-        log.errorf("OpenGL: invalid version %v.%v used. See https://www.khronos.org/opengl/wiki/History_of_OpenGL for valid OpenGL versions.", major, minor)
+        log.errorf("OpenGL: invalid version %v.%v used. See https://www.khronos.org/opengl/wiki/History_of_OpenGL for valid OpenGL versions.", major, minor, location = loc)
         ok = false
     }
 
@@ -31,27 +31,27 @@ gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_ca
     }
 
     if _gl_init(major, minor) {
-        log.infof("OpenGL: loaded up to version %v.%v.", major, minor)
+        log.infof("OpenGL: loaded up to version %v.%v.", major, minor, location = loc)
 
         when ODIN_DEBUG {
             if major == 4 && minor >= 3 {
                 when gl.GL_DEBUG {
-                    log.warn("OpenGL: cannot use debug message callback when GL_DEBUG == true. Consider adding command line argument -define:GL_DEBUG=false.")
-                    log.info("OpenGL: debug output disabled.")
+                    log.warn("OpenGL: cannot use debug message callback when GL_DEBUG == true. Consider adding command line argument -define:GL_DEBUG=false.", location = loc)
+                    log.info("OpenGL: debug output disabled.", location = loc)
                 } else {
                     gl.Enable(gl.DEBUG_OUTPUT)
                     gl.DebugMessageCallback(debug_callback, user_data)
-                    log.info("OpenGL: debug output enabled.")
+                    log.info("OpenGL: debug output enabled.", location = loc)
                 }
             } else {
-                log.info("OpenGL: debug output disabled.")
+                log.info("OpenGL: debug output disabled.", location = loc)
             }
         } else {
-            log.info("OpenGL: debug output disabled.")
+            log.info("OpenGL: debug output disabled.", location = loc)
         }
         
         gl.Viewport(0, 0, i32(width()), i32(height()))
-        log.infof("OpenGL: set viewport to x = %v, y = %v, width = %v, height = %v.", 0, 0, width(), height())
+        log.infof("OpenGL: set viewport to x = %v, y = %v, width = %v, height = %v.", 0, 0, width(), height(), location = loc)
 
         ctx.gl_initialized = true
     }
@@ -63,16 +63,16 @@ gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_ca
 // Must call app.gl_init first.
 gl_swap_buffers :: proc(loc := #caller_location) -> bool {
     if !ctx.app_initialized {
-        log.fatal("OpenGL: app not initialized.")
+        log.fatal("OpenGL: app not initialized.", location = loc)
         ctx.running = false
         return ctx.running
     }
     if !ctx.gl_initialized {
-        log.fatal("OpenGL: not initialized.")
+        log.fatal("OpenGL: not initialized.", location = loc)
         ctx.running = false
         return ctx.running
     }
-    return _gl_swap_buffers()
+    return _gl_swap_buffers(loc)
 }
 
 gl_debug_callback :: proc "c" (source: u32, type: u32, id: u32, severity: u32, length: i32, message: cstring, user_param: rawptr) {
@@ -107,7 +107,7 @@ gl_debug_callback :: proc "c" (source: u32, type: u32, id: u32, severity: u32, l
         "[PUSH GROUP] --- ",
         "[POP GROUP] --- ",
         "[OTHER] --- ",
-        "[DON'T CARE] --- ",
+        "[DONT CARE] --- ",
     }
 
     switch type {

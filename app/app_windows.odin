@@ -172,21 +172,21 @@ CURSORINFO :: struct {
 }
 
 @(private)
-adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int) -> (rect: win32.RECT, ok: bool) {
+adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int, loc := #caller_location) -> (rect: win32.RECT, ok: bool) {
     rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
     
     if ctx.dpi_aware {
         if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
-            log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+            log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message(), location = loc)
         } else {
-            log.debug("Succeeded to adjust window rectangle.")
+            log.debug("Succeeded to adjust window rectangle.", location = loc)
             ok = true
         }
     } else {
         if !win32.AdjustWindowRectEx(&rect, flags, false, 0) {
-            log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message())
+            log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message(), location = loc)
         } else {
-            log.debug("Succeeded to adjust window rectangle.")
+            log.debug("Succeeded to adjust window rectangle.", location = loc)
             ok = true
         }
     }
@@ -194,7 +194,7 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
     return
 }
 
-_init :: proc() -> bool {
+_init :: proc(loc := #caller_location) -> bool {
     ctx.visible = -1
 
     ctx.windowed_flags = WINDOWED_FLAGS
@@ -212,30 +212,30 @@ _init :: proc() -> bool {
     
     {
         if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
-            log.errorf("Failed to make process DPI aware. %v", misc.get_last_error_message())
+            log.errorf("Failed to make process DPI aware. %v", misc.get_last_error_message(), location = loc)
         } else {
-            log.debug("Succeeded to make process DPI aware.")
+            log.debug("Succeeded to make process DPI aware.", location = loc)
             ctx.dpi_aware = true
         }
         ctx.dpi = int(GetDpiForSystem())
-        log.infof("DPI: %v.", ctx.dpi)
+        log.infof("DPI: %v.", ctx.dpi, location = loc)
     }
     
-    set_window_rect :: proc() -> (window_rect: win32.RECT, ok: bool) {
+    set_window_rect :: proc(loc := #caller_location) -> (window_rect: win32.RECT, ok: bool) {
         {
             monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
             monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
             if !win32.GetMonitorInfoW(monitor, &monitor_info) {
-                log.errorf("Failed to get monitor info. %v", misc.get_last_error_message())
+                log.errorf("Failed to get monitor info. %v", misc.get_last_error_message(), location = loc)
                 return
             }
             else {
-                log.debug("Succeeded to get monitor info.")
+                log.debug("Succeeded to get monitor info.", location = loc)
             }
 
             ctx.monitor_width = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
             ctx.monitor_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
-            log.infof("Monitor dimensions: %v by %v.", ctx.monitor_width, ctx.monitor_height)
+            log.infof("Monitor dimensions: %v by %v.", ctx.monitor_width, ctx.monitor_height, location = loc)
         }
     
         {
@@ -258,7 +258,7 @@ _init :: proc() -> bool {
                     }
                 case .Off:
                     if ctx.width == ctx.monitor_width && ctx.height == ctx.monitor_height {
-                        log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, ctx.monitor_width / 2, ctx.monitor_height / 2)
+                        log.warnf("Fullscreen is set to off, yet the window is fullscreen-sized: %v by %v. Shrinking window to %v by %v.", ctx.width, ctx.height, ctx.monitor_width / 2, ctx.monitor_height / 2, location = loc)
                         ctx.width = ctx.monitor_width / 2
                         ctx.height = ctx.monitor_height / 2
                     } else if ctx.width == 0 && ctx.height == 0 {
@@ -272,7 +272,7 @@ _init :: proc() -> bool {
                     ctx.fullscreen = true
             }
 
-            log.infof("App dimensions: %v by %v.", ctx.width, ctx.height)
+            log.infof("App dimensions: %v by %v.", ctx.width, ctx.height, location = loc)
         
             {
                 client_left := (ctx.monitor_width - ctx.width) / 2
@@ -281,7 +281,8 @@ _init :: proc() -> bool {
                     client_left, 
                     client_top,
                     client_left + ctx.width, 
-                    client_top + ctx.height)
+                    client_top + ctx.height,
+                    loc)
                 if !ok {
                     return
                 }
@@ -291,7 +292,7 @@ _init :: proc() -> bool {
             }
         
             ok_fullscreen: bool
-            ctx.fullscreen_rect, ok_fullscreen = adjust_window_rect(FULLSCREEN_FLAGS, 0, 0, ctx.monitor_width, ctx.monitor_height)
+            ctx.fullscreen_rect, ok_fullscreen = adjust_window_rect(FULLSCREEN_FLAGS, 0, 0, ctx.monitor_width, ctx.monitor_height, loc)
             if ctx.fullscreen {
                 if !ok_fullscreen {
                     ctx.fullscreen = false
@@ -310,15 +311,15 @@ _init :: proc() -> bool {
     }
 
     {
-        window_rect, window_rect_ok := set_window_rect()
+        window_rect, window_rect_ok := set_window_rect(loc)
 
         {
             module_handle := win32.GetModuleHandleW(nil)
             if module_handle == nil {
-                log.fatalf("Failed to get module handle. %v", misc.get_last_error_message())
+                log.fatalf("Failed to get module handle. %v", misc.get_last_error_message(), location = loc)
                 return false
             }
-            log.debug("Succeeded to get module handle.")
+            log.debug("Succeeded to get module handle.", location = loc)
             ctx.instance = win32.HINSTANCE(module_handle)
         }
         
@@ -331,25 +332,11 @@ _init :: proc() -> bool {
                 lpszClassName = L("app_class"),
             }
             if win32.RegisterClassExW(&window_class) == 0 { 
-                log.fatalf("Failed to register window class. %v", misc.get_last_error_message())
+                log.fatalf("Failed to register window class. %v", misc.get_last_error_message(), location = loc)
                 return false
             }
-            log.debug("Succeeded to register window class.")
+            log.debug("Succeeded to register window class.", location = loc)
         }
-
-        /*{
-            ctx.sub_window_class = win32.WNDCLASSEXW{
-                cbSize = size_of(win32.WNDCLASSEXW),
-                lpfnWndProc = sub_window_proc,
-                hInstance = win32.HANDLE(ctx.instance),
-                lpszClassName = L("app_sub_class"),
-            }
-            if win32.RegisterClassExW(&ctx.sub_window_class) == 0 { 
-                log.fatalf("Failed to register sub window class. %v", misc.get_last_error_message())
-                return false
-            }
-            log.debug("Succeeded to register sub window class.")
-        }*/
         
         {
             wname := win32.utf8_to_wstring(ctx.title)
@@ -385,36 +372,36 @@ _init :: proc() -> bool {
             }
             
             if ctx.window == nil {
-                log.fatalf("Failed to create window. %v", misc.get_last_error_message())
+                log.fatalf("Failed to create window. %v", misc.get_last_error_message(), location = loc)
                 return false
             }
-            log.debug("Succeeded to create window.")
+            log.debug("Succeeded to create window.", location = loc)
         }
     }
 
     {
         dev_mode := win32.DEVMODEW{dmSize = size_of(win32.DEVMODEW)}
         if !win32.EnumDisplaySettingsW(nil, win32.ENUM_CURRENT_SETTINGS, &dev_mode) {
-            log.error("Failed to enumerate display settings.")
+            log.error("Failed to enumerate display settings.", location = loc)
         } else {
-            log.debug("Succeeded to enumerate display settings.")
+            log.debug("Succeeded to enumerate display settings.", location = loc)
             ctx.refresh_rate = int(dev_mode.dmDisplayFrequency)
-            log.infof("Monitor refresh rate: %v.", ctx.refresh_rate)
+            log.infof("Monitor refresh rate: %v.", ctx.refresh_rate, location = loc)
         }
     }
 
-    ctx.can_connect_gamepad = xinput.init()
+    ctx.can_connect_gamepad = xinput.init(loc)
 
     return true
 }
 
-_run :: proc() {
+_run :: proc(loc := #caller_location) {
     if ctx.visible == -1 {
         ctx.visible += 1
     } else if ctx.visible == 0 {
         ctx.visible += 1
         win32.ShowWindow(win32.HWND(ctx.window), win32.SW_SHOW)
-        log.debug("Window shown.")
+        log.debug("Window shown.", location = loc)
     }
     for {
         message: win32.MSG
@@ -427,10 +414,10 @@ _run :: proc() {
     }
 }
 
-_swap_buffers :: proc(buffer: []u32) {
+_swap_buffers :: proc(buffer: []u32, loc := #caller_location) {
     hdc := win32.GetDC(win32.HWND(ctx.window))
     if hdc == nil {
-        log.fatal("Failed to get window device context.")
+        log.fatal("Failed to get window device context.", location = loc)
         ctx.running = false
         return
     }
@@ -445,32 +432,32 @@ _swap_buffers :: proc(buffer: []u32) {
         biCompression = win32.BI_RGB,
     }
     if win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY) == 0 {
-        log.fatal("Failed to render bitmap.")
+        log.fatal("Failed to render bitmap.", location = loc)
         ctx.running = false
     }
 
     if win32.ReleaseDC(win32.HWND(ctx.window), hdc) == 0 {
-        log.error("Failed to release window device context.")
+        log.error("Failed to release window device context.", location = loc)
     }
 }
 
-_cursor_position :: proc() -> (x, y: int) {
+_cursor_position :: proc(loc := #caller_location) -> (x, y: int) {
     @static point: win32.POINT
     p := point
 
     if !win32.GetCursorPos(&point) {
-        log.errorf("Failed to get cursor position. %v Returning last cursor position instead.", misc.get_last_error_message())
+        log.errorf("Failed to get cursor position. %v Returning last cursor position instead.", misc.get_last_error_message(), location = loc)
         point = p
         return int(point.x), -int(point.y) + height()
     }
-    log.debug("Succeeded to get cursor position.")
+    log.debug("Succeeded to get cursor position.", location = loc)
 
     if !win32.ScreenToClient(win32.HWND(ctx.window), &point) {
-        log.error("Failed to convert cursor screen position to client position. Returning last cursor position instead.")
+        log.error("Failed to convert cursor screen position to client position. Returning last cursor position instead.", location = loc)
         point = p
         return int(point.x), -int(point.y) + height()
     }
-    log.debug("Succeeded to convert cursor screen position to client position.")
+    log.debug("Succeeded to convert cursor screen position to client position.", location = loc)
 
     return int(point.x), -int(point.y) + height()
 }
@@ -478,17 +465,17 @@ _cursor_position :: proc() -> (x, y: int) {
 @(private="file")
 CURSOR_SHOWING : win32.DWORD : 0x00000001
 
-_cursor_visible :: proc() -> bool {
+_cursor_visible :: proc(loc := #caller_location) -> bool {
     info := CURSORINFO{cbSize = size_of(CURSORINFO)}
     if !GetCursorInfo(&info) {
-        log.errorf("Failed to get cursor info. %v", misc.get_last_error_message())
+        log.errorf("Failed to get cursor info. %v", misc.get_last_error_message(), location = loc)
         return false
     }
-    log.debug("Succeeded to get cursor info.")
+    log.debug("Succeeded to get cursor info.", location = loc)
     return (info.flags & CURSOR_SHOWING) != 0
 }
 
-_show_cursor :: proc() -> bool {
+_show_cursor :: proc(loc := #caller_location) -> bool {
     /*
     https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showcursor
 
@@ -508,7 +495,7 @@ _show_cursor :: proc() -> bool {
     if display_counter == -1 {
         display_counter = ShowCursor(true)
         if display_counter == -1 {
-            log.error("Cannot show cursor until mouse is installed.")
+            log.error("Cannot show cursor until mouse is installed.", location = loc)
             return false
         }
     }
@@ -541,32 +528,31 @@ _disable_cursor :: proc() -> bool {
     return true
 }
 
-_set_title :: proc(title: string) {
+_set_title :: proc(title: string, loc := #caller_location) {
     wstring := win32.utf8_to_wstring(title)
     if !win32.SetWindowTextW(win32.HWND(ctx.window), wstring) {
-        log.errorf("Failed to set window title to %v. %v", title, misc.get_last_error_message())
+        log.errorf("Failed to set window title to %v. %v", title, misc.get_last_error_message(), location = loc)
     } else {
-        log.debugf("Succeeded to set window title to %v.", title)
+        log.debugf("Succeeded to set window title to %v.", title, location = loc)
     }
 }
 
 // TODO(pJotoro): This procedure has the y-axis at the top left, at odds with the rest of the library. Change this!
-_set_position :: proc(x, y: int) -> bool {
-    rect, ok := adjust_window_rect(ctx.windowed_flags, x, y, x + ctx.width, y + ctx.height)
+_set_position :: proc(x, y: int, loc := #caller_location) {
+    rect, ok := adjust_window_rect(ctx.windowed_flags, x, y, x + ctx.width, y + ctx.height, loc)
     if !ok {
-        return false
+        return
     }
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0) {
-        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
-        return false
+        log.errorf("Failed to set window position. %v", misc.get_last_error_message(), location = loc)
+    } else {
+        log.debug("Succeeded to set window position.", location = loc)
     }
-    log.debug("Succeeded to set window position.")
-    return true
 }
 
-_set_windowed :: proc() -> bool {
+_set_windowed :: proc(loc := #caller_location) -> bool {
     if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(ctx.windowed_flags)) == 0 {
-        log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
+        log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message(), location = loc)
         return false
     }
     log.debug("Succeeded to set window long pointer.")
@@ -574,27 +560,27 @@ _set_windowed :: proc() -> bool {
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         i32(ctx.windowed_x), i32(ctx.windowed_y), i32(ctx.windowed_width), i32(ctx.windowed_height), 
         win32.SWP_SHOWWINDOW) {
-        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
+        log.errorf("Failed to set window position. %v", misc.get_last_error_message(), location = loc)
         return false
     }
-    log.debug("Succeeded to set window position.")
+    log.debug("Succeeded to set window position.", location = loc)
 
     return true
 }
 
-_set_fullscreen :: proc() -> bool {
+_set_fullscreen :: proc(loc := #caller_location) -> bool {
     if !ctx.maximized {
         // It's not the end of the world if we don't get the window rectangle. It just means next time we enter windowed mode, the size and
         // position of the window won't be the same as last time.
         rect: win32.RECT = ---
         if !win32.GetWindowRect(win32.HWND(ctx.window), &rect) {
-            log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message())
+            log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message(), location = loc)
         } else {
             ctx.windowed_x = int(rect.left)
             ctx.windowed_y = int(rect.top)
             ctx.windowed_width = int(rect.right - rect.left)
             ctx.windowed_height = int(rect.bottom - rect.top)
-            log.debug("Succeeded to get window rectangle.")
+            log.debug("Succeeded to get window rectangle.", location = loc)
         }
     } else {
         ctx.windowed_x = ctx.monitor_width / 4
@@ -604,10 +590,10 @@ _set_fullscreen :: proc() -> bool {
     }
 
     if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(FULLSCREEN_FLAGS)) == 0 {
-        log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message())
+        log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message(), location = loc)
         return false
     }
-    log.debug("Succeeded to get window long pointer.")
+    log.debug("Succeeded to get window long pointer.", location = loc)
 
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         ctx.fullscreen_rect.left,
@@ -615,10 +601,10 @@ _set_fullscreen :: proc() -> bool {
         ctx.fullscreen_rect.right - ctx.fullscreen_rect.left,
         ctx.fullscreen_rect.bottom - ctx.fullscreen_rect.top, 
         win32.SWP_SHOWWINDOW) {
-        log.errorf("Failed to set window position. %v", misc.get_last_error_message())
+        log.errorf("Failed to set window position. %v", misc.get_last_error_message(), location = loc)
         return false
     }
-    log.debug("Succeeded to set window position.")
+    log.debug("Succeeded to set window position.", location = loc)
 
     return true
 }
