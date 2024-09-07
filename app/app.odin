@@ -72,7 +72,7 @@ init :: proc(title := "", width := 0, height := 0,
         ctx.windowed_width = ctx.width / 2
         ctx.windowed_height = ctx.height / 2
 
-        disable_cursor()
+        disable_cursor(loc)
     }
 
     if can_connect_gamepad() {

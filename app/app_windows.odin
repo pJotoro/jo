@@ -401,7 +401,7 @@ _run :: proc(loc := #caller_location) {
     } else if ctx.visible == 0 {
         ctx.visible += 1
         win32.ShowWindow(win32.HWND(ctx.window), win32.SW_SHOW)
-        log.debug("Window shown.", location = loc)
+        log.info("Window shown.", location = loc)
     }
     for {
         message: win32.MSG
