@@ -142,8 +142,8 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             ctx.middle_mouse_double_click = true
 
         case win32.WM_MOUSEWHEEL:
-            amount := i32(w_param >> 32)
-            ctx.mouse_wheel += int(amount) * win32.WHEEL_DELTA
+            amount := i16(w_param >> 16)
+            ctx.mouse_wheel = f32(amount) / f32(max(i16))
 
         case:
             result = win32.DefWindowProcW(window, message, w_param, l_param)
