@@ -14,14 +14,14 @@ Context :: struct {
     refresh_rate: int,
 
     window: rawptr,
-    windowed_x, windowed_y: int,
-    windowed_width, windowed_height: int,
     monitor_width, monitor_height: int,
 
     resizable: bool,
     minimize_box: bool,
     maximize_box: bool,
     focused: bool,
+
+    re_maximize: bool, // maximize after exiting fullscreen
 
     app_initialized: bool,
     gl_initialized: bool,

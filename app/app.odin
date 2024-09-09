@@ -65,13 +65,7 @@ init :: proc(title := "", width := 0, height := 0,
         return
     }
 
-    if !ctx.fullscreen {
-        ctx.windowed_width = ctx.width
-        ctx.windowed_height = ctx.height
-    } else {
-        ctx.windowed_width = ctx.width / 2
-        ctx.windowed_height = ctx.height / 2
-
+    if ctx.fullscreen {
         disable_cursor(loc)
     }
 
@@ -241,13 +235,20 @@ set_windowed :: proc(loc := #caller_location) {
         log.warn("Already windowed.", location = loc)
         return
     }
-    
-    if _set_windowed() {
-        ctx.fullscreen = false
-        ctx.width = ctx.windowed_width
-        ctx.height = ctx.windowed_height
 
-        enable_cursor()
+    if !_set_windowed(loc) {
+        log.error("Failed to set windowed.", location = loc)
+    } else {
+        log.debug("Succeeded to set windowed.", location = loc)
+
+        ctx.fullscreen = false
+
+        enable_cursor(loc)
+
+        if ctx.re_maximize {
+            ctx.re_maximize = false
+            maximize(loc)
+        }
     }
 }
 
@@ -257,16 +258,25 @@ set_fullscreen :: proc(loc := #caller_location) {
         return
     }
 
+    re_maximize := false
+    if ctx.maximized {
+        restore(loc)
+        re_maximize = true
+    }
+
     if !_set_fullscreen(loc) {
         log.error("Failed to set fullscreen.", location = loc)
     } else {
         log.debug("Succeeded to set fullscreen.", location = loc)
 
         ctx.fullscreen = true
+
         ctx.width = ctx.monitor_width
         ctx.height = ctx.monitor_height
 
-        disable_cursor()
+        disable_cursor(loc)
+
+        ctx.re_maximize = re_maximize
     }
 }
 
@@ -323,6 +333,9 @@ minimize :: proc(loc := #caller_location) {
         log.warn("Already minimized.", location = loc)
         return
     }
+    if ctx.fullscreen {
+        set_windowed(loc)
+    }
     
     if !_minimize() {
         log.error("Failed to minimize.", location = loc)
@@ -330,6 +343,7 @@ minimize :: proc(loc := #caller_location) {
         log.debug("Succeeded to minimize.", location = loc)
         ctx.minimized = true
         ctx.maximized = false
+        ctx.re_maximize = false
     }
 }
 
@@ -339,8 +353,7 @@ maximize :: proc(loc := #caller_location) {
         return
     }
     if ctx.fullscreen {
-        log.error("Cannot maximize while fullscreen.", location = loc)
-        return
+        set_windowed(loc)
     }
 
     if !_maximize() {
@@ -349,6 +362,26 @@ maximize :: proc(loc := #caller_location) {
         log.debug("Succeeded to maximize.", location = loc)
         ctx.maximized = true
         ctx.minimized = false
+        ctx.re_maximize = false
+    }
+}
+
+restore :: proc(loc := #caller_location) {
+    if !ctx.minimized && !ctx.maximized {
+        log.warn("Already restored.", location = loc)
+        return
+    }
+    if ctx.fullscreen {
+        set_windowed(loc)
+    }
+
+    if !_restore() {
+        log.error("Failed to restore.", location = loc)
+    } else {
+        log.debug("Succeeded to restore.", location = loc)
+        ctx.minimized = false
+        ctx.maximized = false
+        ctx.re_maximize = false
     }
 }
 

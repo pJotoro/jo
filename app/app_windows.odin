@@ -24,6 +24,9 @@ OS_Specific :: struct {
     fullscreen_rect: win32.RECT,
     cursor: win32.HCURSOR,
 
+    windowed_x, windowed_y: win32.LONG,
+    windowed_width, windowed_height: win32.LONG,
+
     dpi_aware: bool,
 
     sub_window_class: win32.WNDCLASSEXW,
@@ -237,6 +240,17 @@ _init :: proc(loc := #caller_location) -> bool {
             ctx.monitor_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
             log.infof("Monitor dimensions: %v by %v.", ctx.monitor_width, ctx.monitor_height, location = loc)
         }
+
+        {
+            ok_fullscreen: bool
+            ctx.fullscreen_rect, ok_fullscreen = adjust_window_rect(FULLSCREEN_FLAGS, 0, 0, ctx.monitor_width, ctx.monitor_height, loc)
+            if !ok_fullscreen {
+                ctx.fullscreen = false
+            }
+            if ctx.fullscreen {
+                window_rect = ctx.fullscreen_rect
+            }
+        }
     
         {
             switch ctx.fullscreen_mode {
@@ -273,36 +287,17 @@ _init :: proc(loc := #caller_location) -> bool {
             }
 
             log.infof("App dimensions: %v by %v.", ctx.width, ctx.height, location = loc)
-        
-            {
-                client_left := (ctx.monitor_width - ctx.width) / 2
-                client_top := (ctx.monitor_height - ctx.height) / 2
-                window_rect, ok = adjust_window_rect(ctx.windowed_flags, 
-                    client_left, 
-                    client_top,
-                    client_left + ctx.width, 
-                    client_top + ctx.height,
-                    loc)
-                if !ok {
-                    return
-                }
-        
-                ctx.windowed_x = int(window_rect.left)
-                ctx.windowed_y = int(window_rect.top)
-            }
-        
-            ok_fullscreen: bool
-            ctx.fullscreen_rect, ok_fullscreen = adjust_window_rect(FULLSCREEN_FLAGS, 0, 0, ctx.monitor_width, ctx.monitor_height, loc)
-            if ctx.fullscreen {
-                if !ok_fullscreen {
-                    ctx.fullscreen = false
-                    return
-                }
 
-                window_rect = ctx.fullscreen_rect
-        
-                ctx.windowed_x = ctx.monitor_width / 4
-                ctx.windowed_y = ctx.monitor_height / 4
+            client_left := (ctx.monitor_width - ctx.width) / 2
+            client_top := (ctx.monitor_height - ctx.height) / 2
+            window_rect, ok = adjust_window_rect(ctx.windowed_flags, 
+                client_left, 
+                client_top,
+                client_left + ctx.width, 
+                client_top + ctx.height,
+                loc)
+            if !ok {
+                return
             }
         }
 
@@ -555,7 +550,39 @@ _set_windowed :: proc(loc := #caller_location) -> bool {
         log.errorf("Failed to set window long pointer. %v", misc.get_last_error_message(), location = loc)
         return false
     }
-    log.debug("Succeeded to set window long pointer.")
+    log.debug("Succeeded to set window long pointer.", location = loc)
+
+    if ctx.windowed_x == 0 && ctx.windowed_y == 0 && ctx.windowed_width == 0 && ctx.windowed_height == 0 {
+        {
+            point := win32.POINT {
+                i32(ctx.monitor_width) / 4,
+                i32(ctx.monitor_height) / 4,
+            }
+            if !win32.ClientToScreen(win32.HWND(ctx.window), &point) {
+                log.error("Failed to get client to screen.", location = loc)
+            } else {
+                log.debug("Succeeded to get client to screen.", location = loc)
+                ctx.windowed_x = point.x
+                ctx.windowed_y = point.y
+            }
+        }
+
+        {
+            point := win32.POINT {
+                i32(ctx.monitor_width) / 2,
+                i32(ctx.monitor_height) / 2,
+            }
+            if !win32.ClientToScreen(win32.HWND(ctx.window), &point) {
+                log.error("Failed to get client to screen. Setting dummy width and height", location = loc)
+                ctx.windowed_width = 100
+                ctx.windowed_height = 100
+            } else {
+                log.debug("Succeeded to get client to screen.", location = loc)
+                ctx.windowed_width = point.x
+                ctx.windowed_height = point.y
+            }
+        }
+    }
 
     if !win32.SetWindowPos(win32.HWND(ctx.window), nil, 
         i32(ctx.windowed_x), i32(ctx.windowed_y), i32(ctx.windowed_width), i32(ctx.windowed_height), 
@@ -565,28 +592,30 @@ _set_windowed :: proc(loc := #caller_location) -> bool {
     }
     log.debug("Succeeded to set window position.", location = loc)
 
+    rect: win32.RECT = ---
+    if !win32.GetClientRect(win32.HWND(ctx.window), &rect) {
+        log.errorf("Failed to get client rect. %v", misc.get_last_error_message(), location = loc)
+    } else {
+        log.debug("Succeeded to get client rect.", location = loc)
+        ctx.width = int(rect.right - rect.left)
+        ctx.height = int(rect.bottom - rect.top)
+    }
+
     return true
 }
 
 _set_fullscreen :: proc(loc := #caller_location) -> bool {
-    if !ctx.maximized {
-        // It's not the end of the world if we don't get the window rectangle. It just means next time we enter windowed mode, the size and
-        // position of the window won't be the same as last time.
-        rect: win32.RECT = ---
-        if !win32.GetWindowRect(win32.HWND(ctx.window), &rect) {
-            log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message(), location = loc)
-        } else {
-            ctx.windowed_x = int(rect.left)
-            ctx.windowed_y = int(rect.top)
-            ctx.windowed_width = int(rect.right - rect.left)
-            ctx.windowed_height = int(rect.bottom - rect.top)
-            log.debug("Succeeded to get window rectangle.", location = loc)
-        }
+    // It's not the end of the world if we don't get the window rectangle. It just means next time we enter windowed mode, the size and
+    // position of the window won't be the same as last time.
+    rect: win32.RECT = ---
+    if !win32.GetWindowRect(win32.HWND(ctx.window), &rect) {
+        log.errorf("Failed to get window rectangle. %v", misc.get_last_error_message(), location = loc)
     } else {
-        ctx.windowed_x = ctx.monitor_width / 4
-        ctx.windowed_y = ctx.monitor_height / 4
-        ctx.windowed_width = ctx.monitor_width / 2
-        ctx.windowed_height = ctx.monitor_height / 2
+        log.debug("Succeeded to get window rectangle.", location = loc)
+        ctx.windowed_x = rect.left
+        ctx.windowed_y = rect.top
+        ctx.windowed_width = rect.right - rect.left
+        ctx.windowed_height = rect.bottom - rect.top
     }
 
     if win32.SetWindowLongPtrW(win32.HWND(ctx.window), win32.GWL_STYLE, int(FULLSCREEN_FLAGS)) == 0 {
@@ -626,5 +655,10 @@ _minimize :: proc "contextless" () -> bool {
 
 _maximize :: proc "contextless" () -> bool {
     win32.ShowWindow(win32.HWND(ctx.window), win32.SW_MAXIMIZE)
+    return true
+}
+
+_restore :: proc "contextless" () -> bool {
+    win32.ShowWindow(win32.HWND(ctx.window), win32.SW_RESTORE)
     return true
 }
