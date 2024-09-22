@@ -1,4 +1,4 @@
-//+private
+#+ private
 package app
 
 import win32 "core:sys/windows"

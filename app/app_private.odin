@@ -1,4 +1,4 @@
-// +private
+#+ private
 package app
 
 import "core:prof/spall"
