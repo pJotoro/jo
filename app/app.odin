@@ -408,14 +408,21 @@ focused :: proc "contextless" () -> bool {
     return ctx.focused
 }
 
-cursor_position :: proc(loc := #caller_location) -> (x, y: int) {
-    return _cursor_position(loc)
+mouse_x :: proc "contextless" () -> (x: int) {
+    return ctx.mouse_position.x
 }
 
-// Actually, this returns whether the cursor is within the bounds of the app.
-// That way, it works the same whether fullscreen is on or off.
-cursor_on_screen :: proc(loc := #caller_location) -> bool {
-    x, y := cursor_position(loc)
+mouse_y :: proc "contextless" () -> (y: int) {
+    return ctx.mouse_position.y
+}
+
+mouse_position :: proc "contextless" () -> (x, y: int) {
+    return ctx.mouse_position.x, ctx.mouse_position.y
+}
+
+// Actually, this returns whether the mouse is inside the window bounds.
+cursor_on_screen :: proc "contextless" () -> bool {
+    x, y := mouse_position()
     return x >= 0 && x < ctx.width && y >= 0 && y < ctx.height
 }
 

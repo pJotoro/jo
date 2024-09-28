@@ -57,6 +57,8 @@ Context :: struct {
     middle_mouse_released: bool,
     middle_mouse_double_click: bool,
 
+    mouse_position: [2]int,
+
     mouse_wheel: f32,
     // -----------------
 

@@ -144,6 +144,11 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
         case win32.WM_MBUTTONDBLCLK:
             ctx.middle_mouse_double_click = true
 
+        case win32.WM_MOUSEMOVE:
+            params := transmute([4]i16)l_param
+            ctx.mouse_position.x = int(params[0])
+            ctx.mouse_position.y = int(-params[1]) + ctx.height
+
         case win32.WM_MOUSEWHEEL:
             amount := i16(w_param >> 16)
             ctx.mouse_wheel = f32(amount) / f32(max(i16))
@@ -432,27 +437,6 @@ _swap_buffers :: proc(buffer: []u32, loc := #caller_location) {
     if win32.ReleaseDC(win32.HWND(ctx.window), hdc) == 0 {
         log.error("Failed to release window device context.", location = loc)
     }
-}
-
-_cursor_position :: proc(loc := #caller_location) -> (x, y: int) {
-    @static point: win32.POINT
-    p := point
-
-    if !win32.GetCursorPos(&point) {
-        log.errorf("Failed to get cursor position. %v Returning last cursor position instead.", misc.get_last_error_message(), location = loc)
-        point = p
-        return int(point.x), -int(point.y) + height()
-    }
-    log.debug("Succeeded to get cursor position.", location = loc)
-
-    if !win32.ScreenToClient(win32.HWND(ctx.window), &point) {
-        log.error("Failed to convert cursor screen position to client position. Returning last cursor position instead.", location = loc)
-        point = p
-        return int(point.x), -int(point.y) + height()
-    }
-    log.debug("Succeeded to convert cursor screen position to client position.", location = loc)
-
-    return int(point.x), -int(point.y) + height()
 }
 
 @(private="file")
