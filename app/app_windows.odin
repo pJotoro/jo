@@ -41,15 +41,16 @@ L :: intrinsics.constant_utf16_cstring
 @(private="file")
 window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
     context = runtime.default_context()
-    result := win32.DefWindowProcW(window, message, w_param, l_param)
+
+    result := win32.LRESULT(0)
 
     event := Event{
         message = message,
         w_param = w_param,
         l_param = l_param,
-        result = result
     }
     defer {
+        event.result = result
         append(&ctx.events, event)
     }
     
@@ -152,6 +153,9 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
         case win32.WM_MOUSEWHEEL:
             amount := i16(w_param >> 16)
             ctx.mouse_wheel = f32(amount) / f32(max(i16))
+
+        case:
+            result = win32.DefWindowProcW(window, message, w_param, l_param)
             
     }
 
