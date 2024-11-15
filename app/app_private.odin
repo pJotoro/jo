@@ -72,11 +72,6 @@ Context :: struct {
     gamepads: [4]Gamepad_Desc,
     gamepad_events_enabled: bool,
     // -------------------
-
-    // ----- events -----
-    events: [dynamic]Event,
-    event_index: int,
-    // ------------------
     
     // ----- profiling -----
     spall_ctx: ^spall.Context,

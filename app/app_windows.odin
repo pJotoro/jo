@@ -44,16 +44,6 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
 
     result := win32.LRESULT(0)
 
-    event := Event{
-        message = message,
-        w_param = w_param,
-        l_param = l_param,
-    }
-    defer {
-        event.result = result
-        append(&ctx.events, event)
-    }
-    
     switch message {
         case win32.WM_CLOSE, win32.WM_DESTROY, win32.WM_QUIT:
             ctx.running = false

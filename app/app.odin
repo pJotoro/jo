@@ -57,7 +57,6 @@ init :: proc(title := "", width := 0, height := 0,
     ctx.resizable = resizable
     ctx.minimize_box = minimize_box
     ctx.maximize_box = maximize_box
-    ctx.events = make([dynamic]Event)
     ctx.cursor_enabled = true
 
     if !_init(loc) {
@@ -121,9 +120,6 @@ running :: proc(loc := #caller_location) -> bool {
     ctx.middle_mouse_released = false
 
     ctx.mouse_wheel = 0
-
-    clear(&ctx.events)
-    ctx.event_index = 0
 
     _run(loc)
 
@@ -537,32 +533,4 @@ middle_mouse_double_click :: proc "contextless" () -> bool {
 // Returns mouse wheel delta as a normalized floating point value.
 mouse_wheel :: proc "contextless" () -> f32 {
     return ctx.mouse_wheel
-}
-
-/*
-You can call this once like this:
-
-if event, ok := app.get_event(); ok {
-    // process the event
-}
-
-Or you can call this like an iterator:
-
-for event in app.get_event() {
-    // process the event
-}
-
-Either way works fine.
-
-Every time app.running() is called, the event array is reset, and then filled with whatever OS events have happened since last time app.running() was called.
-As a result, you don't have to worry about old events getting returned.
-*/
-get_event :: proc "contextless" () -> (event: Event, ok: bool) {
-    if ctx.event_index >= len(ctx.events) {
-        return
-    }
-    event = ctx.events[ctx.event_index]
-    ctx.event_index += 1
-    ok = true
-    return
 }
