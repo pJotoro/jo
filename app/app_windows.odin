@@ -406,7 +406,7 @@ _run :: proc(loc := #caller_location) {
     }
 }
 
-_swap_buffers :: proc(buffer: []u32, loc := #caller_location) {
+_swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #caller_location) {
     hdc := win32.GetDC(win32.HWND(ctx.window))
     if hdc == nil {
         log.fatal("Failed to get window device context.", location = loc)
@@ -414,16 +414,19 @@ _swap_buffers :: proc(buffer: []u32, loc := #caller_location) {
         return
     }
 
+    src_width := i32(buffer_width) if buffer_width != 0 else i32(ctx.width)
+    src_height := i32(buffer_height) if buffer_height != 0 else i32(ctx.height)
+
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
         biSize = size_of(win32.BITMAPINFOHEADER),
-        biWidth = i32(ctx.width),
-        biHeight = i32(ctx.height),
+        biWidth = src_width,
+        biHeight = src_height,
         biPlanes = 1,
         biBitCount = 32,
         biCompression = win32.BI_RGB,
     }
-    if win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, i32(ctx.width), i32(ctx.height), raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY) == 0 {
+    if win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, src_width, src_height, raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY) == 0 {
         log.fatal("Failed to render bitmap.", location = loc)
         ctx.running = false
     }

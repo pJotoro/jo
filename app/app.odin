@@ -148,7 +148,8 @@ running :: proc(loc := #caller_location) -> bool {
 // This does not clear the buffer for you, so if you want it to be cleared after being blitted, you must do it yourself. 
 // It is as easy as writing mem.zero_slice(buffer). 
 // That said, clearing the entire buffer every frame is expensive, so it is recommended to not do this.
-swap_buffers :: proc(buffer: []u32, loc := #caller_location) {
+// The exception is if the buffer is only a small fraction of the window width, which is generally the case in a pixel art game.
+swap_buffers :: proc(buffer: []u32, buffer_width := 0, buffer_height := 0, loc := #caller_location) {
     ok := true
 
     if !ctx.app_initialized {
@@ -161,7 +162,7 @@ swap_buffers :: proc(buffer: []u32, loc := #caller_location) {
         ok = false
     }
 
-    if width() == 0 || height() == 0 || ctx.minimized {
+    if ctx.width == 0 || ctx.height == 0 || ctx.minimized {
         ok = false
     }
 
@@ -170,22 +171,12 @@ swap_buffers :: proc(buffer: []u32, loc := #caller_location) {
         ctx.running = false
         ok = false
     }
-    if len(buffer) < width() * height() {
-        log.fatalf("Buffer with length %v too small for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height(), location = loc)
-        ctx.running = false
-        ok = false
-    }
-    if len(buffer) > width() * height() {
-        log.fatalf("Buffer with length %v too big for window with dimensions %v by %v = %v.", len(buffer), width(), height(), width() * height(), location = loc)
-        ctx.running = false
-        ok = false
-    }
 
     if !ok {
         return
     }
 
-    _swap_buffers(buffer, loc)
+    _swap_buffers(buffer, buffer_width, buffer_height, loc)
 }
 
 // Returns the native window handle.
