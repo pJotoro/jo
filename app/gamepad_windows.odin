@@ -66,6 +66,18 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 		gamepad.left_stick.y = f32(xinput_gamepad.sThumbLY) / LEFT_THUMB_MAX
 		gamepad.right_stick.x = f32(xinput_gamepad.sThumbRX) / RIGHT_THUMB_MAX
 		gamepad.right_stick.y = f32(xinput_gamepad.sThumbRY) / RIGHT_THUMB_MAX
+
+		// NOTE(pJotoro): In theory, this shouldn't be necessary.
+		// The above code should already normalize all the values.
+		// But, some gamepads have more or less threshold than others,
+		// so the input can actually go above 1.0 or below -1.0 (like
+		// my controller). That said, the amount shouldn't be that high.
+		gamepad.left_trigger = clamp(gamepad.left_trigger, -1.0, 1.0)
+		gamepad.right_trigger = clamp(gamepad.right_trigger, -1.0, 1.0)
+		gamepad.left_stick.x = clamp(gamepad.left_stick.x, -1.0, 1.0)
+		gamepad.left_stick.y = clamp(gamepad.left_stick.y, -1.0, 1.0)
+		gamepad.right_stick.x = clamp(gamepad.right_stick.x, -1.0, 1.0)
+		gamepad.right_stick.y = clamp(gamepad.right_stick.y, -1.0, 1.0)
 	
 		cut_deadzones :: proc "contextless" (xinput_gamepad: ^xinput.GAMEPAD) {
 			xinput_gamepad.bLeftTrigger -= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) if xinput_gamepad.bLeftTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) else xinput_gamepad.bLeftTrigger
