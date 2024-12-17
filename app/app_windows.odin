@@ -6,9 +6,11 @@ import win32 "core:sys/windows"
 import "base:intrinsics"
 import "core:log"
 
-
 import "xinput"
 import "../misc"
+
+import "core:text/edit"
+import "core:unicode"
 
 /* NOTE(pJotoro): WINDOWED_FLAGS only describes the required flags for a windowed jo application. It does not contain any
  * additional flags required for e.g. being resizable.
@@ -80,13 +82,38 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
 
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
             key := Keyboard_Key(w_param)
-            if int(key) > len(ctx.keyboard_keys) {
-                return result
+            if !(int(key) > len(ctx.keyboard_keys)) {
+                if !ctx.keyboard_keys[key] {
+                    ctx.keyboard_keys_pressed[key] = true
+                    ctx.any_key_pressed = true
+                }
+                ctx.keyboard_keys[key] = true
+                ctx.any_key_down = true
+
+                #partial switch key {
+                    case .Left:
+                        if key_down(.Control) {
+                            edit.translate_position(&ctx.text_input, .Word_Left)
+                        } else {
+                            edit.translate_position(&ctx.text_input, .Left)
+                        }
+
+                    case .Right:
+                        if key_down(.Control) {
+                            edit.translate_position(&ctx.text_input, .Word_Right)
+                        } else {
+                            edit.translate_position(&ctx.text_input, .Right)
+                        }
+
+                    case .Up:
+                        edit.translate_position(&ctx.text_input, .Up)
+
+                    case .Down:
+                        edit.translate_position(&ctx.text_input, .Down)
+
+                    // TODO
+                }
             }
-            if !ctx.keyboard_keys[key] {
-                ctx.keyboard_keys_pressed[key] = true
-            }
-            ctx.keyboard_keys[key] = true
 
         case win32.WM_KEYUP, win32.WM_SYSKEYUP:
             key := Keyboard_Key(w_param)
@@ -95,6 +122,7 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             }
             ctx.keyboard_keys[key] = false
             ctx.keyboard_keys_released[key] = true
+            ctx.any_key_released = true
 
         case win32.WM_LBUTTONDOWN:
             if !ctx.left_mouse_down {
@@ -146,7 +174,9 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
 
         case win32.WM_CHAR:
             r := rune(w_param)
-
+            if !unicode.is_control(r) {
+                edit.input_rune(&ctx.text_input, r)
+            }
             
             
         case:

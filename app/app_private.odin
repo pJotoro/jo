@@ -41,6 +41,10 @@ Context :: struct {
     keyboard_keys: #sparse [Keyboard_Key]bool,
     keyboard_keys_pressed: #sparse [Keyboard_Key]bool,
     keyboard_keys_released: #sparse [Keyboard_Key]bool,
+
+    any_key_down: bool,
+    any_key_pressed: bool,
+    any_key_released: bool,
     // --------------------
 
     // ----- mouse -----

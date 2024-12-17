@@ -9,6 +9,7 @@ import "core:prof/spall"
 SPALL_ENABLED :: #config(SPALL_ENABLED, false)
 
 import "core:text/edit"
+import "core:strings"
 
 Fullscreen_Mode :: enum {
     Auto, // windowed in debug mode, fullscreen otherwise
@@ -77,6 +78,7 @@ init :: proc(title := "", width := 0, height := 0,
     }
 
     edit.init(&ctx.text_input, context.allocator, context.allocator)
+    strings.builder_init_len_cap(&ctx.text_input_buf, 0, 4096)
     edit.setup_once(&ctx.text_input, &ctx.text_input_buf)
 
     ctx.app_initialized = true
@@ -116,6 +118,8 @@ running :: proc(loc := #caller_location) -> bool {
     for &k in ctx.keyboard_keys_released { 
         k = false 
     }
+
+    ctx.any_key_pressed = false
 
     ctx.left_mouse_pressed = false
     ctx.left_mouse_released = false
@@ -529,6 +533,6 @@ mouse_wheel :: proc "contextless" () -> f32 {
     return ctx.mouse_wheel
 }
 
-text_input :: proc "contextless" () -> edit.State {
-    return ctx.text_input
+text_input :: proc "contextless" () -> string {
+    return string(ctx.text_input_buf.buf[:])
 }

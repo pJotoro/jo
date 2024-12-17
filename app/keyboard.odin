@@ -12,6 +12,18 @@ key_released :: proc "contextless" (key: Keyboard_Key) -> bool {
     return ctx.keyboard_keys_released[key]
 }
 
+any_key_down :: proc "contextless" () -> bool {
+    return ctx.any_key_down
+}
+
+any_key_pressed :: proc "contextless" () -> bool {
+    return ctx.any_key_pressed
+}
+
+any_key_released :: proc "contextless" () -> bool {
+    return ctx.any_key_released
+}
+
 Keyboard_Key :: enum rune {
     Left_Mouse = 0x01,
     Right_Mouse,
