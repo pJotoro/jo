@@ -92,35 +92,71 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                 ctx.keyboard_keys[key] = true
                 ctx.any_key_down = true
 
-                p: proc(s: ^edit.State, t: edit.Translation)
-                p = edit.select_to if key_down(.Shift) else edit.move_to
-
                 #partial switch key {
-                    case .Page_Up:
-                        p(&ctx.text_input, .Start)
+                    // TODO: Add multi-line.
 
-                    case .Page_Down:
-                        p(&ctx.text_input, .End)
+                    case .A:
+                        if key_pressed(.A) && key_down(.Control) {
+                            edit.perform_command(&ctx.text_input, .Select_All)
+                        }
 
-                    case .Left:
-                        if key_down(.Control) {
-                            p(&ctx.text_input, .Word_Left)
+                    case .Backspace:
+                        if !key_down(.Control) {
+                            edit.perform_command(&ctx.text_input, .Backspace)
                         } else {
-                            p(&ctx.text_input, .Left)
+                            edit.perform_command(&ctx.text_input, .Delete_Word_Left)
+                        }
+
+                    case .Delete:
+                        if !key_down(.Control) {
+                            edit.perform_command(&ctx.text_input, .Delete)
+                        } else {
+                            edit.perform_command(&ctx.text_input, .Delete_Word_Right)
+                        }
+                        
+                    case .Left:
+                        if !key_down(.Shift) {
+                            if !key_down(.Control) {
+                                edit.perform_command(&ctx.text_input, .Left)
+                            } else {
+                                edit.perform_command(&ctx.text_input, .Word_Left)
+                            }
+                        } else {
+                            if !key_down(.Control) {
+                                edit.perform_command(&ctx.text_input, .Select_Left)
+                            } else {
+                                edit.perform_command(&ctx.text_input, .Select_Word_Left)
+                            }
                         }
 
                     case .Right:
-                        if key_down(.Control) {
-                            p(&ctx.text_input, .Word_Right)
+                        if !key_down(.Shift) {
+                            if !key_down(.Control) {
+                                edit.perform_command(&ctx.text_input, .Right)
+                            } else {
+                                edit.perform_command(&ctx.text_input, .Word_Right)
+                            }
                         } else {
-                            p(&ctx.text_input, .Right)
+                            if !key_down(.Control) {
+                                edit.perform_command(&ctx.text_input, .Select_Right)
+                            } else {
+                                edit.perform_command(&ctx.text_input, .Select_Word_Right)
+                            }
                         }
 
-                    case .Up:
-                        p(&ctx.text_input, .Up)
+                    case .Page_Up:
+                        if !key_down(.Shift) {
+                            edit.perform_command(&ctx.text_input, .Start)
+                        } else {
+                            edit.perform_command(&ctx.text_input, .Select_Start)
+                        }
 
-                    case .Down:
-                        p(&ctx.text_input, .Down)
+                    case .Page_Down:
+                        if !key_down(.Shift) {
+                            edit.perform_command(&ctx.text_input, .End)
+                        } else {
+                            edit.perform_command(&ctx.text_input, .Select_End)
+                        }
                 }
             }
 
@@ -182,6 +218,8 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             ctx.mouse_wheel = f32(amount) / f32(max(i16))
 
         case win32.WM_CHAR:
+            // TODO: Add any_key_down and any_key_pressed for this event.
+
             r := rune(w_param)
             if !unicode.is_control(r) {
                 edit.input_rune(&ctx.text_input, r)
