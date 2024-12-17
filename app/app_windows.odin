@@ -92,40 +92,35 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                 ctx.keyboard_keys[key] = true
                 ctx.any_key_down = true
 
+                p: proc(s: ^edit.State, t: edit.Translation)
+                p = edit.select_to if key_down(.Shift) else edit.move_to
+
                 #partial switch key {
                     case .Page_Up:
-                        edit.move_to(&ctx.text_input, .Start)
+                        p(&ctx.text_input, .Start)
 
                     case .Page_Down:
-                        edit.move_to(&ctx.text_input, .End)
+                        p(&ctx.text_input, .End)
 
                     case .Left:
                         if key_down(.Control) {
-                            edit.move_to(&ctx.text_input, .Word_Left)
-                            fmt.println("word left")
+                            p(&ctx.text_input, .Word_Left)
                         } else {
-                            edit.move_to(&ctx.text_input, .Left)
-                            fmt.println("left")
+                            p(&ctx.text_input, .Left)
                         }
 
                     case .Right:
                         if key_down(.Control) {
-                            edit.move_to(&ctx.text_input, .Word_Right)
-                            fmt.println("word right")
+                            p(&ctx.text_input, .Word_Right)
                         } else {
-                            edit.move_to(&ctx.text_input, .Right)
-                            fmt.println("right")
+                            p(&ctx.text_input, .Right)
                         }
 
                     case .Up:
-                        edit.move_to(&ctx.text_input, .Up)
-                        fmt.println("up")
+                        p(&ctx.text_input, .Up)
 
                     case .Down:
-                        edit.move_to(&ctx.text_input, .Down)
-                        fmt.println("down")
-
-                    // TODO
+                        p(&ctx.text_input, .Down)
                 }
             }
 
