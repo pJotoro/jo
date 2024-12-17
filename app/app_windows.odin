@@ -93,14 +93,26 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                 ctx.any_key_down = true
 
                 #partial switch key {
-                    // TODO: Add multi-line.
+                    // TODO: multi-line, clipboard.
+
+                    case .Z:
+                        if key_pressed(.Z) && key_down(.Control) {
+                            edit.perform_command(&ctx.text_input, .Undo)
+                        }
+
+                    case .Y:
+                        if key_pressed(.Y) && key_down(.Control) {
+                            edit.perform_command(&ctx.text_input, .Redo)
+                        }
 
                     case .A:
                         if key_pressed(.A) && key_down(.Control) {
+                            edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
                             edit.perform_command(&ctx.text_input, .Select_All)
                         }
 
                     case .Backspace:
+                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
                         if !key_down(.Control) {
                             edit.perform_command(&ctx.text_input, .Backspace)
                         } else {
@@ -108,6 +120,7 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                         }
 
                     case .Delete:
+                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
                         if !key_down(.Control) {
                             edit.perform_command(&ctx.text_input, .Delete)
                         } else {
@@ -115,6 +128,7 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                         }
                         
                     case .Left:
+                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
                         if !key_down(.Shift) {
                             if !key_down(.Control) {
                                 edit.perform_command(&ctx.text_input, .Left)
@@ -130,6 +144,7 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                         }
 
                     case .Right:
+                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
                         if !key_down(.Shift) {
                             if !key_down(.Control) {
                                 edit.perform_command(&ctx.text_input, .Right)
@@ -145,6 +160,7 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                         }
 
                     case .Page_Up:
+                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
                         if !key_down(.Shift) {
                             edit.perform_command(&ctx.text_input, .Start)
                         } else {
@@ -152,6 +168,7 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                         }
 
                     case .Page_Down:
+                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
                         if !key_down(.Shift) {
                             edit.perform_command(&ctx.text_input, .End)
                         } else {
@@ -222,6 +239,7 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
 
             r := rune(w_param)
             if !unicode.is_control(r) {
+                edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
                 edit.input_rune(&ctx.text_input, r)
             }
             
