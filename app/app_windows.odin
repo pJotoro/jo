@@ -40,6 +40,8 @@ OS_Specific :: struct {
 
 L :: intrinsics.constant_utf16_cstring
 
+import "core:fmt"
+
 @(private="file")
 window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
     context = runtime.default_context()
@@ -91,25 +93,37 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                 ctx.any_key_down = true
 
                 #partial switch key {
+                    case .Page_Up:
+                        edit.move_to(&ctx.text_input, .Start)
+
+                    case .Page_Down:
+                        edit.move_to(&ctx.text_input, .End)
+
                     case .Left:
                         if key_down(.Control) {
-                            edit.translate_position(&ctx.text_input, .Word_Left)
+                            edit.move_to(&ctx.text_input, .Word_Left)
+                            fmt.println("word left")
                         } else {
-                            edit.translate_position(&ctx.text_input, .Left)
+                            edit.move_to(&ctx.text_input, .Left)
+                            fmt.println("left")
                         }
 
                     case .Right:
                         if key_down(.Control) {
-                            edit.translate_position(&ctx.text_input, .Word_Right)
+                            edit.move_to(&ctx.text_input, .Word_Right)
+                            fmt.println("word right")
                         } else {
-                            edit.translate_position(&ctx.text_input, .Right)
+                            edit.move_to(&ctx.text_input, .Right)
+                            fmt.println("right")
                         }
 
                     case .Up:
-                        edit.translate_position(&ctx.text_input, .Up)
+                        edit.move_to(&ctx.text_input, .Up)
+                        fmt.println("up")
 
                     case .Down:
-                        edit.translate_position(&ctx.text_input, .Down)
+                        edit.move_to(&ctx.text_input, .Down)
+                        fmt.println("down")
 
                     // TODO
                 }
