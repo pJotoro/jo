@@ -5,7 +5,7 @@ import "base:runtime"
 import win32 "core:sys/windows"
 import "base:intrinsics"
 import "core:log"
-import "core:c"
+
 
 import "xinput"
 import "../misc"
@@ -144,6 +144,11 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             amount := i16(w_param >> 16)
             ctx.mouse_wheel = f32(amount) / f32(max(i16))
 
+        case win32.WM_CHAR:
+            r := rune(w_param)
+
+            
+            
         case:
             result = win32.DefWindowProcW(window, message, w_param, l_param)
             
@@ -157,7 +162,7 @@ foreign import user32 "system:User32.lib"
 @(default_calling_convention="system", private="file")
 foreign user32 {
     GetDpiForSystem :: proc() -> win32.UINT ---
-    ShowCursor :: proc(bShow: win32.BOOL) -> c.int ---
+    ShowCursor :: proc(bShow: win32.BOOL) -> i32 ---
     GetCursorInfo :: proc(pci: ^CURSORINFO) -> win32.BOOL ---
     GetCursor :: proc() -> win32.HCURSOR ---
     SetCursor :: proc(hCursor: win32.HCURSOR) -> win32.HCURSOR ---
@@ -481,7 +486,7 @@ _show_cursor :: proc(loc := #caller_location) -> bool {
 
 _hide_cursor :: proc() -> bool {
     // NOTE(pJotoro): Horrible for the same reason _show_cursor is horrible.
-    display_counter: c.int
+    display_counter: i32
     for display_counter >= 0 {
         display_counter = ShowCursor(false)
     }

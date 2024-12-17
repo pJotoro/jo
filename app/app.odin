@@ -8,6 +8,8 @@ import "core:log"
 import "core:prof/spall"
 SPALL_ENABLED :: #config(SPALL_ENABLED, false)
 
+import "core:text/edit"
+
 Fullscreen_Mode :: enum {
     Auto, // windowed in debug mode, fullscreen otherwise
     Off,  // always windowed
@@ -74,6 +76,9 @@ init :: proc(title := "", width := 0, height := 0,
         }
     }
 
+    edit.init(&ctx.text_input, context.allocator, context.allocator)
+    edit.setup_once(&ctx.text_input, &ctx.text_input_buf)
+
     ctx.app_initialized = true
     ctx.running = true
 }
@@ -122,8 +127,6 @@ running :: proc(loc := #caller_location) -> bool {
     ctx.mouse_wheel = 0
 
     _run(loc)
-
-    //_ui_update()
 
     if can_connect_gamepad() {
         for gamepad_index in 0..<len(ctx.gamepads) {
@@ -524,4 +527,8 @@ middle_mouse_double_click :: proc "contextless" () -> bool {
 // Returns mouse wheel delta as a normalized floating point value.
 mouse_wheel :: proc "contextless" () -> f32 {
     return ctx.mouse_wheel
+}
+
+text_input :: proc "contextless" () -> edit.State {
+    return ctx.text_input
 }

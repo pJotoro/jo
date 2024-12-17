@@ -2,6 +2,8 @@
 package app
 
 import "core:prof/spall"
+import "core:text/edit"
+import "core:strings"
 
 @(private)
 Context :: struct {
@@ -72,6 +74,11 @@ Context :: struct {
     gamepads: [4]Gamepad_Desc,
     gamepad_events_enabled: bool,
     // -------------------
+
+    // ----- text input -----
+    text_input: edit.State,
+    text_input_buf: strings.Builder,
+    // ----------------------
     
     // ----- profiling -----
     spall_ctx: ^spall.Context,
