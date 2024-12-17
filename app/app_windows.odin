@@ -258,17 +258,8 @@ foreign import user32 "system:User32.lib"
 foreign user32 {
     GetDpiForSystem :: proc() -> win32.UINT ---
     ShowCursor :: proc(bShow: win32.BOOL) -> i32 ---
-    GetCursorInfo :: proc(pci: ^CURSORINFO) -> win32.BOOL ---
     GetCursor :: proc() -> win32.HCURSOR ---
     SetCursor :: proc(hCursor: win32.HCURSOR) -> win32.HCURSOR ---
-}
-
-@(private="file")
-CURSORINFO :: struct {
-    cbSize: win32.DWORD,
-    flags: win32.DWORD,
-    hCursor: win32.HCURSOR,
-    ptScreenPos: win32.POINT,
 }
 
 @(private)
@@ -540,8 +531,8 @@ _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #c
 CURSOR_SHOWING : win32.DWORD : 0x00000001
 
 _cursor_visible :: proc(loc := #caller_location) -> bool {
-    info := CURSORINFO{cbSize = size_of(CURSORINFO)}
-    if !GetCursorInfo(&info) {
+    info := win32.CURSORINFO{cbSize = size_of(win32.CURSORINFO)}
+    if !win32.GetCursorInfo(&info) {
         log.errorf("Failed to get cursor info. %v", misc.get_last_error_message(), location = loc)
         return false
     }
