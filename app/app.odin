@@ -537,6 +537,6 @@ text_input :: proc "contextless" () -> string {
     return string(ctx.text_input_buf.buf[:])
 }
 
-text_input_clear_all :: proc() {
+text_input_clear :: proc() {
     edit.clear_all(&ctx.text_input)
 }
