@@ -40,8 +40,6 @@ OS_Specific :: struct {
 
 L :: intrinsics.constant_utf16_cstring
 
-import "core:fmt"
-
 @(private="file")
 window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
     context = runtime.default_context()
