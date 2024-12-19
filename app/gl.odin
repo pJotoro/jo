@@ -8,6 +8,10 @@ import "core:encoding/ansi"
 import "base:runtime"
 import "base:intrinsics"
 
+JO_GL :: #config(JO_GL, false)
+
+when JO_GL {
+
 // Initializes OpenGL.
 gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_callback, user_data: rawptr = nil, loc := #caller_location) -> bool {
     ok := true
@@ -169,3 +173,5 @@ gl_debug_callback :: proc "c" (source: u32, type: u32, id: u32, severity: u32, l
 	FG_YELLOW    :: ansi.CSI + ansi.FG_YELLOW       + ansi.SGR
 	FG_DARK_GREY :: ansi.CSI + ansi.FG_BRIGHT_BLACK + ansi.SGR
 }
+
+} // JO_GL

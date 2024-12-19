@@ -1,7 +1,6 @@
 #+ private
 package app
 
-import "core:prof/spall"
 import "core:text/edit"
 import "core:strings"
 
@@ -76,18 +75,13 @@ Context :: struct {
     can_connect_gamepad: bool,
     gamepad_debug_flags: Gamepad_Debug_Flags,
     gamepads: [4]Gamepad_Desc,
-    gamepad_events_enabled: bool,
+    // gamepad_events_enabled: bool,
     // -------------------
 
     // ----- text input -----
     text_input: edit.State,
     text_input_buf: strings.Builder,
     // ----------------------
-    
-    // ----- profiling -----
-    spall_ctx: ^spall.Context,
-    spall_buffer: ^spall.Buffer,
-    // ---------------------
 
     using os_specific: OS_Specific,
 }

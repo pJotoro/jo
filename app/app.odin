@@ -5,9 +5,6 @@ package app
 
 import "core:log"
 
-import "core:prof/spall"
-SPALL_ENABLED :: #config(SPALL_ENABLED, false)
-
 import "core:text/edit"
 import "core:strings"
 
@@ -17,7 +14,7 @@ Fullscreen_Mode :: enum {
     On,   // always fullscreen
 }
 
-// You must call this before any other procedure. 
+// You must call this before any other procedure.
 // It initializes the library.
 //
 // It is perfectly reasonable and acceptable to call this without passing any arguments whatsoever. 
@@ -28,20 +25,10 @@ Fullscreen_Mode :: enum {
 // If fullscreen is on, then the width and height will be automatically set to the monitor width and height, respectively.
 init :: proc(title := "", width := 0, height := 0, 
              fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, 
-             spall_ctx: ^spall.Context = nil, spall_buffer: ^spall.Buffer = nil,
              loc := #caller_location) {
     if ctx.app_initialized {
         log.warn("App already initialized.", location = loc)
         return
-    }
-
-    when SPALL_ENABLED {
-        if spall_ctx == nil || spall_buffer == nil {
-            log.fatal("Must set spall_ctx and spall_buffer when spall is enabled.", location = loc)
-            return
-        }
-        ctx.spall_ctx = spall_ctx
-        ctx.spall_buffer = spall_buffer
     }
 
     if fullscreen == .On {
@@ -139,9 +126,9 @@ running :: proc(loc := #caller_location) -> bool {
             }
         }
 
-        if ctx.gamepad_events_enabled {
-            get_gamepad_events()
-        }
+        // if ctx.gamepad_events_enabled {
+        //     get_gamepad_events()
+        // }
     }
 
     return ctx.running
