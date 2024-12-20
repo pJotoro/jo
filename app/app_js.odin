@@ -32,6 +32,9 @@ window_proc :: proc(e: js.Event) {
 		// TODO: What does this mean? Are we not in fullscreen by default?
 		case .Fullscreen_Change:
 			ctx.fullscreen = !ctx.fullscreen
+
+		case .Fullscreen_Error:
+			panic("Fullscreen error")
 	}
 }
 
