@@ -38,6 +38,9 @@ window_proc :: proc(e: js.Event) {
 
 		case .Click:
             ctx.left_mouse_pressed = true
+
+        case .Double_Click:
+        	ctx.left_mouse_double_click = true
 	}
 }
 
