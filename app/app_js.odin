@@ -46,6 +46,9 @@ window_proc :: proc(e: js.Event) {
         case .Mouse_Move:
         	mouse_position := e.data.mouse.screen
         	ctx.mouse_position = ([2]int)(mouse_position)
+
+        case .Mouse_Up:
+        	ctx.left_mouse_down = false
 	}
 }
 
