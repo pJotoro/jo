@@ -50,7 +50,9 @@ window_proc :: proc(e: js.Event) {
         case .Wheel:
         	fmt.println(e.kind, e.data.wheel)
 
-
+        // TODO: What's the difference between these two events?
+        case .Focus, .Focus_In:
+        	ctx.focused = true
 	}
 }
 
