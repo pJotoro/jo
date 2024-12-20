@@ -39,13 +39,13 @@ window_proc :: proc(e: js.Event) {
 			panic("Fullscreen error")
 
 		case .Click, .Double_Click, .Mouse_Move, .Mouse_Up, .Mouse_Down:
-			fmt.println(e.data.mouse)
+			fmt.println(e.kind, e.data.mouse)
 
         case .Key_Up, .Key_Down, .Key_Press:
-        	fmt.println(e.data.key)
+        	fmt.println(e.kind, e.data.key)
 
         case .Scroll, .Wheel:
-        	fmt.println(e.data.wheel)
+        	fmt.println(e.kind, e.data.wheel)
 	}
 }
 
