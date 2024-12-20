@@ -1,14 +1,54 @@
 #+ private
 package app
 
+import "core:log"
+
 import "core:sys/wasm/js"
+import "vendor:wasm/WebGL"
 
 OS_Specific :: struct {
 
 }
 
+// TODO: How to log changes happening in here?
+@(private="file")
+window_proc :: proc(e: js.Event) {
+	#partial switch e.kind {
+		case .Invalid:
+			panic("Invalid event")
+
+		case .Error:
+			panic("Error")
+
+		case .Resize:
+			rect := js.window_get_rect()
+			ctx.width = int(rect.width)
+			ctx.height = int(rect.height)
+
+		
+	}
+}
+
 _init :: proc(loc := #caller_location) -> bool {
-	unimplemented()
+	ctx.visible = 1
+
+	// TODO: What should we do with the passed width and height values?
+	rect := js.window_get_rect()
+	ctx.width = int(rect.width)
+	ctx.height = int(rect.height)
+	log.infof("App dimensions: %v by %v.", ctx.width, ctx.height, location = loc)
+
+	ctx.dpi = int(js.device_pixel_ratio())
+	log.infof("DPI: %v.", ctx.dpi, location = loc)
+
+	// TODO
+	ctx.refresh_rate = 60
+
+	for kind in js.Event_Kind {
+		js.add_window_event_listener(kind, nil, window_proc)
+	}
+
+	return true
 }
 
 _run :: proc(loc := #caller_location) {
