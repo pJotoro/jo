@@ -25,7 +25,9 @@ window_proc :: proc(e: js.Event) {
 			ctx.width = int(rect.width)
 			ctx.height = int(rect.height)
 
-		
+		case .Visibility_Change:
+			is_visible := e.data.visibility_change.is_visible
+			ctx.visible = 1 if is_visible else 2
 	}
 }
 
