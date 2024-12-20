@@ -28,6 +28,10 @@ window_proc :: proc(e: js.Event) {
 		case .Visibility_Change:
 			is_visible := e.data.visibility_change.is_visible
 			ctx.visible = 1 if is_visible else 2
+
+		// TODO: What does this mean? Are we not in fullscreen by default?
+		case .Fullscreen_Change:
+			ctx.fullscreen = !ctx.fullscreen
 	}
 }
 
