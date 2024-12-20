@@ -44,8 +44,13 @@ window_proc :: proc(e: js.Event) {
         case .Key_Up, .Key_Down, .Key_Press:
         	fmt.println(e.kind, e.data.key)
 
-        case .Scroll, .Wheel:
+        case .Scroll:
+        	fmt.println(e.kind, e.data.scroll)
+
+        case .Wheel:
         	fmt.println(e.kind, e.data.wheel)
+
+
 	}
 }
 
