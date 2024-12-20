@@ -53,6 +53,12 @@ window_proc :: proc(e: js.Event) {
         // TODO: What's the difference between these two events?
         case .Focus, .Focus_In:
         	ctx.focused = true
+
+        case .Focus_Out:
+        	ctx.focused = false
+
+        case .Gamepad_Connected, .Gamepad_Disconnected:
+        	fmt.println(e.kind, e.data.gamepad)
 	}
 }
 
