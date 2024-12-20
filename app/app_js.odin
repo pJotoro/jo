@@ -49,6 +49,9 @@ window_proc :: proc(e: js.Event) {
 
         case .Mouse_Up:
         	ctx.left_mouse_down = false
+
+        case .Mouse_Down:
+        	ctx.left_mouse_down = true
 	}
 }
 
