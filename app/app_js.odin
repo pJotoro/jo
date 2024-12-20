@@ -35,6 +35,9 @@ window_proc :: proc(e: js.Event) {
 
 		case .Fullscreen_Error:
 			panic("Fullscreen error")
+
+		case .Click:
+            ctx.left_mouse_pressed = true
 	}
 }
 
