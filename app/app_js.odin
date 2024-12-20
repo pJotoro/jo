@@ -6,6 +6,8 @@ import "core:log"
 import "core:sys/wasm/js"
 import "vendor:wasm/WebGL"
 
+import "core:fmt"
+
 OS_Specific :: struct {
 
 }
@@ -52,6 +54,9 @@ window_proc :: proc(e: js.Event) {
 
         case .Mouse_Down:
         	ctx.left_mouse_down = true
+
+        case .Key_Up, .Key_Down, .Key_Press:
+        	fmt.println(e.data.key)
 	}
 }
 
