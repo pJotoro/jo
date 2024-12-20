@@ -38,22 +38,8 @@ window_proc :: proc(e: js.Event) {
 		case .Fullscreen_Error:
 			panic("Fullscreen error")
 
-		case .Click:
-            ctx.left_mouse_pressed = true
-
-        case .Double_Click:
-        	ctx.left_mouse_double_click = true
-
-        // TODO: Is this the right way to do it? Or should we use mouse.movement? "screen" does mean position, right?
-        case .Mouse_Move:
-        	mouse_position := e.data.mouse.screen
-        	ctx.mouse_position = ([2]int)(mouse_position)
-
-        case .Mouse_Up:
-        	ctx.left_mouse_down = false
-
-        case .Mouse_Down:
-        	ctx.left_mouse_down = true
+		case .Click, .Double_Click, .Mouse_Move, .Mouse_Up, .Mouse_Down:
+			fmt.println(e.data.mouse)
 
         case .Key_Up, .Key_Down, .Key_Press:
         	fmt.println(e.data.key)
