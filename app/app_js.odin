@@ -41,6 +41,11 @@ window_proc :: proc(e: js.Event) {
 
         case .Double_Click:
         	ctx.left_mouse_double_click = true
+
+        // TODO: Is this the right way to do it? Or should we use mouse.movement? "screen" does mean position, right?
+        case .Mouse_Move:
+        	mouse_position := e.data.mouse.screen
+        	ctx.mouse_position = ([2]int)(mouse_position)
 	}
 }
 
