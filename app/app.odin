@@ -536,6 +536,10 @@ text_input_state :: proc "contextless" () -> edit.State {
     return ctx.text_input
 }
 
+set_text_input_state :: proc "contextless" (state: edit.State) {
+    ctx.text_input = state
+}
+
 Text_Input_Flag :: enum  {
     Undo_Redo,
 }
