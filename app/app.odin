@@ -67,6 +67,7 @@ init :: proc(title := "", width := 0, height := 0,
     edit.init(&ctx.text_input, context.allocator, context.allocator)
     strings.builder_init_len_cap(&ctx.text_input_buf, 0, 4096)
     edit.setup_once(&ctx.text_input, &ctx.text_input_buf)
+    ctx.text_input_flags = {.Undo_Redo}
 
     ctx.app_initialized = true
     ctx.running = true
@@ -122,13 +123,9 @@ running :: proc(loc := #caller_location) -> bool {
     if can_connect_gamepad() {
         for gamepad_index in 0..<len(ctx.gamepads) {
             if gamepad_connected(gamepad_index) {
-                try_connect_gamepad(gamepad_index)
+                try_connect_gamepad(gamepad_index, loc)
             }
         }
-
-        // if ctx.gamepad_events_enabled {
-        //     get_gamepad_events()
-        // }
     }
 
     return ctx.running
@@ -520,10 +517,24 @@ mouse_wheel :: proc "contextless" () -> f32 {
     return ctx.mouse_wheel
 }
 
-text_input :: proc "contextless" () -> string {
-    return string(ctx.text_input_buf.buf[:])
+@(require_results)
+text_input :: proc() -> string {
+    return strings.clone_from(string(ctx.text_input_buf.buf[:]))
 }
 
 text_input_clear :: proc() {
     edit.clear_all(&ctx.text_input)
+}
+
+text_input_state :: proc "contextless" () -> edit.State {
+    return ctx.text_input
+}
+
+Text_Input_Flag :: enum  {
+    Undo_Redo,
+}
+Text_Input_Flags :: distinct bit_set[Text_Input_Flag]
+
+set_text_input_flags :: proc "contextless" (flags: Text_Input_Flags) {
+    ctx.text_input_flags = flags
 }

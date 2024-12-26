@@ -186,36 +186,3 @@ gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (ca
 	}
 	return _gamepad_capabilities(gamepad_index, loc)
 }
-
-// Gamepad_Event :: _Gamepad_Event
-
-// // Returns a platform-specific gamepad event.
-// gamepad_get_event :: proc(gamepad_index: int) -> (event: Gamepad_Event, ok: bool) {
-// 	if !ctx.gamepads[gamepad_index].active {
-// 		return
-// 	}
-// 	if !ctx.gamepad_events_enabled {
-// 		ctx.gamepad_events_enabled = true
-// 		get_gamepad_events()
-// 	}
-// 	if ctx.gamepads[gamepad_index].event_index >= len(ctx.gamepads[gamepad_index].events) {
-// 		return
-// 	}
-// 	event = ctx.gamepads[gamepad_index].events[ctx.gamepads[gamepad_index].event_index]
-// 	ctx.gamepads[gamepad_index].event_index += 1
-// 	ok = true
-// 	return
-// }
-
-// @(private)
-// get_gamepad_events :: proc() {
-// 	for &gamepad, idx in ctx.gamepads {
-// 		if gamepad.active {
-// 			clear(&gamepad.events)
-// 			gamepad.event_index = 0
-// 			for event in _gamepad_get_event(idx) {
-// 				append(&gamepad.events, event)
-// 			}
-// 		}
-// 	}
-// }

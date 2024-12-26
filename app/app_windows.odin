@@ -94,13 +94,18 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                     // TODO: multi-line, clipboard.
 
                     case .Z:
-                        if key_pressed(.Z) && key_down(.Control) {
-                            edit.perform_command(&ctx.text_input, .Undo)
+                        if .Undo_Redo in ctx.text_input_flags {
+                            if key_pressed(.Z) && key_down(.Control) {
+                                edit.perform_command(&ctx.text_input, .Undo)
+                            }
                         }
 
+
                     case .Y:
-                        if key_pressed(.Y) && key_down(.Control) {
-                            edit.perform_command(&ctx.text_input, .Redo)
+                        if .Undo_Redo in ctx.text_input_flags {
+                            if key_pressed(.Y) && key_down(.Control) {
+                                edit.perform_command(&ctx.text_input, .Redo)
+                            }
                         }
 
                     case .A:

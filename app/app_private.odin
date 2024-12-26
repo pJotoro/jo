@@ -75,12 +75,12 @@ Context :: struct {
     can_connect_gamepad: bool,
     gamepad_debug_flags: Gamepad_Debug_Flags,
     gamepads: [4]Gamepad_Desc,
-    // gamepad_events_enabled: bool,
     // -------------------
 
     // ----- text input -----
     text_input: edit.State,
     text_input_buf: strings.Builder,
+    text_input_flags: Text_Input_Flags,
     // ----------------------
 
     using os_specific: OS_Specific,
