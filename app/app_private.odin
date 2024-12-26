@@ -1,7 +1,6 @@
 #+ private
 package app
 
-import "core:text/edit"
 import "core:strings"
 
 Context :: struct {
@@ -79,9 +78,7 @@ Context :: struct {
     // -------------------
 
     // ----- text input -----
-    text_input: edit.State,
-    text_input_buf: strings.Builder,
-    text_input_flags: Text_Input_Flags,
+    text_input: strings.Builder,
     // ----------------------
 
     using os_specific: OS_Specific,

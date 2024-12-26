@@ -9,7 +9,7 @@ import "core:log"
 import "xinput"
 import "../misc"
 
-import "core:text/edit"
+import "core:strings"
 import "core:unicode"
 
 /* NOTE(pJotoro): WINDOWED_FLAGS only describes the required flags for a windowed jo application. It does not contain any
@@ -89,95 +89,6 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
                 }
                 ctx.keyboard_keys[key] = true
                 ctx.any_key_down = true
-
-                #partial switch key {
-                    // TODO: multi-line, clipboard.
-
-                    case .Z:
-                        if .Undo_Redo in ctx.text_input_flags {
-                            if key_pressed(.Z) && key_down(.Control) {
-                                edit.perform_command(&ctx.text_input, .Undo)
-                            }
-                        }
-
-
-                    case .Y:
-                        if .Undo_Redo in ctx.text_input_flags {
-                            if key_pressed(.Y) && key_down(.Control) {
-                                edit.perform_command(&ctx.text_input, .Redo)
-                            }
-                        }
-
-                    case .A:
-                        if key_pressed(.A) && key_down(.Control) {
-                            edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
-                            edit.perform_command(&ctx.text_input, .Select_All)
-                        }
-
-                    case .Backspace:
-                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
-                        if !key_down(.Control) {
-                            edit.perform_command(&ctx.text_input, .Backspace)
-                        } else {
-                            edit.perform_command(&ctx.text_input, .Delete_Word_Left)
-                        }
-
-                    case .Delete:
-                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
-                        if !key_down(.Control) {
-                            edit.perform_command(&ctx.text_input, .Delete)
-                        } else {
-                            edit.perform_command(&ctx.text_input, .Delete_Word_Right)
-                        }
-                        
-                    case .Left:
-                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
-                        if !key_down(.Shift) {
-                            if !key_down(.Control) {
-                                edit.perform_command(&ctx.text_input, .Left)
-                            } else {
-                                edit.perform_command(&ctx.text_input, .Word_Left)
-                            }
-                        } else {
-                            if !key_down(.Control) {
-                                edit.perform_command(&ctx.text_input, .Select_Left)
-                            } else {
-                                edit.perform_command(&ctx.text_input, .Select_Word_Left)
-                            }
-                        }
-
-                    case .Right:
-                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
-                        if !key_down(.Shift) {
-                            if !key_down(.Control) {
-                                edit.perform_command(&ctx.text_input, .Right)
-                            } else {
-                                edit.perform_command(&ctx.text_input, .Word_Right)
-                            }
-                        } else {
-                            if !key_down(.Control) {
-                                edit.perform_command(&ctx.text_input, .Select_Right)
-                            } else {
-                                edit.perform_command(&ctx.text_input, .Select_Word_Right)
-                            }
-                        }
-
-                    case .Page_Up:
-                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
-                        if !key_down(.Shift) {
-                            edit.perform_command(&ctx.text_input, .Start)
-                        } else {
-                            edit.perform_command(&ctx.text_input, .Select_Start)
-                        }
-
-                    case .Page_Down:
-                        edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
-                        if !key_down(.Shift) {
-                            edit.perform_command(&ctx.text_input, .End)
-                        } else {
-                            edit.perform_command(&ctx.text_input, .Select_End)
-                        }
-                }
             }
 
         case win32.WM_KEYUP, win32.WM_SYSKEYUP:
@@ -242,10 +153,8 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
 
             r := rune(w_param)
             if !unicode.is_control(r) {
-                edit.undo_state_push(&ctx.text_input, &ctx.text_input.undo)
-                edit.input_rune(&ctx.text_input, r)
+                strings.write_rune(&ctx.text_input, r)
             }
-            
             
         case:
             result = win32.DefWindowProcW(window, message, w_param, l_param)

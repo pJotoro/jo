@@ -4,8 +4,6 @@
 package app
 
 import "core:log"
-
-import "core:text/edit"
 import "core:strings"
 
 Fullscreen_Mode :: enum {
@@ -65,10 +63,7 @@ init :: proc(title := "", width := 0, height := 0,
         }
     }
 
-    edit.init(&ctx.text_input, context.allocator, context.allocator)
-    strings.builder_init_len_cap(&ctx.text_input_buf, 0, 4096)
-    edit.setup_once(&ctx.text_input, &ctx.text_input_buf)
-    ctx.text_input_flags = {.Undo_Redo}
+    strings.builder_init_len_cap(&ctx.text_input, 0, 4096)
 
     ctx.app_initialized = true
     ctx.running = true
@@ -123,6 +118,8 @@ running :: proc(loc := #caller_location) -> bool {
     ctx.middle_mouse_released = false
 
     ctx.mouse_wheel = 0
+
+    strings.builder_reset(&ctx.text_input)
 
     _run(loc)
 
@@ -523,28 +520,6 @@ mouse_wheel :: proc "contextless" () -> f32 {
     return ctx.mouse_wheel
 }
 
-@(require_results)
 text_input :: proc() -> string {
-    return strings.clone_from(string(ctx.text_input_buf.buf[:]))
-}
-
-text_input_clear :: proc() {
-    edit.clear_all(&ctx.text_input)
-}
-
-text_input_state :: proc "contextless" () -> edit.State {
-    return ctx.text_input
-}
-
-set_text_input_state :: proc "contextless" (state: edit.State) {
-    ctx.text_input = state
-}
-
-Text_Input_Flag :: enum  {
-    Undo_Redo,
-}
-Text_Input_Flags :: distinct bit_set[Text_Input_Flag]
-
-set_text_input_flags :: proc "contextless" (flags: Text_Input_Flags) {
-    ctx.text_input_flags = flags
+    return strings.to_string(ctx.text_input)
 }
