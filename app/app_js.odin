@@ -85,7 +85,10 @@ _init :: proc(loc := #caller_location) -> bool {
 }
 
 _run :: proc(loc := #caller_location) {
-	unimplemented()
+	// TODO: How exactly does visibility work? Since a window is not actually
+	// being created, are we visible immediately?
+	//
+	// Events are already handled by adding window event listeners in _init.
 }
 
 _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #caller_location) {
