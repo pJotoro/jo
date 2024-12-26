@@ -82,21 +82,21 @@ running :: proc(loc := #caller_location) -> bool {
     }
 
     // ----- sanity checks -----
-    // assert(!(ctx.width == 0 && !ctx.minimized), "width == 0", loc)
-    // assert(!(ctx.height == 0 && !ctx.minimized), "height == 0", loc)
+    assert(!(ctx.width == 0 && !ctx.minimized), "width == 0", loc)
+    assert(!(ctx.height == 0 && !ctx.minimized), "height == 0", loc)
 
-    // assert(ctx.dpi > 0, "dpi <= 0", loc)
-    // assert(ctx.refresh_rate > 0, "refresh rate <= 0", loc)
+    assert(ctx.dpi > 0, "dpi <= 0", loc)
+    assert(ctx.refresh_rate > 0, "refresh rate <= 0", loc)
 
-    // assert(ctx.window != nil, "window == nil", loc)
-    // assert(ctx.monitor_width > 0, "monitor width <= 0", loc)
-    // assert(ctx.monitor_height > 0, "monitor height <= 0", loc)
+    assert(ctx.window != nil, "window == nil", loc)
+    assert(ctx.monitor_width > 0, "monitor width <= 0", loc)
+    assert(ctx.monitor_height > 0, "monitor height <= 0", loc)
 
-    // assert(!(ctx.fullscreen && ctx.minimized), "fullscreen && minimized", loc)
-    // assert(!(ctx.fullscreen && ctx.maximized), "fullscreen && maximized", loc)
-    // assert(!(ctx.minimized && ctx.maximized), "minimized && maximized", loc)
+    assert(!(ctx.fullscreen && ctx.minimized), "fullscreen && minimized", loc)
+    assert(!(ctx.fullscreen && ctx.maximized), "fullscreen && maximized", loc)
+    assert(!(ctx.minimized && ctx.maximized), "minimized && maximized", loc)
 
-    // assert(!(ctx.re_maximize && !ctx.fullscreen), "re-maximize && fullscreen", loc)
+    assert(!(ctx.re_maximize && !ctx.fullscreen), "re-maximize && fullscreen", loc)
     // -------------------------
 
     for &k in ctx.keyboard_keys_pressed { 

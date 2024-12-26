@@ -33,22 +33,27 @@ window_proc :: proc(e: js.Event) {
 
 		// TODO: What does this mean? Are we not in fullscreen by default?
 		case .Fullscreen_Change:
-			ctx.fullscreen = !ctx.fullscreen
+		// fmt.println("before:", ctx.fullscreen)
+		ctx.fullscreen = !ctx.fullscreen
+		// fmt.println("after:", ctx.fullscreen)
 
 		case .Fullscreen_Error:
 			panic("Fullscreen error")
 
-		case .Click, .Double_Click, .Mouse_Move, .Mouse_Up, .Mouse_Down:
-			fmt.println(e.kind, e.data.mouse)
+		case .Click, .Double_Click, .Mouse_Up, .Mouse_Down:
+			// fmt.println(e.kind, e.data.mouse)
+
+		case .Mouse_Move:
+			//fmt.println(e.kind, e.data.mouse)
 
         case .Key_Up, .Key_Down, .Key_Press:
-        	fmt.println(e.kind, e.data.key)
+        	// fmt.println(e.kind, e.data.key)
 
         case .Scroll:
-        	fmt.println(e.kind, e.data.scroll)
+        	// fmt.println(e.kind, e.data.scroll)
 
         case .Wheel:
-        	fmt.println(e.kind, e.data.wheel)
+        	// fmt.println(e.kind, e.data.wheel)
 
         // TODO: What's the difference between these two events?
         case .Focus, .Focus_In:
@@ -58,7 +63,7 @@ window_proc :: proc(e: js.Event) {
         	ctx.focused = false
 
         case .Gamepad_Connected, .Gamepad_Disconnected:
-        	fmt.println(e.kind, e.data.gamepad)
+        	// fmt.println(e.kind, e.data.gamepad)
 	}
 }
 
@@ -80,6 +85,9 @@ _init :: proc(loc := #caller_location) -> bool {
 	for kind in js.Event_Kind {
 		js.add_window_event_listener(kind, nil, window_proc)
 	}
+
+	ctx.app_initialized = true
+	ctx.running = true
 
 	return true
 }
