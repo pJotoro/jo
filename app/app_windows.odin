@@ -196,7 +196,7 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             ctx.left_mouse_down = true
             
         case win32.WM_LBUTTONUP:
-            ctx.left_mouse_down= false
+            ctx.left_mouse_down = false
             ctx.left_mouse_released = true
 
         case win32.WM_LBUTTONDBLCLK:
@@ -265,7 +265,7 @@ foreign user32 {
     SetCursor :: proc(hCursor: win32.HCURSOR) -> win32.HCURSOR ---
 }
 
-@(private)
+@(private="file")
 adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int, loc := #caller_location) -> (rect: win32.RECT, ok: bool) {
     rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
     
