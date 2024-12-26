@@ -4,7 +4,6 @@ package app
 import "core:text/edit"
 import "core:strings"
 
-@(private)
 Context :: struct {
     // ----- init -----
     title: string,
@@ -87,5 +86,4 @@ Context :: struct {
 
     using os_specific: OS_Specific,
 }
-@(private)
 ctx: Context
