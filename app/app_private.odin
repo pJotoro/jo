@@ -44,6 +44,8 @@ Context :: struct {
     any_key_down: bool,
     any_key_pressed: bool,
     any_key_released: bool,
+
+    exit_key: Keyboard_Key,
     // --------------------
 
     // ----- mouse -----

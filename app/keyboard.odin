@@ -24,6 +24,13 @@ any_key_released :: proc "contextless" () -> bool {
     return ctx.any_key_released
 }
 
+// When this key is pressed, the program exits.
+//
+// The default is Escape.
+set_exit_key :: proc "contextless" (exit_key: Keyboard_Key) {
+    ctx.exit_key = exit_key
+}
+
 Keyboard_Key :: enum rune {
     Left_Mouse = 0x01,
     Right_Mouse,

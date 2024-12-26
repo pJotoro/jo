@@ -48,6 +48,7 @@ init :: proc(title := "", width := 0, height := 0,
     ctx.minimize_box = minimize_box
     ctx.maximize_box = maximize_box
     ctx.cursor_enabled = true
+    ctx.exit_key = .Escape
 
     if !_init(loc) {
         log.fatal("App failed to initialize.", location = loc)
@@ -99,6 +100,11 @@ running :: proc(loc := #caller_location) -> bool {
 
     assert(!(ctx.re_maximize && !ctx.fullscreen), "re-maximize && fullscreen", loc)
     // -------------------------
+
+    if key_pressed(ctx.exit_key) {
+        ctx.running = false
+        return false
+    }
 
     for &k in ctx.keyboard_keys_pressed { 
         k = false 
