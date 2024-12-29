@@ -178,20 +178,11 @@ foreign user32 {
 adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, client_bottom: int, loc := #caller_location) -> (rect: win32.RECT, ok: bool) {
     rect = win32.RECT{i32(client_left), i32(client_top), i32(client_right), i32(client_bottom)}
     
-    if ctx.dpi_aware {
-        if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
-            log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message(), location = loc)
-        } else {
-            log.debug("Succeeded to adjust window rectangle.", location = loc)
-            ok = true
-        }
+    if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
+        log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message(), location = loc)
     } else {
-        if !win32.AdjustWindowRectEx(&rect, flags, false, 0) {
-            log.errorf("Failed to adjust window rectangle. %v", misc.get_last_error_message(), location = loc)
-        } else {
-            log.debug("Succeeded to adjust window rectangle.", location = loc)
-            ok = true
-        }
+        log.debug("Succeeded to adjust window rectangle.", location = loc)
+        ok = true
     }
     
     return
