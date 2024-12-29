@@ -185,6 +185,9 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
         ok = true
     }
 
+    rect.right += rect.left
+    rect.bottom += rect.top
+
     return
 }
 
@@ -333,6 +336,7 @@ _init :: proc(loc := #caller_location) -> bool {
         {
             wname := win32.utf8_to_wstring(ctx.title)
             flags := ctx.windowed_flags if !ctx.fullscreen else FULLSCREEN_FLAGS
+
             if window_rect_ok {
                 ctx.window = win32.CreateWindowExW(
                     0, 
