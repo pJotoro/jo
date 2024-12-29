@@ -281,6 +281,7 @@ _init :: proc(loc := #caller_location) -> bool {
 
             client_left := (ctx.monitor_width - ctx.width) / 2
             client_top := (ctx.monitor_height - ctx.height) / 2
+
             window_rect, ok = adjust_window_rect(ctx.windowed_flags, 
                 client_left, 
                 client_top,
@@ -328,19 +329,36 @@ _init :: proc(loc := #caller_location) -> bool {
             wname := win32.utf8_to_wstring(ctx.title)
             flags := ctx.windowed_flags if !ctx.fullscreen else FULLSCREEN_FLAGS
             if window_rect_ok {
-                ctx.window = win32.CreateWindowExW(
-                    0, 
-                    window_class.lpszClassName, 
-                    wname if !ctx.fullscreen else nil,
-                    flags, 
-                    window_rect.left, 
-                    window_rect.top, 
-                    window_rect.right - window_rect.left, 
-                    window_rect.bottom - window_rect.top, 
-                    nil, 
-                    nil, 
-                    win32.HANDLE(ctx.instance), 
-                    nil)
+                if !ctx.fullscreen {
+                    ctx.window = win32.CreateWindowExW(
+                        0, 
+                        window_class.lpszClassName, 
+                        wname if !ctx.fullscreen else nil,
+                        flags, 
+                        window_rect.left, 
+                        window_rect.top, 
+                        window_rect.right - window_rect.left, 
+                        window_rect.bottom - window_rect.top, 
+                        nil, 
+                        nil, 
+                        win32.HANDLE(ctx.instance), 
+                        nil)
+                } else {
+                    ctx.window = win32.CreateWindowExW(
+                        0, 
+                        window_class.lpszClassName, 
+                        wname if !ctx.fullscreen else nil,
+                        flags, 
+                        0, 
+                        0, 
+                        i32(ctx.width), 
+                        i32(ctx.height), 
+                        nil, 
+                        nil, 
+                        win32.HANDLE(ctx.instance), 
+                        nil)
+                }
+                
             } else {
                 ctx.window = win32.CreateWindowExW(
                     0, 
