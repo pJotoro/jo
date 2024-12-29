@@ -30,6 +30,7 @@ Context :: struct {
     running: bool,
     visible: int, // -1 and 0 mean invisible at first, 1 means visible, and 2 means invisible
     fullscreen: bool,
+    ok_fullscreen: bool,
     minimized: bool,
     maximized: bool,
     // -------------------

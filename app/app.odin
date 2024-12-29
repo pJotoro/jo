@@ -256,6 +256,10 @@ set_fullscreen :: proc(loc := #caller_location) {
         log.warn("Already fullscreen.", location = loc)
         return
     }
+    if !ctx.ok_fullscreen {
+        log.error("Cannot enter fullscreen.", location = loc)
+        return
+    }
 
     re_maximize := false
     if ctx.maximized {

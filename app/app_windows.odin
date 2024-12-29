@@ -184,7 +184,7 @@ adjust_window_rect :: proc(flags: u32, client_left, client_top, client_right, cl
         log.debug("Succeeded to adjust window rectangle.", location = loc)
         ok = true
     }
-    
+
     return
 }
 
@@ -216,6 +216,7 @@ _init :: proc(loc := #caller_location) -> bool {
     }
     
     set_window_rect :: proc(loc := #caller_location) -> (window_rect: win32.RECT, ok: bool) {
+        // Get monitor dimensions
         {
             monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
             monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
@@ -232,14 +233,14 @@ _init :: proc(loc := #caller_location) -> bool {
             log.infof("Monitor dimensions: %v by %v.", ctx.monitor_width, ctx.monitor_height, location = loc)
         }
 
+        // Get window rectangle for fullscreen. NOTE: this is only to be used when switching from windowed to fullscreen, not when starting in fullscreen.
         {
-            ok_fullscreen: bool
-            ctx.fullscreen_rect, ok_fullscreen = adjust_window_rect(FULLSCREEN_FLAGS, 0, 0, ctx.monitor_width, ctx.monitor_height, loc)
-            if !ok_fullscreen {
-                ctx.fullscreen = false
-            }
-            if ctx.fullscreen {
-                window_rect = ctx.fullscreen_rect
+            ctx.fullscreen_rect, ctx.ok_fullscreen = adjust_window_rect(FULLSCREEN_FLAGS, 0, 0, ctx.monitor_width, ctx.monitor_height, loc)
+            if !ctx.ok_fullscreen {
+                log.error("Cannot enter fullscreen.", location = loc)
+                if ctx.fullscreen_mode == .On {
+                    ctx.fullscreen_mode = .Auto
+                }
             }
         }
     
@@ -279,17 +280,21 @@ _init :: proc(loc := #caller_location) -> bool {
 
             log.infof("App dimensions: %v by %v.", ctx.width, ctx.height, location = loc)
 
-            client_left := (ctx.monitor_width - ctx.width) / 2
-            client_top := (ctx.monitor_height - ctx.height) / 2
+            if !ctx.fullscreen {
+                client_left := (ctx.monitor_width - ctx.width) / 2
+                client_top := (ctx.monitor_height - ctx.height) / 2
 
-            window_rect, ok = adjust_window_rect(ctx.windowed_flags, 
-                client_left, 
-                client_top,
-                client_left + ctx.width, 
-                client_top + ctx.height,
-                loc)
-            if !ok {
-                return
+                window_rect, ok = adjust_window_rect(ctx.windowed_flags, 
+                    client_left, 
+                    client_top,
+                    client_left + ctx.width, 
+                    client_top + ctx.height,
+                    loc)
+                if !ok {
+                    return
+                }   
+            } else {
+                window_rect = ctx.fullscreen_rect
             }
         }
 
@@ -329,35 +334,19 @@ _init :: proc(loc := #caller_location) -> bool {
             wname := win32.utf8_to_wstring(ctx.title)
             flags := ctx.windowed_flags if !ctx.fullscreen else FULLSCREEN_FLAGS
             if window_rect_ok {
-                if !ctx.fullscreen {
-                    ctx.window = win32.CreateWindowExW(
-                        0, 
-                        window_class.lpszClassName, 
-                        wname if !ctx.fullscreen else nil,
-                        flags, 
-                        window_rect.left, 
-                        window_rect.top, 
-                        window_rect.right - window_rect.left, 
-                        window_rect.bottom - window_rect.top, 
-                        nil, 
-                        nil, 
-                        win32.HANDLE(ctx.instance), 
-                        nil)
-                } else {
-                    ctx.window = win32.CreateWindowExW(
-                        0, 
-                        window_class.lpszClassName, 
-                        wname if !ctx.fullscreen else nil,
-                        flags, 
-                        0, 
-                        0, 
-                        i32(ctx.width), 
-                        i32(ctx.height), 
-                        nil, 
-                        nil, 
-                        win32.HANDLE(ctx.instance), 
-                        nil)
-                }
+                ctx.window = win32.CreateWindowExW(
+                    0, 
+                    window_class.lpszClassName, 
+                    wname if !ctx.fullscreen else nil,
+                    flags, 
+                    window_rect.left, 
+                    window_rect.top, 
+                    window_rect.right - window_rect.left, 
+                    window_rect.bottom - window_rect.top, 
+                    nil, 
+                    nil,
+                    win32.HANDLE(ctx.instance), 
+                    nil)
                 
             } else {
                 ctx.window = win32.CreateWindowExW(
