@@ -100,8 +100,11 @@ _run :: proc(loc := #caller_location) {
 }
 
 @(export)
-step :: proc(dt: f32) -> bool {
-	return false
+step :: proc(dt: f64) -> bool {
+	ctx.dt = dt
+	ctx.running = running()
+	ctx.update_proc(ctx.dt, ctx.update_user_data)
+	return ctx.running
 }
 
 _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #caller_location) {

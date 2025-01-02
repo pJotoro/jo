@@ -35,10 +35,10 @@ Context :: struct {
     minimized: bool,
     maximized: bool,
 
-    update_proc: proc(dt: f32, user_data: rawptr),
+    update_proc: proc(dt: f64, user_data: rawptr),
     update_user_data: rawptr,
 
-    dt: f32,
+    dt: f64,
     dt_dur: time.Duration,
     // -------------------
     
@@ -92,7 +92,3 @@ Context :: struct {
     using os_specific: OS_Specific,
 }
 ctx: Context
-
-sleep :: proc(d: time.Duration) {
-
-}

@@ -66,7 +66,7 @@ init :: proc(title := "", width := 0, height := 0,
 
     strings.builder_init_len_cap(&ctx.text_input, 0, 4096)
 
-    ctx.dt = 1.0/f32(ctx.refresh_rate)
+    ctx.dt = 1.0/f64(ctx.refresh_rate)
     ctx.dt_dur = time.Second / time.Duration(ctx.refresh_rate)
 
     ctx.app_initialized = true
@@ -139,7 +139,7 @@ running :: proc(loc := #caller_location) -> bool {
 }
 
 // Experimental new way to do game loop. Calculates delta time for you.
-run :: proc(update_proc: proc(dt: f32, user_data: rawptr), user_data: rawptr, loc := #caller_location) {
+run :: proc(update_proc: proc(dt: f64, user_data: rawptr), user_data: rawptr, loc := #caller_location) {
     ctx.update_proc = update_proc
     ctx.update_user_data = user_data
     
@@ -149,7 +149,7 @@ run :: proc(update_proc: proc(dt: f32, user_data: rawptr), user_data: rawptr, lo
             defer {
                 end_tick := time.tick_now()
                 ctx.dt_dur = time.tick_diff(start_tick, end_tick)
-                ctx.dt = f32(ctx.dt_dur)/f32(time.Second)
+                ctx.dt = f64(ctx.dt_dur)/f64(time.Second)
             }
 
             ctx.update_proc(ctx.dt, ctx.update_user_data)
