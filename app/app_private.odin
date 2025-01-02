@@ -2,6 +2,7 @@
 package app
 
 import "core:strings"
+import "core:time"
 
 Context :: struct {
     // ----- init -----
@@ -33,6 +34,12 @@ Context :: struct {
     ok_fullscreen: bool,
     minimized: bool,
     maximized: bool,
+
+    update_proc: proc(dt: f32, user_data: rawptr),
+    update_user_data: rawptr,
+
+    dt: f32,
+    dt_dur: time.Duration,
     // -------------------
     
     // ----- keyboard -----
@@ -85,3 +92,7 @@ Context :: struct {
     using os_specific: OS_Specific,
 }
 ctx: Context
+
+sleep :: proc(d: time.Duration) {
+
+}

@@ -99,6 +99,11 @@ _run :: proc(loc := #caller_location) {
 	// Events are already handled by adding window event listeners in _init.
 }
 
+@(export)
+step :: proc(dt: f32) -> bool {
+	return false
+}
+
 _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #caller_location) {
 	unimplemented()
 }
