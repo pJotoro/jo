@@ -54,20 +54,20 @@ init :: proc(title := "", width := 0, height := 0,
         return
     }
 
-    if ctx.fullscreen {
-        disable_cursor(loc)
-    }
+    // if ctx.fullscreen {
+    //     disable_cursor(loc)
+    // }
 
-    if can_connect_gamepad() {
-        for gamepad_index in 0..<len(ctx.gamepads) {
-            try_connect_gamepad(gamepad_index, loc)
-        }
-    }
+    // if can_connect_gamepad() {
+    //     for gamepad_index in 0..<len(ctx.gamepads) {
+    //         try_connect_gamepad(gamepad_index, loc)
+    //     }
+    // }
 
     strings.builder_init_len_cap(&ctx.text_input, 0, 4096)
 
-    ctx.dt = 1.0/f64(ctx.refresh_rate)
-    ctx.dt_dur = time.Second / time.Duration(ctx.refresh_rate)
+    // ctx.dt = 1.0/f64(ctx.refresh_rate)
+    // ctx.dt_dur = time.Second / time.Duration(ctx.refresh_rate)
 
     ctx.app_initialized = true
     ctx.running = true
@@ -83,21 +83,21 @@ running :: proc(loc := #caller_location) -> bool {
     }
 
     // ----- sanity checks -----
-    assert(!(ctx.width == 0 && !ctx.minimized), "width == 0", loc)
-    assert(!(ctx.height == 0 && !ctx.minimized), "height == 0", loc)
+    // assert(!(ctx.width == 0 && !ctx.minimized), "width == 0", loc)
+    // assert(!(ctx.height == 0 && !ctx.minimized), "height == 0", loc)
 
-    assert(ctx.dpi > 0, "dpi <= 0", loc)
-    assert(ctx.refresh_rate > 0, "refresh rate <= 0", loc)
+    // assert(ctx.dpi > 0, "dpi <= 0", loc)
+    // assert(ctx.refresh_rate > 0, "refresh rate <= 0", loc)
 
-    assert(ctx.window != nil, "window == nil", loc)
-    assert(ctx.monitor_width > 0, "monitor width <= 0", loc)
-    assert(ctx.monitor_height > 0, "monitor height <= 0", loc)
+    // assert(ctx.window != nil, "window == nil", loc)
+    // assert(ctx.monitor_width > 0, "monitor width <= 0", loc)
+    // assert(ctx.monitor_height > 0, "monitor height <= 0", loc)
 
-    assert(!(ctx.fullscreen && ctx.minimized), "fullscreen && minimized", loc)
-    assert(!(ctx.fullscreen && ctx.maximized), "fullscreen && maximized", loc)
-    assert(!(ctx.minimized && ctx.maximized), "minimized && maximized", loc)
+    // assert(!(ctx.fullscreen && ctx.minimized), "fullscreen && minimized", loc)
+    // assert(!(ctx.fullscreen && ctx.maximized), "fullscreen && maximized", loc)
+    // assert(!(ctx.minimized && ctx.maximized), "minimized && maximized", loc)
 
-    assert(!(ctx.re_maximize && !ctx.fullscreen), "re-maximize && fullscreen", loc)
+    // assert(!(ctx.re_maximize && !ctx.fullscreen), "re-maximize && fullscreen", loc)
     // -------------------------
 
     if key_pressed(ctx.exit_key) {
@@ -127,13 +127,13 @@ running :: proc(loc := #caller_location) -> bool {
 
     _run(loc)
 
-    if can_connect_gamepad() {
-        for gamepad_index in 0..<len(ctx.gamepads) {
-            if gamepad_connected(gamepad_index) {
-                try_connect_gamepad(gamepad_index, loc)
-            }
-        }
-    }
+    // if can_connect_gamepad() {
+    //     for gamepad_index in 0..<len(ctx.gamepads) {
+    //         if gamepad_connected(gamepad_index) {
+    //             try_connect_gamepad(gamepad_index, loc)
+    //         }
+    //     }
+    // }
 
     return ctx.running
 }

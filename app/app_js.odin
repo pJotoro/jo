@@ -2,14 +2,13 @@
 package app
 
 import "core:log"
-
-import "core:sys/wasm/js"
-import "vendor:wasm/WebGL"
-
 import "core:fmt"
 
-OS_Specific :: struct {
+import "core:sys/wasm/js"
+import webgl "vendor:wasm/WebGL"
 
+OS_Specific :: struct {
+	using_webgl: bool,
 }
 
 // TODO: How to log changes happening in here?
@@ -76,7 +75,8 @@ _init :: proc(loc := #caller_location) -> bool {
 	ctx.height = int(rect.height)
 	log.infof("App dimensions: %v by %v.", ctx.width, ctx.height, location = loc)
 
-	ctx.dpi = int(js.device_pixel_ratio())
+	// TODO
+	ctx.dpi = 96
 	log.infof("DPI: %v.", ctx.dpi, location = loc)
 
 	// TODO
@@ -85,6 +85,16 @@ _init :: proc(loc := #caller_location) -> bool {
 	for kind in js.Event_Kind {
 		js.add_window_event_listener(kind, nil, window_proc)
 	}
+
+	// TODO
+	ctx.can_connect_gamepad = true
+
+	webgl_init :: proc() -> bool {
+		webgl.CreateCurrentContextById("jo_canvas", {}) or_return
+		webgl.SetCurrentContextById("jo_canvas") or_return
+		return true
+	}
+	ctx.using_webgl = webgl_init()
 
 	ctx.app_initialized = true
 	ctx.running = true
@@ -102,9 +112,13 @@ _run :: proc(loc := #caller_location) {
 @(export)
 step :: proc(dt: f64) -> bool {
 	ctx.dt = dt
-	ctx.running = running()
-	ctx.update_proc(ctx.dt, ctx.update_user_data)
-	return ctx.running
+	if !running() {
+		return false
+	}
+	if ctx.update_proc != nil {
+		ctx.update_proc(ctx.dt, ctx.update_user_data)
+	}
+	return true
 }
 
 _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #caller_location) {
@@ -136,7 +150,8 @@ _disable_cursor :: proc() -> bool {
 }
 
 _set_title :: proc(title: string, loc := #caller_location) {
-	unimplemented()
+	code := fmt.tprint("document.title = \"", title, "\"")
+	js.evaluate(code)
 }
 
 _set_position :: proc(x, y: int, loc := #caller_location) {
