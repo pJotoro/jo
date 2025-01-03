@@ -96,6 +96,10 @@ _init :: proc(loc := #caller_location) -> bool {
 	}
 	ctx.using_webgl = webgl_init()
 
+	if ctx.title != "" {
+		set_title(ctx.title)
+	}
+
 	ctx.app_initialized = true
 	ctx.running = true
 
@@ -116,7 +120,7 @@ step :: proc(dt: f64) -> bool {
 		return false
 	}
 	if ctx.update_proc != nil {
-		ctx.update_proc(ctx.dt, ctx.update_user_data)
+		ctx.update_proc(ctx.dt, ctx.update_proc_user_data)
 	}
 	return true
 }

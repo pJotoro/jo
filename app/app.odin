@@ -141,7 +141,7 @@ running :: proc(loc := #caller_location) -> bool {
 // Experimental new way to do game loop. Calculates delta time for you.
 run :: proc(update_proc: proc(dt: f64, user_data: rawptr), user_data: rawptr, loc := #caller_location) {
     ctx.update_proc = update_proc
-    ctx.update_user_data = user_data
+    ctx.update_proc_user_data = user_data
     
     when ODIN_OS != .JS {
         for running(loc) {

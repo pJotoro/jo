@@ -36,7 +36,7 @@ Context :: struct {
     maximized: bool,
 
     update_proc: proc(dt: f64, user_data: rawptr),
-    update_user_data: rawptr,
+    update_proc_user_data: rawptr,
 
     dt: f64,
     dt_dur: time.Duration,
