@@ -116,10 +116,15 @@ running :: proc(loc := #caller_location) -> bool {
 
     ctx.left_mouse_pressed = false
     ctx.left_mouse_released = false
+    ctx.left_mouse_double_click = false
+
     ctx.right_mouse_pressed = false
     ctx.right_mouse_released = false
+    ctx.right_mouse_double_click = false
+
     ctx.middle_mouse_pressed = false
     ctx.middle_mouse_released = false
+    ctx.middle_mouse_double_click = false
 
     ctx.mouse_wheel = 0
 
