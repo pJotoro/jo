@@ -32,18 +32,18 @@ window_proc :: proc(e: js.Event) {
 
 		// TODO: What does this mean? Are we not in fullscreen by default?
 		case .Fullscreen_Change:
-		// fmt.println("before:", ctx.fullscreen)
 		ctx.fullscreen = !ctx.fullscreen
-		// fmt.println("after:", ctx.fullscreen)
 
 		case .Fullscreen_Error:
 			panic("Fullscreen error")
 
 		case .Click, .Double_Click, .Mouse_Up, .Mouse_Down:
-			// fmt.println(e.kind, e.data.mouse)
+	
 
 		case .Mouse_Move:
-			//fmt.println(e.kind, e.data.mouse)
+			mouse := e.data.mouse
+			ctx.mouse_position.x = int(mouse.client.x)
+			ctx.mouse_position.y = int(mouse.client.y)
 
         case .Key_Up, .Key_Down, .Key_Press:
         	// fmt.println(e.kind, e.data.key)
