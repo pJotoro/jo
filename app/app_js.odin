@@ -14,6 +14,10 @@ OS_Specific :: struct {
 // TODO: How to log changes happening in here?
 @(private="file")
 window_proc :: proc(e: js.Event) {
+	MOUSE_LEFT :: 0
+	MOUSE_MIDDLE :: 1
+	MOUSE_RIGHT :: 2
+
 	#partial switch e.kind {
 		case .Invalid:
 			panic("Invalid event")
@@ -37,8 +41,52 @@ window_proc :: proc(e: js.Event) {
 		case .Fullscreen_Error:
 			panic("Fullscreen error")
 
-		case .Click, .Double_Click, .Mouse_Up, .Mouse_Down:
-	
+		case .Click:
+			mouse := e.data.mouse
+			switch mouse.button {
+				case MOUSE_LEFT:
+					ctx.left_mouse_pressed = true
+				case MOUSE_MIDDLE:
+					ctx.middle_mouse_pressed = true
+				case MOUSE_RIGHT:
+					ctx.right_mouse_pressed = true
+			}
+
+		case .Double_Click:
+			mouse := e.data.mouse
+			switch mouse.button {
+				case MOUSE_LEFT:
+					ctx.left_mouse_double_click = true
+				case MOUSE_MIDDLE:
+					ctx.middle_mouse_double_click = true
+				case MOUSE_RIGHT:
+					ctx.right_mouse_double_click = true
+			}
+
+		case .Mouse_Up:
+			mouse := e.data.mouse
+			switch mouse.button {
+				case MOUSE_LEFT:
+					ctx.left_mouse_released = true
+					ctx.left_mouse_down = false
+				case MOUSE_MIDDLE:
+					ctx.middle_mouse_released = true
+					ctx.middle_mouse_down = false
+				case MOUSE_RIGHT:
+					ctx.right_mouse_released = true
+					ctx.right_mouse_down = false
+			}
+
+		case .Mouse_Down:
+			mouse := e.data.mouse
+			switch mouse.button {
+				case MOUSE_LEFT:
+					ctx.left_mouse_down = true
+				case MOUSE_MIDDLE:
+					ctx.middle_mouse_down = true
+				case MOUSE_RIGHT:
+					ctx.right_mouse_down = true
+			}
 
 		case .Mouse_Move:
 			mouse := e.data.mouse
