@@ -164,13 +164,10 @@ _run :: proc(loc := #caller_location) {
 @(export)
 step :: proc(dt: f64) -> bool {
 	ctx.dt = dt
-	if !running() {
-		return false
-	}
 	if ctx.update_proc != nil {
 		ctx.update_proc(ctx.dt, ctx.update_proc_user_data)
 	}
-	return true
+	return running()
 }
 
 _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #caller_location) {
