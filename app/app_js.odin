@@ -94,7 +94,8 @@ window_proc :: proc(e: js.Event) {
 			ctx.mouse_position.y = int(mouse.client.y)
 
         case .Key_Up, .Key_Down, .Key_Press:
-        	// fmt.println(e.kind, e.data.key)
+        	key := e.data.key
+        	fmt.println(key)
 
         case .Scroll:
         	// fmt.println(e.kind, e.data.scroll)

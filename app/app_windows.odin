@@ -46,6 +46,125 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
 
     result := win32.LRESULT(0)
 
+    get_key :: proc(vk: u16) -> Key {
+        switch vk {
+            // You reversed it!
+
+            case win32.VK_CANCEL:   return 
+            case .Backspace:        return win32.VK_BACKSPACE
+            case .Tab:              return win32.VK_TAB
+            case .Clear:            return win32.VK_CLEAR
+            case .Enter:            return win32.VK_ENTER
+            case .Shift:            return win32.VK_SHIFT
+            case .Control:          return win32.VK_CONTROL
+            case .Alt:              return win32.VK_ALT
+            case .Pause:            return win32.VK_PAUSE
+            case .Caps_Lock:        return win32.VK_CAPITAL
+            case .Escape:           return win32.VK_ESCAPE
+            case .Space:            return win32.VK_SPACE
+            case .Page_Up:          return win32.VK_PRIOR
+            case .Page_Down:        return win32.VK_NEXT
+            case .End:              return win32.VK_END
+            case .Home:             return win32.VK_HOME
+            case .Left:             return win32.VK_LEFT
+            case .Up:               return win32.VK_UP
+            case .Right:            return win32.VK_RIGHT
+            case .Down:             return win32.VK_DOWN
+            case .Select:           return win32.VK_SELECT
+            case .Print:            return win32.VK_PRINT
+            case .Execute:          return win32.VK_EXECUTE
+            case .Print_Screen:     return win32.VK_SNAPSHOT
+            case .Insert:           return win32.VK_INSERT
+            case .Delete:           return win32.VK_DELETE
+            case .Help:             return win32.VK_HELP
+            case .Zero:             return win32.VK_0
+            case .One:              return win32.VK_1
+            case .Two:              return win32.VK_2
+            case .Three:            return win32.VK_3
+            case .Four:             return win32.VK_4
+            case .Five:             return win32.VK_5
+            case .Six:              return win32.VK_6
+            case .Seven:            return win32.VK_7
+            case .Eight:            return win32.VK_8
+            case .Nine:             return win32.VK_9
+            case .A:                return 'A'
+            case .B:                return 'B'
+            case .C:                return 'C'
+            case .D:                return 'D'
+            case .E:                return 'E'
+            case .F:                return 'F'
+            case .G:                return 'G'
+            case .H:                return 'A'
+            case .I:                return 'A'
+            case .J:                return 'A'
+            case .K:                return 'A'
+            case .L:                return 'A'
+            case .M:                return 'A'
+            case .N:                return 'A'
+            case .O:                return 'A'
+            case .P:                return 'A'
+            case .Q:                return 'A'
+            case .R:                return 'A'
+            case .S:                return 'A'
+            case .T:                return 'A'
+            case .U:                return 'A'
+            case .V:                return 'A'
+            case .W:                return 'A'
+            case .X:                return 'A'
+            case .Y:                return 'A'
+            case .Z:                return 'A'
+            case .Left_Logo_Key:    return win32.VK_
+            case .Right_Logo_Key:   return win32.VK_
+            case .Applications_Key: return win32.VK_
+            case .Sleep:            return win32.VK_
+            case .Numpad0:          return win32.VK_
+            case .Numpad1:          return win32.VK_
+            case .Numpad2:          return win32.VK_
+            case .Numpad3:          return win32.VK_
+            case .Numpad4:          return win32.VK_
+            case .Numpad5:          return win32.VK_
+            case .Numpad6:          return win32.VK_
+            case .Numpad7:          return win32.VK_
+            case .Numpad8:          return win32.VK_
+            case .Numpad9:          return win32.VK_
+            case .Multiply:         return win32.VK_
+            case .Add:              return win32.VK_
+            case .Separator:        return win32.VK_
+            case .Subtract:         return win32.VK_
+            case .Decimal:          return win32.VK_
+            case .Divide:           return win32.VK_
+            case .F1:               return win32.VK_
+            case .F2:               return win32.VK_
+            case .F3:               return win32.VK_
+            case .F4:               return win32.VK_
+            case .F5:               return win32.VK_
+            case .F6:               return win32.VK_
+            case .F7:               return win32.VK_
+            case .F8:               return win32.VK_
+            case .F9:               return win32.VK_
+            case .F10:              return win32.VK_
+            case .F11:              return win32.VK_
+            case .F12:              return win32.VK_
+            case .F13:              return win32.VK_
+            case .F14:              return win32.VK_
+            case .F15:              return win32.VK_
+            case .F16:              return win32.VK_
+            case .F17:              return win32.VK_
+            case .F18:              return win32.VK_
+            case .F19:              return win32.VK_
+            case .F20:              return win32.VK_
+            case .F21:              return win32.VK_
+            case .F22:              return win32.VK_
+            case .F23:              return win32.VK_
+            case .F24:              return win32.VK_
+            case .Numlock:          return win32.VK_
+            case .Scroll:           return win32.VK_
+            case .Volume_Mute:      return win32.VK_
+            case .Volume_Down:      return win32.VK_
+            case .Volume_Up:        return win32.VK_
+        }
+    }
+
     switch message {
         case win32.WM_CLOSE, win32.WM_DESTROY, win32.WM_QUIT:
             ctx.running = false

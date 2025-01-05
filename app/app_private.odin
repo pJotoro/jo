@@ -43,9 +43,9 @@ Context :: struct {
     // -------------------
     
     // ----- keyboard -----
-    keyboard_keys: #sparse [Keyboard_Key]bool,
-    keyboard_keys_pressed: #sparse [Keyboard_Key]bool,
-    keyboard_keys_released: #sparse [Keyboard_Key]bool,
+    keyboard_keys: [Keyboard_Key]bool,
+    keyboard_keys_pressed: [Keyboard_Key]bool,
+    keyboard_keys_released: [Keyboard_Key]bool,
 
     any_key_down: bool,
     any_key_pressed: bool,

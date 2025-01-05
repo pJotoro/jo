@@ -31,29 +31,19 @@ set_exit_key :: proc "contextless" (exit_key: Keyboard_Key) {
     ctx.exit_key = exit_key
 }
 
-Keyboard_Key :: enum rune {
-    Left_Mouse = 0x01,
-    Right_Mouse,
+Key :: enum u16 {
     Cancel,
-    Middle_Mouse,
-    X1_Mouse,
-    X2_Mouse,
-
-    Backspace = 0x08,
+    Backspace,
     Tab,
-
-    Clear = 0x0C,
+    Clear,
     Enter,
-
-    Shift = 0x10,
+    Shift,
     Control,
     Alt,
     Pause,
     Caps_Lock,
-
-    Escape = 0x1B,
-
-    Space = 0x20,
+    Escape,
+    Space,
     Page_Up,
     Page_Down,
     End,
@@ -69,8 +59,7 @@ Keyboard_Key :: enum rune {
     Insert,
     Delete,
     Help,
-
-    Zero = '0',
+    Zero,
     One,
     Two,
     Three,
@@ -80,8 +69,7 @@ Keyboard_Key :: enum rune {
     Seven,
     Eight,
     Nine,
-
-    A = 'A',
+    A,
     B,
     C,
     D,
@@ -107,12 +95,10 @@ Keyboard_Key :: enum rune {
     X,
     Y,
     Z,
-
-    Left_Logo_Key = 0x5B,
+    Left_Logo_Key,
     Right_Logo_Key,
     Applications_Key,
-
-    Sleep = 0x5F,
+    Sleep,
     Numpad0,
     Numpad1,
     Numpad2,
@@ -153,11 +139,9 @@ Keyboard_Key :: enum rune {
     F22,
     F23,
     F24,
-
-    Numlock = 0x90,
+    Numlock,
     Scroll,
-
-    Volume_Mute = 0xAD,
+    Volume_Mute,
     Volume_Down,
     Volume_Up,
 }
