@@ -265,12 +265,12 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             ctx.mouse_position.y = int(-params[1]) + ctx.height
 
         case win32.WM_MOUSEWHEEL:
-            amount := i16(w_param >> 16)
-            ctx.mouse_wheel = f32(amount) / f32(max(i16))
+            WHEEL_DELTA :: 120
+            amount := i16(w_param >> 16) / WHEEL_DELTA
+            ctx.mouse_wheel = int(amount)
 
         case win32.WM_CHAR:
             // TODO: Add any_key_down and any_key_pressed for this event.
-
             r := rune(w_param)
             if !unicode.is_control(r) {
                 strings.write_rune(&ctx.text_input, r)

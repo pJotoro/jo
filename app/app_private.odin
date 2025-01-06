@@ -72,7 +72,7 @@ Context :: struct {
 
     mouse_position: [2]int,
 
-    mouse_wheel: f32,
+    mouse_wheel: int,
     // -----------------
 
     // ----- cursor -----

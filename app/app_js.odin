@@ -232,7 +232,13 @@ window_proc :: proc(e: js.Event) {
         	fmt.println(e.kind, e.data.scroll)
 
         case .Wheel:
-        	fmt.println(e.kind, e.data.wheel)
+        	wheel := e.data.wheel
+        	assert(wheel.delta_mode == .Pixel) // TODO
+        	// TODO: x and z directions too
+        	if wheel.delta[1] != 0.0 {
+        		WHEEL_DELTA :: 102
+        		ctx.mouse_wheel = int(wheel.delta[1]) / WHEEL_DELTA
+        	}
 
         // TODO: What's the difference between these two events?
         case .Focus, .Focus_In:

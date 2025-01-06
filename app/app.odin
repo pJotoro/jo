@@ -548,7 +548,7 @@ middle_mouse_double_click :: proc "contextless" () -> bool {
 }
 
 // Returns mouse wheel delta as a normalized floating point value.
-mouse_wheel :: proc "contextless" () -> f32 {
+mouse_wheel :: proc "contextless" () -> int {
     return ctx.mouse_wheel
 }
 
