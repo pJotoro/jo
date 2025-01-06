@@ -13,7 +13,7 @@ OS_Specific :: struct {
 
 // TODO: How to log changes happening in here?
 @(private="file")
-window_proc :: proc(e: js.Event) {
+event_proc :: proc(e: js.Event) {
 	MOUSE_LEFT :: 0
 	MOUSE_MIDDLE :: 1
 	MOUSE_RIGHT :: 2
@@ -276,7 +276,7 @@ _init :: proc(loc := #caller_location) -> bool {
 	ctx.refresh_rate = 60
 
 	for kind in js.Event_Kind {
-		js.add_window_event_listener(kind, nil, window_proc)
+		js.add_window_event_listener(kind, nil, event_proc)
 	}
 
 	// TODO

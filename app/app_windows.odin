@@ -41,7 +41,7 @@ OS_Specific :: struct {
 L :: intrinsics.constant_utf16_cstring
 
 @(private="file")
-window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
+event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
     context = runtime.default_context()
 
     result := win32.LRESULT(0)
@@ -442,7 +442,7 @@ _init :: proc(loc := #caller_location) -> bool {
         {
             window_class = win32.WNDCLASSEXW{
                 cbSize = size_of(win32.WNDCLASSEXW),
-                lpfnWndProc = window_proc,
+                lpfnWndProc = event_proc,
                 hInstance = win32.HANDLE(ctx.instance),
                 lpszClassName = L("app_class"),
             }
