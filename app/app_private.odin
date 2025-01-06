@@ -43,15 +43,15 @@ Context :: struct {
     // -------------------
     
     // ----- keyboard -----
-    keyboard_keys: [Keyboard_Key]bool,
-    keyboard_keys_pressed: [Keyboard_Key]bool,
-    keyboard_keys_released: [Keyboard_Key]bool,
+    keys: [Key]bool,
+    keys_pressed: [Key]bool,
+    keys_released: [Key]bool,
 
     any_key_down: bool,
     any_key_pressed: bool,
     any_key_released: bool,
 
-    exit_key: Keyboard_Key,
+    exit_key: Key,
     // --------------------
 
     // ----- mouse -----

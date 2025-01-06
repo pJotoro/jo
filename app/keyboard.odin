@@ -1,15 +1,15 @@
 package app
 
-key_down :: proc "contextless" (key: Keyboard_Key) -> bool {
-    return ctx.keyboard_keys[key]
+key_down :: proc "contextless" (key: Key) -> bool {
+    return ctx.keys[key]
 }
 
-key_pressed :: proc "contextless" (key: Keyboard_Key) -> bool {
-    return ctx.keyboard_keys_pressed[key]
+key_pressed :: proc "contextless" (key: Key) -> bool {
+    return ctx.keys_pressed[key]
 }
 
-key_released :: proc "contextless" (key: Keyboard_Key) -> bool {
-    return ctx.keyboard_keys_released[key]
+key_released :: proc "contextless" (key: Key) -> bool {
+    return ctx.keys_released[key]
 }
 
 any_key_down :: proc "contextless" () -> bool {
@@ -27,7 +27,7 @@ any_key_released :: proc "contextless" () -> bool {
 // When this key is pressed, the program exits.
 //
 // The default is Escape.
-set_exit_key :: proc "contextless" (exit_key: Keyboard_Key) {
+set_exit_key :: proc "contextless" (exit_key: Key) {
     ctx.exit_key = exit_key
 }
 
@@ -95,9 +95,9 @@ Key :: enum u16 {
     X,
     Y,
     Z,
-    Left_Logo_Key,
-    Right_Logo_Key,
-    Applications_Key,
+    Left_Logo,
+    Right_Logo,
+    Apps,
     Sleep,
     Numpad0,
     Numpad1,

@@ -105,10 +105,10 @@ running :: proc(loc := #caller_location) -> bool {
         return false
     }
 
-    for &k in ctx.keyboard_keys_pressed { 
+    for &k in ctx.keys_pressed { 
         k = false 
     }
-    for &k in ctx.keyboard_keys_released { 
+    for &k in ctx.keys_released { 
         k = false 
     }
 
@@ -157,7 +157,7 @@ run :: proc(update_proc: proc(dt: f64, user_data: rawptr), user_data: rawptr, lo
                 ctx.dt = f64(ctx.dt_dur)/f64(time.Second)
             }
 
-            ctx.update_proc(ctx.dt, ctx.update_user_data)
+            ctx.update_proc(ctx.dt, ctx.update_proc_user_data)
         }
     }
 }

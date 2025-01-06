@@ -46,123 +46,123 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
 
     result := win32.LRESULT(0)
 
-    get_key :: proc(vk: u16) -> Key {
+    get_key :: proc(vk: win32.WPARAM) -> Key {
         switch vk {
-            // You reversed it!
-
-            case win32.VK_CANCEL:   return 
-            case .Backspace:        return win32.VK_BACKSPACE
-            case .Tab:              return win32.VK_TAB
-            case .Clear:            return win32.VK_CLEAR
-            case .Enter:            return win32.VK_ENTER
-            case .Shift:            return win32.VK_SHIFT
-            case .Control:          return win32.VK_CONTROL
-            case .Alt:              return win32.VK_ALT
-            case .Pause:            return win32.VK_PAUSE
-            case .Caps_Lock:        return win32.VK_CAPITAL
-            case .Escape:           return win32.VK_ESCAPE
-            case .Space:            return win32.VK_SPACE
-            case .Page_Up:          return win32.VK_PRIOR
-            case .Page_Down:        return win32.VK_NEXT
-            case .End:              return win32.VK_END
-            case .Home:             return win32.VK_HOME
-            case .Left:             return win32.VK_LEFT
-            case .Up:               return win32.VK_UP
-            case .Right:            return win32.VK_RIGHT
-            case .Down:             return win32.VK_DOWN
-            case .Select:           return win32.VK_SELECT
-            case .Print:            return win32.VK_PRINT
-            case .Execute:          return win32.VK_EXECUTE
-            case .Print_Screen:     return win32.VK_SNAPSHOT
-            case .Insert:           return win32.VK_INSERT
-            case .Delete:           return win32.VK_DELETE
-            case .Help:             return win32.VK_HELP
-            case .Zero:             return win32.VK_0
-            case .One:              return win32.VK_1
-            case .Two:              return win32.VK_2
-            case .Three:            return win32.VK_3
-            case .Four:             return win32.VK_4
-            case .Five:             return win32.VK_5
-            case .Six:              return win32.VK_6
-            case .Seven:            return win32.VK_7
-            case .Eight:            return win32.VK_8
-            case .Nine:             return win32.VK_9
-            case .A:                return 'A'
-            case .B:                return 'B'
-            case .C:                return 'C'
-            case .D:                return 'D'
-            case .E:                return 'E'
-            case .F:                return 'F'
-            case .G:                return 'G'
-            case .H:                return 'A'
-            case .I:                return 'A'
-            case .J:                return 'A'
-            case .K:                return 'A'
-            case .L:                return 'A'
-            case .M:                return 'A'
-            case .N:                return 'A'
-            case .O:                return 'A'
-            case .P:                return 'A'
-            case .Q:                return 'A'
-            case .R:                return 'A'
-            case .S:                return 'A'
-            case .T:                return 'A'
-            case .U:                return 'A'
-            case .V:                return 'A'
-            case .W:                return 'A'
-            case .X:                return 'A'
-            case .Y:                return 'A'
-            case .Z:                return 'A'
-            case .Left_Logo_Key:    return win32.VK_
-            case .Right_Logo_Key:   return win32.VK_
-            case .Applications_Key: return win32.VK_
-            case .Sleep:            return win32.VK_
-            case .Numpad0:          return win32.VK_
-            case .Numpad1:          return win32.VK_
-            case .Numpad2:          return win32.VK_
-            case .Numpad3:          return win32.VK_
-            case .Numpad4:          return win32.VK_
-            case .Numpad5:          return win32.VK_
-            case .Numpad6:          return win32.VK_
-            case .Numpad7:          return win32.VK_
-            case .Numpad8:          return win32.VK_
-            case .Numpad9:          return win32.VK_
-            case .Multiply:         return win32.VK_
-            case .Add:              return win32.VK_
-            case .Separator:        return win32.VK_
-            case .Subtract:         return win32.VK_
-            case .Decimal:          return win32.VK_
-            case .Divide:           return win32.VK_
-            case .F1:               return win32.VK_
-            case .F2:               return win32.VK_
-            case .F3:               return win32.VK_
-            case .F4:               return win32.VK_
-            case .F5:               return win32.VK_
-            case .F6:               return win32.VK_
-            case .F7:               return win32.VK_
-            case .F8:               return win32.VK_
-            case .F9:               return win32.VK_
-            case .F10:              return win32.VK_
-            case .F11:              return win32.VK_
-            case .F12:              return win32.VK_
-            case .F13:              return win32.VK_
-            case .F14:              return win32.VK_
-            case .F15:              return win32.VK_
-            case .F16:              return win32.VK_
-            case .F17:              return win32.VK_
-            case .F18:              return win32.VK_
-            case .F19:              return win32.VK_
-            case .F20:              return win32.VK_
-            case .F21:              return win32.VK_
-            case .F22:              return win32.VK_
-            case .F23:              return win32.VK_
-            case .F24:              return win32.VK_
-            case .Numlock:          return win32.VK_
-            case .Scroll:           return win32.VK_
-            case .Volume_Mute:      return win32.VK_
-            case .Volume_Down:      return win32.VK_
-            case .Volume_Up:        return win32.VK_
+            case win32.VK_CANCEL:       return .Cancel
+            case win32.VK_BACK:    return .Backspace
+            case win32.VK_TAB:          return .Tab
+            case win32.VK_CLEAR:        return .Clear
+            case win32.VK_RETURN:        return .Enter
+            case win32.VK_SHIFT:        return .Shift
+            case win32.VK_CONTROL:      return .Control
+            case win32.VK_MENU:          return .Alt
+            case win32.VK_PAUSE:        return .Pause
+            case win32.VK_CAPITAL:      return .Caps_Lock
+            case win32.VK_ESCAPE:       return .Escape
+            case win32.VK_SPACE:        return .Space
+            case win32.VK_PRIOR:        return .Page_Up
+            case win32.VK_NEXT:         return .Page_Down
+            case win32.VK_END:          return .End
+            case win32.VK_HOME:         return .Home
+            case win32.VK_LEFT:         return .Left
+            case win32.VK_UP:           return .Up
+            case win32.VK_RIGHT:        return .Right
+            case win32.VK_DOWN:         return .Down
+            case win32.VK_SELECT:       return .Select
+            case win32.VK_PRINT:        return .Print
+            case win32.VK_EXECUTE:      return .Execute
+            case win32.VK_SNAPSHOT:     return .Print_Screen
+            case win32.VK_INSERT:       return .Insert
+            case win32.VK_DELETE:       return .Delete
+            case win32.VK_HELP:         return .Help
+            case win32.VK_0:            return .Zero
+            case win32.VK_1:            return .One
+            case win32.VK_2:            return .Two
+            case win32.VK_3:            return .Three
+            case win32.VK_4:            return .Four
+            case win32.VK_5:            return .Five
+            case win32.VK_6:            return .Six
+            case win32.VK_7:            return .Seven
+            case win32.VK_8:            return .Eight
+            case win32.VK_9:            return .Nine
+            case 'A':                   return .A
+            case 'B':                   return .B
+            case 'C':                   return .C
+            case 'D':                   return .D
+            case 'E':                   return .E
+            case 'F':                   return .F
+            case 'G':                   return .G
+            case 'H':                   return .H
+            case 'I':                   return .I
+            case 'J':                   return .J
+            case 'K':                   return .K
+            case 'L':                   return .L
+            case 'M':                   return .M
+            case 'N':                   return .N
+            case 'O':                   return .O
+            case 'P':                   return .P
+            case 'Q':                   return .Q
+            case 'R':                   return .R
+            case 'S':                   return .S
+            case 'T':                   return .T
+            case 'U':                   return .U
+            case 'V':                   return .V
+            case 'W':                   return .W
+            case 'X':                   return .X
+            case 'Y':                   return .Y
+            case 'Z':                   return .Z
+            case win32.VK_LWIN:         return .Left_Logo
+            case win32.VK_RWIN:         return .Right_Logo
+            case win32.VK_APPS:         return .Apps
+            case win32.VK_SLEEP:        return .Sleep
+            case win32.VK_NUMPAD0:      return .Numpad0
+            case win32.VK_NUMPAD1:      return .Numpad1
+            case win32.VK_NUMPAD2:      return .Numpad2
+            case win32.VK_NUMPAD3:      return .Numpad3
+            case win32.VK_NUMPAD4:      return .Numpad4
+            case win32.VK_NUMPAD5:      return .Numpad5
+            case win32.VK_NUMPAD6:      return .Numpad6
+            case win32.VK_NUMPAD7:      return .Numpad7
+            case win32.VK_NUMPAD8:      return .Numpad8
+            case win32.VK_NUMPAD9:      return .Numpad9
+            case win32.VK_MULTIPLY:     return .Multiply
+            case win32.VK_ADD:          return .Add
+            case win32.VK_SEPARATOR:    return .Separator
+            case win32.VK_SUBTRACT:     return .Subtract
+            case win32.VK_DECIMAL:      return .Decimal
+            case win32.VK_DIVIDE:       return .Divide
+            case win32.VK_F1:           return .F1
+            case win32.VK_F2:           return .F2
+            case win32.VK_F3:           return .F3
+            case win32.VK_F4:           return .F4
+            case win32.VK_F5:           return .F5
+            case win32.VK_F6:           return .F6
+            case win32.VK_F7:           return .F7
+            case win32.VK_F8:           return .F8
+            case win32.VK_F9:           return .F9
+            case win32.VK_F10:          return .F10
+            case win32.VK_F11:          return .F11
+            case win32.VK_F12:          return .F12
+            case win32.VK_F13:          return .F13
+            case win32.VK_F14:          return .F14
+            case win32.VK_F15:          return .F15
+            case win32.VK_F16:          return .F16
+            case win32.VK_F17:          return .F17
+            case win32.VK_F18:          return .F18
+            case win32.VK_F19:          return .F19
+            case win32.VK_F20:          return .F20
+            case win32.VK_F21:          return .F21
+            case win32.VK_F22:          return .F22
+            case win32.VK_F23:          return .F23
+            case win32.VK_F24:          return .F24
+            case win32.VK_NUMLOCK:      return .Numlock
+            case win32.VK_SCROLL:       return .Scroll
+            case win32.VK_VOLUME_MUTE:  return .Volume_Mute
+            case win32.VK_VOLUME_DOWN:  return .Volume_Down
+            case win32.VK_VOLUME_UP:    return .Volume_Up
         }
+
+        panic("Unsupported key")
     }
 
     switch message {
@@ -200,24 +200,23 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             ctx.height = int(sizes[1])
 
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
-            key := Keyboard_Key(w_param)
-            if !(int(key) > len(ctx.keyboard_keys)) {
-                if !ctx.keyboard_keys[key] {
-                    ctx.keyboard_keys_pressed[key] = true
+            key := get_key(w_param)
+            if !(int(key) > len(ctx.keys)) {
+                if !ctx.keys[key] {
+                    ctx.keys_pressed[key] = true
                     ctx.any_key_pressed = true
                 }
-                ctx.keyboard_keys[key] = true
+                ctx.keys[key] = true
                 ctx.any_key_down = true
             }
 
         case win32.WM_KEYUP, win32.WM_SYSKEYUP:
-            key := Keyboard_Key(w_param)
-            if int(key) > len(ctx.keyboard_keys) {
-                return result
+            key := get_key(w_param)
+            if int(key) < len(ctx.keys) {
+                ctx.keys[key] = false
+                ctx.keys_released[key] = true
+                ctx.any_key_released = true
             }
-            ctx.keyboard_keys[key] = false
-            ctx.keyboard_keys_released[key] = true
-            ctx.any_key_released = true
 
         case win32.WM_LBUTTONDOWN:
             if !ctx.left_mouse_down {
@@ -229,6 +228,8 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             ctx.left_mouse_down = false
             ctx.left_mouse_released = true
 
+        // TODO: Why are mouse double click events not happening
+        // Is the mouse not captured by the window?
         case win32.WM_LBUTTONDBLCLK:
             ctx.left_mouse_double_click = true
 
