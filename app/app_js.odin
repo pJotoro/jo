@@ -18,6 +18,125 @@ window_proc :: proc(e: js.Event) {
 	MOUSE_MIDDLE :: 1
 	MOUSE_RIGHT :: 2
 
+	get_key :: proc(vk: string) -> Key {
+		switch vk {
+			case "Cancel": return .Cancel // TODO
+			case "Backspace": return .Backspace
+			case "Tab": return .Tab
+			case "Clear": return .Clear // TODO
+			case "Enter": return .Enter
+			case "ShiftLeft", "ShiftRight": return .Shift // TODO: Add Left_Shift and Right_Shift to enum.
+			case "ControlLeft", "ControlRight": return .Control // TODO: Add Left_Control and Right_Control to enum.
+			case "AltLeft", "AltRight": return .Alt // TODO: Add Left_Alt and Right_Alt to enum.
+			case "Pause": return .Pause
+			case "CapsLock": return .Caps_Lock
+			case "Escape": return .Escape
+			case "Space": return .Space
+			case "PageUp": return .Page_Up
+			case "PageDown": return .Page_Down
+			case "End": return .End
+			case "Home": return .Home
+			case "ArrowLeft": return .Left
+			case "ArrowRight": return .Right
+			case "ArrowDown": return .Down
+			case "ArrowUp": return .Up
+			case "Select": return .Select // TODO
+			case "Print": return .Print // TODO
+			case "Execute": return .Execute // TODO
+			case "PrintScreen": return .Print_Screen
+			case "Insert": return .Insert
+			case "Delete": return .Delete
+			case "Help": return .Help // TODO
+			case "Digit0": return .Zero
+			case "Digit1": return .One
+			case "Digit2": return .Two
+			case "Digit3": return .Three
+			case "Digit4": return .Four
+			case "Digit5": return .Five
+			case "Digit6": return .Six
+			case "Digit7": return .Seven
+			case "Digit8": return .Eight
+			case "Digit9": return .Nine
+			case "KeyA": return .A
+			case "KeyB": return .B
+			case "KeyC": return .C
+			case "KeyD": return .D
+			case "KeyE": return .E
+			case "KeyF": return .F
+			case "KeyG": return .G
+			case "KeyH": return .H
+			case "KeyI": return .I
+			case "KeyJ": return .J
+			case "KeyK": return .K
+			case "KeyL": return .L
+			case "KeyM": return .M
+			case "KeyN": return .N
+			case "KeyO": return .O
+			case "KeyP": return .P
+			case "KeyQ": return .Q
+			case "KeyR": return .R
+			case "KeyS": return .S
+			case "KeyT": return .T
+			case "KeyU": return .U
+			case "KeyV": return .V
+			case "KeyW": return .W
+			case "KeyX": return .X
+			case "KeyY": return .Y
+			case "KeyZ": return .Z
+			case "MetaLeft": return .Left_Logo
+			case "MetaRight": return .Right_Logo
+			case "Apps": return .Apps // TODO
+			case "Sleep": return .Sleep // TODO
+			case "Numpad0": return .Numpad0
+			case "Numpad1": return .Numpad1
+			case "Numpad2": return .Numpad2
+			case "Numpad3": return .Numpad3
+			case "Numpad4": return .Numpad4
+			case "Numpad5": return .Numpad5
+			case "Numpad6": return .Numpad6
+			case "Numpad7": return .Numpad7
+			case "Numpad8": return .Numpad8
+			case "Numpad9": return .Numpad9
+			case "NumpadMultiply": return .Multiply
+			case "NumpadAdd": return .Add
+			case "NumpadSeparator": return .Separator // TODO
+			case "NumpadSubtract": return .Subtract
+			case "NumpadDecimal": return .Decimal
+			case "NumpadDivide": return .Divide
+			case "F1": return .F1
+			case "F2": return .F2
+			case "F3": return .F3
+			case "F4": return .F4
+			case "F5": return .F5
+			case "F6": return .F6
+			case "F7": return .F7
+			case "F8": return .F8
+			case "F9": return .F9
+			case "F10": return .F10
+			case "F11": return .F11
+			case "F12": return .F12
+			case "F13": return .F13
+			case "F14": return .F14
+			case "F15": return .F15
+			case "F16": return .F16
+			case "F17": return .F17
+			case "F18": return .F18
+			case "F19": return .F19
+			case "F20": return .F20
+			case "F21": return .F21
+			case "F22": return .F22
+			case "F23": return .F23
+			case "F24": return .F24
+			case "NumLock": return .Numlock // TODO: Rename to Num_Lock
+			case "Scroll": return .Scroll // TODO
+			case "VolumeMute": return .Volume_Mute // TODO
+			case "VolumeDown": return .Volume_Down
+			case "VolumeUp": return .Volume_Up
+		}
+
+		panic("Unkown key")
+	}
+
 	#partial switch e.kind {
 		case .Invalid:
 			panic("Invalid event")
@@ -93,9 +212,21 @@ window_proc :: proc(e: js.Event) {
 			ctx.mouse_position.x = int(mouse.client.x)
 			ctx.mouse_position.y = int(mouse.client.y)
 
-        case .Key_Up, .Key_Down, .Key_Press:
-        	key := e.data.key
-        	fmt.println(key)
+        case .Key_Down:
+        	key_data := e.data.key
+        	key := get_key(key_data.code)
+        	ctx.keys[key] = true
+
+        case .Key_Press:
+        	key_data := e.data.key
+        	key := get_key(key_data.code)
+        	ctx.keys_pressed[key] = true
+
+        case .Key_Up:
+        	key_data := e.data.key
+        	key := get_key(key_data.code)
+        	ctx.keys_released[key] = true
+        	ctx.keys[key] = false
 
         case .Scroll:
         	// fmt.println(e.kind, e.data.scroll)
