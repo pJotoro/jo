@@ -31,6 +31,7 @@ set_exit_key :: proc "contextless" (exit_key: Key) {
     ctx.exit_key = exit_key
 }
 
+// TODO: Add all keyboard keys, or as close to that as possible.
 Key :: enum u16 {
     Cancel,
     Backspace,
@@ -38,7 +39,7 @@ Key :: enum u16 {
     Clear,
     Enter,
 
-    // What should we do about the left and right version of these?
+    // TODO: What should we do about the left and right version of these?
     Shift,
     Control,
     Alt,
@@ -142,7 +143,7 @@ Key :: enum u16 {
     F22,
     F23,
     F24,
-    Numlock,
+    Num_Lock,
     Scroll,
     Volume_Mute,
     Volume_Down,

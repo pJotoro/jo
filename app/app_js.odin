@@ -20,10 +20,10 @@ window_proc :: proc(e: js.Event) {
 
 	get_key :: proc(vk: string) -> Key {
 		switch vk {
-			case "Cancel": return .Cancel // TODO
+			case "Cancel": return .Cancel
 			case "Backspace": return .Backspace
 			case "Tab": return .Tab
-			case "Clear": return .Clear // TODO
+			case "Clear": return .Clear
 			case "Enter": return .Enter
 			case "ShiftLeft", "ShiftRight": return .Shift
 			case "ControlLeft", "ControlRight": return .Control
@@ -40,13 +40,13 @@ window_proc :: proc(e: js.Event) {
 			case "ArrowRight": return .Right
 			case "ArrowDown": return .Down
 			case "ArrowUp": return .Up
-			case "Select": return .Select // TODO
-			case "Print": return .Print // TODO
-			case "Execute": return .Execute // TODO
+			case "Select": return .Select
+			case "Print": return .Print // TODO?
+			case "Execute": return .Execute
 			case "PrintScreen": return .Print_Screen
 			case "Insert": return .Insert
 			case "Delete": return .Delete
-			case "Help": return .Help // TODO
+			case "Help": return .Help
 			case "Digit0": return .Zero
 			case "Digit1": return .One
 			case "Digit2": return .Two
@@ -85,8 +85,8 @@ window_proc :: proc(e: js.Event) {
 			case "KeyZ": return .Z
 			case "MetaLeft": return .Left_Logo
 			case "MetaRight": return .Right_Logo
-			case "Apps": return .Apps // TODO
-			case "Sleep": return .Sleep // TODO
+			case "MediaApps": return .Apps
+			case "Standby": return .Sleep
 			case "Numpad0": return .Numpad0
 			case "Numpad1": return .Numpad1
 			case "Numpad2": return .Numpad2
@@ -97,12 +97,12 @@ window_proc :: proc(e: js.Event) {
 			case "Numpad7": return .Numpad7
 			case "Numpad8": return .Numpad8
 			case "Numpad9": return .Numpad9
-			case "NumpadMultiply": return .Multiply
-			case "NumpadAdd": return .Add
-			case "NumpadSeparator": return .Separator // TODO
-			case "NumpadSubtract": return .Subtract
-			case "NumpadDecimal": return .Decimal
-			case "NumpadDivide": return .Divide
+			case "Multiply": return .Multiply
+			case "Add": return .Add
+			case "Separator": return .Separator
+			case "Subtract": return .Subtract
+			case "Decimal": return .Decimal
+			case "Divide": return .Divide
 			case "F1": return .F1
 			case "F2": return .F2
 			case "F3": return .F3
@@ -127,9 +127,9 @@ window_proc :: proc(e: js.Event) {
 			case "F22": return .F22
 			case "F23": return .F23
 			case "F24": return .F24
-			case "NumLock": return .Numlock // TODO: Rename to Num_Lock
-			case "Scroll": return .Scroll // TODO
-			case "VolumeMute": return .Volume_Mute // TODO
+			case "NumLock": return .Num_Lock
+			case "ScrollLock": return .Scroll
+			case "VolumeMute": return .Volume_Mute // TODO?
 			case "VolumeDown": return .Volume_Down
 			case "VolumeUp": return .Volume_Up
 		}

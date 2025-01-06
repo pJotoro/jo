@@ -155,7 +155,7 @@ window_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: 
             case win32.VK_F22:          return .F22
             case win32.VK_F23:          return .F23
             case win32.VK_F24:          return .F24
-            case win32.VK_NUMLOCK:      return .Numlock
+            case win32.VK_NUMLOCK:      return .Num_Lock
             case win32.VK_SCROLL:       return .Scroll
             case win32.VK_VOLUME_MUTE:  return .Volume_Mute
             case win32.VK_VOLUME_DOWN:  return .Volume_Down
