@@ -37,9 +37,12 @@ Key :: enum u16 {
     Tab,
     Clear,
     Enter,
+
+    // What should we do about the left and right version of these?
     Shift,
     Control,
     Alt,
+    
     Pause,
     Caps_Lock,
     Escape,

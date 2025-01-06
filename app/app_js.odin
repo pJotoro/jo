@@ -25,9 +25,9 @@ window_proc :: proc(e: js.Event) {
 			case "Tab": return .Tab
 			case "Clear": return .Clear // TODO
 			case "Enter": return .Enter
-			case "ShiftLeft", "ShiftRight": return .Shift // TODO: Add Left_Shift and Right_Shift to enum.
-			case "ControlLeft", "ControlRight": return .Control // TODO: Add Left_Control and Right_Control to enum.
-			case "AltLeft", "AltRight": return .Alt // TODO: Add Left_Alt and Right_Alt to enum.
+			case "ShiftLeft", "ShiftRight": return .Shift
+			case "ControlLeft", "ControlRight": return .Control
+			case "AltLeft", "AltRight": return .Alt
 			case "Pause": return .Pause
 			case "CapsLock": return .Caps_Lock
 			case "Escape": return .Escape
@@ -229,10 +229,10 @@ window_proc :: proc(e: js.Event) {
         	ctx.keys[key] = false
 
         case .Scroll:
-        	// fmt.println(e.kind, e.data.scroll)
+        	fmt.println(e.kind, e.data.scroll)
 
         case .Wheel:
-        	// fmt.println(e.kind, e.data.wheel)
+        	fmt.println(e.kind, e.data.wheel)
 
         // TODO: What's the difference between these two events?
         case .Focus, .Focus_In:
