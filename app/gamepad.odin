@@ -8,12 +8,12 @@ Gamepad_Button :: enum u16 {
 	Dpad_Down,
 	Dpad_Left,
 	Dpad_Right,
-	Start,
-	Back,
-	Left_Thumb,
-	Right_Thumb,
-	Left_Shoulder,
-	Right_Shoulder,
+	Menu_Left,
+	Menu_Right,
+	Left_Stick,
+	Right_Stick,
+	Left_Bumper,
+	Right_Bumper,
 	A = 12,
 	B,
 	X,
@@ -22,13 +22,14 @@ Gamepad_Button :: enum u16 {
 
 Gamepad_Buttons :: distinct bit_set[Gamepad_Button; u16]
 
+@(private)
 Gamepad_Input :: struct {
 	buttons: Gamepad_Buttons,
 
-	left_trigger: f32,
-	right_trigger: f32,
-	left_stick: [2]f32,
-	right_stick: [2]f32,
+	left_trigger: f64,
+	right_trigger: f64,
+	left_stick: [2]f64,
+	right_stick: [2]f64,
 }
 
 @(private)
@@ -37,10 +38,10 @@ Gamepad_Desc :: struct {
 
 	buttons_previous: Gamepad_Buttons,
 
-	left_trigger_delta: f32,
-	right_trigger_delta: f32,
-	left_stick_delta: [2]f32,
-	right_stick_delta: [2]f32,
+	left_trigger_delta: f64,
+	right_trigger_delta: f64,
+	left_stick_delta: [2]f64,
+	right_stick_delta: [2]f64,
 
 	packet_number: u32, // TODO(pJotoro): Do other platforms have a similar concept? I'm assuming they do.
 	active: bool,
@@ -91,27 +92,27 @@ gamepad_button_released :: proc "contextless" (gamepad_index: int, button: Gamep
 }
 
 // Returns left trigger as a normalized floating point value.
-gamepad_left_trigger :: proc "contextless" (gamepad_index: int) -> f32 {
+gamepad_left_trigger :: proc "contextless" (gamepad_index: int) -> f64 {
 	return ctx.gamepads[gamepad_index].left_trigger
 }
 
 // Returns right trigger as a normalized floating point value.
-gamepad_right_trigger :: proc "contextless" (gamepad_index: int) -> f32 {
+gamepad_right_trigger :: proc "contextless" (gamepad_index: int) -> f64 {
 	return ctx.gamepads[gamepad_index].right_trigger
 }
 
 // Returns left stick as a 2D vector of normalized floating point values.
-gamepad_left_stick :: proc "contextless" (gamepad_index: int) -> [2]f32 {
+gamepad_left_stick :: proc "contextless" (gamepad_index: int) -> [2]f64 {
 	return ctx.gamepads[gamepad_index].left_stick
 }
 
 // Returns right stick as a 2D vector of normalized floating point values.
-gamepad_right_stick :: proc "contextless" (gamepad_index: int) -> [2]f32 {
+gamepad_right_stick :: proc "contextless" (gamepad_index: int) -> [2]f64 {
 	return ctx.gamepads[gamepad_index].right_stick
 }
 
 // left_motor and right_motor must be normalized floating point values.
-gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
+gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64, loc := #caller_location) {
 	left_motor := left_motor
 	right_motor := right_motor
 	if !(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1) {
@@ -125,19 +126,19 @@ gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, 
 	_gamepad_set_vibration(gamepad_index, left_motor, right_motor, loc)
 }
 
-gamepad_left_trigger_delta :: proc "contextless" (gamepad_index: int) -> f32 {
+gamepad_left_trigger_delta :: proc "contextless" (gamepad_index: int) -> f64 {
 	return ctx.gamepads[gamepad_index].left_trigger_delta
 }
 
-gamepad_right_trigger_delta :: proc "contextless" (gamepad_index: int) -> f32 {
+gamepad_right_trigger_delta :: proc "contextless" (gamepad_index: int) -> f64 {
 	return ctx.gamepads[gamepad_index].right_trigger_delta
 }
 
-gamepad_left_stick_delta :: proc "contextless" (gamepad_index: int) -> [2]f32 {
+gamepad_left_stick_delta :: proc "contextless" (gamepad_index: int) -> [2]f64 {
 	return ctx.gamepads[gamepad_index].left_stick_delta
 }
 
-gamepad_right_stick_delta :: proc "contextless" (gamepad_index: int) -> [2]f32 {
+gamepad_right_stick_delta :: proc "contextless" (gamepad_index: int) -> [2]f64 {
 	return ctx.gamepads[gamepad_index].right_stick_delta
 }
 
@@ -177,7 +178,7 @@ Gamepad_Capabilities :: struct {
 	type: Gamepad_Type,
 	flags: Gamepad_Flags,
 	using gamepad_input: Gamepad_Input,
-	left_motor, right_motor: f32,
+	left_motor, right_motor: f64,
 }
 
 gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (capabilities: Gamepad_Capabilities, ok: bool) {

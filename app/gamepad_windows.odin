@@ -53,19 +53,19 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 		xinput_gamepad := xinput_gamepad
 		cut_deadzones(&xinput_gamepad)
 	
-		@static TRIGGER_MAX := f32(max(win32.BYTE) - win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD))
-		@static LEFT_THUMB_MAX := f32(max(win32.SHORT) - xinput.GAMEPAD_LEFT_THUMB_DEADZONE)
-		@static RIGHT_THUMB_MAX := f32(max(win32.SHORT) - xinput.GAMEPAD_RIGHT_THUMB_DEADZONE)
+		@static TRIGGER_MAX := f64(max(win32.BYTE) - win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD))
+		@static LEFT_THUMB_MAX := f64(max(win32.SHORT) - xinput.GAMEPAD_LEFT_THUMB_DEADZONE)
+		@static RIGHT_THUMB_MAX := f64(max(win32.SHORT) - xinput.GAMEPAD_RIGHT_THUMB_DEADZONE)
 	
 		gamepad.buttons_previous = gamepad.buttons
 		gamepad.buttons = transmute(Gamepad_Buttons)xinput_gamepad.wButtons
 	
-		gamepad.left_trigger = f32(xinput_gamepad.bLeftTrigger) / TRIGGER_MAX
-		gamepad.right_trigger = f32(xinput_gamepad.bRightTrigger) / TRIGGER_MAX
-		gamepad.left_stick.x = f32(xinput_gamepad.sThumbLX) / LEFT_THUMB_MAX
-		gamepad.left_stick.y = f32(xinput_gamepad.sThumbLY) / LEFT_THUMB_MAX
-		gamepad.right_stick.x = f32(xinput_gamepad.sThumbRX) / RIGHT_THUMB_MAX
-		gamepad.right_stick.y = f32(xinput_gamepad.sThumbRY) / RIGHT_THUMB_MAX
+		gamepad.left_trigger = f64(xinput_gamepad.bLeftTrigger) / TRIGGER_MAX
+		gamepad.right_trigger = f64(xinput_gamepad.bRightTrigger) / TRIGGER_MAX
+		gamepad.left_stick.x = f64(xinput_gamepad.sThumbLX) / LEFT_THUMB_MAX
+		gamepad.left_stick.y = f64(xinput_gamepad.sThumbLY) / LEFT_THUMB_MAX
+		gamepad.right_stick.x = f64(xinput_gamepad.sThumbRX) / RIGHT_THUMB_MAX
+		gamepad.right_stick.y = f64(xinput_gamepad.sThumbRY) / RIGHT_THUMB_MAX
 
 		// NOTE(pJotoro): In theory, this shouldn't be necessary.
 		// The above code should already normalize all the values.
@@ -120,10 +120,10 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 	return true
 }
 
-_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f32, loc := #caller_location) {
+_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64, loc := #caller_location) {
 	xinput_vibration: xinput.VIBRATION
-	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f32(max(u16)))
-	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f32(max(u16)))
+	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f64(max(u16)))
+	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f64(max(u16)))
 	result := xinput.SetState(win32.DWORD(gamepad_index), &xinput_vibration)
 	if result != win32.ERROR_SUCCESS {
 		log.errorf("Failed to set vibration for gamepad %v.", gamepad_index, location = loc)
@@ -190,14 +190,14 @@ _gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (c
 	}
 
 	capabilities.buttons = transmute(Gamepad_Buttons)c.Gamepad.wButtons
-	capabilities.left_trigger = f32(c.Gamepad.bLeftTrigger) / f32(max(win32.BYTE))
-	capabilities.right_trigger = f32(c.Gamepad.bRightTrigger) / f32(max(win32.BYTE))
-	capabilities.left_stick.x = f32(c.Gamepad.sThumbLX) / f32(max(win32.SHORT))
-	capabilities.left_stick.y = f32(c.Gamepad.sThumbLY) / f32(max(win32.SHORT))
-	capabilities.right_stick.x = f32(c.Gamepad.sThumbRX) / f32(max(win32.SHORT))
-	capabilities.right_stick.y = f32(c.Gamepad.sThumbRY) / f32(max(win32.SHORT))
-	capabilities.left_motor = f32(c.Vibration.wLeftMotorSpeed) / f32(max(win32.WORD))
-	capabilities.right_motor = f32(c.Vibration.wRightMotorSpeed) / f32(max(win32.WORD))
+	capabilities.left_trigger = f64(c.Gamepad.bLeftTrigger) / f64(max(win32.BYTE))
+	capabilities.right_trigger = f64(c.Gamepad.bRightTrigger) / f64(max(win32.BYTE))
+	capabilities.left_stick.x = f64(c.Gamepad.sThumbLX) / f64(max(win32.SHORT))
+	capabilities.left_stick.y = f64(c.Gamepad.sThumbLY) / f64(max(win32.SHORT))
+	capabilities.right_stick.x = f64(c.Gamepad.sThumbRX) / f64(max(win32.SHORT))
+	capabilities.right_stick.y = f64(c.Gamepad.sThumbRY) / f64(max(win32.SHORT))
+	capabilities.left_motor = f64(c.Vibration.wLeftMotorSpeed) / f64(max(win32.WORD))
+	capabilities.right_motor = f64(c.Vibration.wRightMotorSpeed) / f64(max(win32.WORD))
 
 	ok = true
 	return

@@ -229,7 +229,7 @@ window_proc :: proc(e: js.Event) {
         	ctx.keys[key] = false
 
         case .Scroll:
-        	fmt.println(e.kind, e.data.scroll)
+
 
         case .Wheel:
         	wheel := e.data.wheel
@@ -247,8 +247,15 @@ window_proc :: proc(e: js.Event) {
         case .Focus_Out:
         	ctx.focused = false
 
-        case .Gamepad_Connected, .Gamepad_Disconnected:
-        	// fmt.println(e.kind, e.data.gamepad)
+        case .Gamepad_Connected:
+        	gamepad_state := e.data.gamepad
+        	gamepad := &ctx.gamepads[gamepad_state.index]
+        	gamepad.active = true
+
+        case .Gamepad_Disconnected:
+        	gamepad_state := e.data.gamepad
+        	gamepad := &ctx.gamepads[gamepad_state.index]
+        	gamepad.active = false
 	}
 }
 

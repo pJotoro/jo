@@ -132,13 +132,13 @@ running :: proc(loc := #caller_location) -> bool {
 
     _run(loc)
 
-    // if can_connect_gamepad() {
-    //     for gamepad_index in 0..<len(ctx.gamepads) {
-    //         if gamepad_connected(gamepad_index) {
-    //             try_connect_gamepad(gamepad_index, loc)
-    //         }
-    //     }
-    // }
+    if can_connect_gamepad() {
+        for gamepad_index in 0..<len(ctx.gamepads) {
+            if gamepad_connected(gamepad_index) {
+                try_connect_gamepad(gamepad_index, loc)
+            }
+        }
+    }
 
     return ctx.running
 }

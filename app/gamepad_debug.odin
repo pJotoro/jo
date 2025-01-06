@@ -4,7 +4,7 @@ import "core:fmt"
 
 Gamepad_Debug_Flag :: enum u32 {
     Navigation,
-    Thumb,
+    Bumper,
     Shoulder,
     Face, // A, B, X, Y
     Trigger,
@@ -35,54 +35,54 @@ gamepad_debug :: proc(gamepad_index: int) {
             fmt.printf("gamepad %v dpad down: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Dpad_Down))
             fmt.printf("gamepad %v dpad left: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Dpad_Left))
             fmt.printf("gamepad %v dpad right: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Dpad_Right))
-            fmt.printf("gamepad %v start: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Start))
-            fmt.printf("gamepad %v back: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Back))
+            fmt.printf("gamepad %v menu right: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Menu_Right))
+            fmt.printf("gamepad %v menu left: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Menu_Left))
         }
         if .Pressed in ctx.gamepad_debug_flags {
             fmt.printf("gamepad %v dpad up pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Dpad_Up))
             fmt.printf("gamepad %v dpad down pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Dpad_Down))
             fmt.printf("gamepad %v dpad left pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Dpad_Left))
             fmt.printf("gamepad %v dpad right pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Dpad_Right))
-            fmt.printf("gamepad %v start pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Start))
-            fmt.printf("gamepad %v back pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Back))
+            fmt.printf("gamepad %v menu right pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Menu_Right))
+            fmt.printf("gamepad %v menu left pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Menu_Left))
         }
         if .Released in ctx.gamepad_debug_flags {
             fmt.printf("gamepad %v dpad up released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Dpad_Up))
             fmt.printf("gamepad %v dpad down released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Dpad_Down))
             fmt.printf("gamepad %v dpad left released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Dpad_Left))
             fmt.printf("gamepad %v dpad right released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Dpad_Right))
-            fmt.printf("gamepad %v start released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Start))
-            fmt.printf("gamepad %v back released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Back))
+            fmt.printf("gamepad %v menu right released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Menu_Right))
+            fmt.printf("gamepad %v menu left released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Menu_Left))
         }
     }
 
-    if .Thumb in ctx.gamepad_debug_flags {
+    if .Bumper in ctx.gamepad_debug_flags {
         if .Down in ctx.gamepad_debug_flags {
-            fmt.printf("gamepad %v left thumb: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Left_Thumb))
-            fmt.printf("gamepad %v right thumb: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Right_Thumb))
+            fmt.printf("gamepad %v left bumper: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Left_Bumper))
+            fmt.printf("gamepad %v right bumper: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Right_Bumper))
         }
         if .Pressed in ctx.gamepad_debug_flags {
-            fmt.printf("gamepad %v left thumb pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Left_Thumb))
-            fmt.printf("gamepad %v right thumb pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Right_Thumb))
+            fmt.printf("gamepad %v left bumper pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Left_Bumper))
+            fmt.printf("gamepad %v right bumper pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Right_Bumper))
         }
         if .Released in ctx.gamepad_debug_flags {
-            fmt.printf("gamepad %v left thumb released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Left_Thumb))
-            fmt.printf("gamepad %v right thumb released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Right_Thumb))
+            fmt.printf("gamepad %v left bumper released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Left_Bumper))
+            fmt.printf("gamepad %v right bumper released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Right_Bumper))
         }
     }
     
-    if .Shoulder in ctx.gamepad_debug_flags {
+    if .Bumper in ctx.gamepad_debug_flags {
         if .Down in ctx.gamepad_debug_flags {
-            fmt.printf("gamepad %v left shoulder: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Left_Shoulder))
-            fmt.printf("gamepad %v right shoulder: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Right_Shoulder))
+            fmt.printf("gamepad %v left bumper: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Left_Bumper))
+            fmt.printf("gamepad %v right bumper: %v\n", gamepad_index, gamepad_button_down(gamepad_index, .Right_Bumper))
         }
         if .Pressed in ctx.gamepad_debug_flags {
-            fmt.printf("gamepad %v left shoulder pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Left_Shoulder))
-            fmt.printf("gamepad %v right shoulder pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Right_Shoulder))
+            fmt.printf("gamepad %v left bumper pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Left_Bumper))
+            fmt.printf("gamepad %v right bumper pressed: %v\n", gamepad_index, gamepad_button_pressed(gamepad_index, .Right_Bumper))
         }
         if .Released in ctx.gamepad_debug_flags {
-            fmt.printf("gamepad %v left shoulder released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Left_Shoulder))
-            fmt.printf("gamepad %v right shoulder released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Right_Shoulder))
+            fmt.printf("gamepad %v left bumper released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Left_Bumper))
+            fmt.printf("gamepad %v right bumper released: %v\n", gamepad_index, gamepad_button_released(gamepad_index, .Right_Bumper))
         }
     }
     
