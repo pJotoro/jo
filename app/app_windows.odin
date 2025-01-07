@@ -613,10 +613,6 @@ _hide_cursor :: proc() -> bool {
     return true
 }
 
-_cursor_enabled :: proc "contextless" () -> bool {
-    return GetCursor() != nil
-}
-
 _enable_cursor :: proc() -> bool {
     SetCursor(ctx.cursor)
     return true

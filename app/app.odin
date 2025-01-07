@@ -471,8 +471,8 @@ hide_cursor :: proc(loc := #caller_location) {
     }
 }
 
-cursor_enabled :: proc "contextless" () -> bool {
-    return _cursor_enabled()
+cursor_enabled :: proc() -> bool {
+    return ctx.cursor_enabled
 }
 
 enable_cursor :: proc(loc := #caller_location) {

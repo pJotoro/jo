@@ -302,6 +302,8 @@ _init :: proc(loc := #caller_location) -> bool {
 		set_title(ctx.title)
 	}
 
+	ctx.cursor_enabled = true // TODO
+
 	ctx.app_initialized = true
 	ctx.running = true
 
@@ -338,10 +340,6 @@ _show_cursor :: proc(loc := #caller_location) -> bool {
 
 _hide_cursor :: proc() -> bool {
 	unimplemented()
-}
-
-_cursor_enabled :: proc "contextless" () -> bool {
-	unimplemented_contextless()
 }
 
 _enable_cursor :: proc() -> bool {
