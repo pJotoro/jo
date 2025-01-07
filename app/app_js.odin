@@ -330,18 +330,6 @@ _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #c
 	unimplemented()
 }
 
-_cursor_visible :: proc(loc := #caller_location) -> bool {
-	unimplemented()
-}
-
-_show_cursor :: proc(loc := #caller_location) -> bool {
-	unimplemented()
-}
-
-_hide_cursor :: proc() -> bool {
-	unimplemented()
-}
-
 _enable_cursor :: proc() -> bool {
 	js.evaluate(`document.body.style.cursor = "pointer";`)
 	return true

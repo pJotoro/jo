@@ -564,55 +564,6 @@ _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #c
 @(private="file")
 CURSOR_SHOWING : win32.DWORD : 0x00000001
 
-_cursor_visible :: proc(loc := #caller_location) -> bool {
-    info := win32.CURSORINFO{cbSize = size_of(win32.CURSORINFO)}
-    if !win32.GetCursorInfo(&info) {
-        log.errorf("Failed to get cursor info. %v", misc.get_last_error_message(), location = loc)
-        return false
-    }
-    log.debug("Succeeded to get cursor info.", location = loc)
-    return (info.flags & CURSOR_SHOWING) != 0
-}
-
-_show_cursor :: proc(loc := #caller_location) -> bool {
-    /*
-    https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showcursor
-
-    This function sets an internal display counter that determines whether the cursor should be displayed. 
-    The cursor is displayed only if the display count is greater than or equal to 0. 
-    If a mouse is installed, the initial display count is 0. 
-    If no mouse is installed, the display count is –1.
-    */
-
-    // NOTE(pJotoro): I can't believe Microsoft actually designed it this way. Why isn't there a function called SetCursorDisplayCounter? 
-    // If there is something like this, please do a pull request and use that instead of this nonsense.
-
-    display_counter := ShowCursor(true)
-    if display_counter >= 0 {
-        return true
-    }
-    if display_counter == -1 {
-        display_counter = ShowCursor(true)
-        if display_counter == -1 {
-            log.error("Cannot show cursor until mouse is installed.", location = loc)
-            return false
-        }
-    }
-    for display_counter < 0 {
-        display_counter = ShowCursor(true)
-    }
-    return true
-}
-
-_hide_cursor :: proc() -> bool {
-    // NOTE(pJotoro): Horrible for the same reason _show_cursor is horrible.
-    display_counter: i32
-    for display_counter >= 0 {
-        display_counter = ShowCursor(false)
-    }
-    return true
-}
-
 _enable_cursor :: proc() -> bool {
     SetCursor(ctx.cursor)
     return true

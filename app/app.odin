@@ -441,36 +441,6 @@ cursor_on_screen :: proc "contextless" () -> bool {
     return x >= 0 && x < ctx.width && y >= 0 && y < ctx.height
 }
 
-cursor_visible :: proc(loc := #caller_location) -> bool {
-    return _cursor_visible(loc)
-}
-
-show_cursor :: proc(loc := #caller_location) {
-    if cursor_visible(loc) {
-        log.warn("Cursor already visible.", location = loc)
-        return
-    }
-    
-    if !_show_cursor(loc) {
-        log.error("Failed to show cursor.", location = loc)
-    } else {
-        log.debug("Succeeded to show cursor.", location = loc)
-    }
-}
-
-hide_cursor :: proc(loc := #caller_location) {
-    if !cursor_visible(loc) {
-        log.warn("Cursor already hidden.", location = loc)
-        return
-    }
-
-    if !_hide_cursor() { 
-        log.error("Failed to hide cursor.", location = loc)
-    } else { 
-        log.debug("Succeeded to hide cursor.", location = loc)
-    }
-}
-
 cursor_enabled :: proc() -> bool {
     return ctx.cursor_enabled
 }
