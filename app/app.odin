@@ -54,15 +54,15 @@ init :: proc(title := "", width := 0, height := 0,
         return
     }
 
-    // if ctx.fullscreen {
-    //     disable_cursor(loc)
-    // }
+    if ctx.fullscreen {
+        disable_cursor(loc)
+    }
 
-    // if can_connect_gamepad() {
-    //     for gamepad_index in 0..<len(ctx.gamepads) {
-    //         try_connect_gamepad(gamepad_index, loc)
-    //     }
-    // }
+    if can_connect_gamepad() {
+        for gamepad_index in 0..<len(ctx.gamepads) {
+            try_connect_gamepad(gamepad_index, loc)
+        }
+    }
 
     strings.builder_init_len_cap(&ctx.text_input, 0, 4096)
 
@@ -252,6 +252,8 @@ set_position :: proc(x, y: int, loc := #caller_location) {
 
     _set_position(x, y, loc)
 }
+
+// TODO: set_size or resize
 
 fullscreen :: proc "contextless" () -> bool {
     return ctx.fullscreen

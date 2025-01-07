@@ -262,10 +262,10 @@ event_proc :: proc(e: js.Event) {
 _init :: proc(loc := #caller_location) -> bool {
 	ctx.visible = 1
 
-	// TODO: What should we do with the passed width and height values?
-	rect := js.window_get_rect()
-	ctx.width = int(rect.width)
-	ctx.height = int(rect.height)
+	js.evaluate(fmt.tprintf("const canvas = document.getElementById(\"jo_canvas\"); canvas.width = %v; canvas.height = %v;", f64(ctx.width), f64(ctx.height)))
+
+	ctx.width = int(js.get_element_key_f64("jo_canvas", "width"))
+	ctx.height = int(js.get_element_key_f64("jo_canvas", "height"))
 	log.infof("App dimensions: %v by %v.", ctx.width, ctx.height, location = loc)
 
 	// TODO
