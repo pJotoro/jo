@@ -689,16 +689,6 @@ _set_fullscreen :: proc(loc := #caller_location) -> bool {
     return true
 }
 
-_hide :: proc "contextless" () -> bool {
-    win32.ShowWindow(win32.HWND(ctx.window), win32.SW_HIDE)
-    return true
-}
-
-_show :: proc "contextless" () -> bool {
-    win32.ShowWindow(win32.HWND(ctx.window), win32.SW_SHOW)
-    return true
-}
-
 _minimize :: proc "contextless" () -> bool {
     win32.ShowWindow(win32.HWND(ctx.window), win32.SW_MINIMIZE)
     return true

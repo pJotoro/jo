@@ -325,34 +325,6 @@ visible :: proc "contextless" () -> bool {
     return true if ctx.visible == 1 else false
 }
 
-hide :: proc(loc := #caller_location) {
-    if ctx.visible == 2 {
-        log.warn("Already hidden.", location = loc)
-        return
-    }
-
-    if !_hide() {
-        log.error("Failed to hide.", location = loc)
-    } else {
-        log.debug("Succeeded to hide.", location = loc)
-        ctx.visible = 2
-    }
-}
-
-show :: proc(loc := #caller_location) {
-    if ctx.visible == 1 {
-        log.warn("Already shown.", location = loc)
-        return
-    }
-
-    if !_show() {
-        log.error("Failed to show.", location = loc)
-    } else {
-        log.debug("Succeeded to show.", location = loc)
-        ctx.visible = 1
-    }
-}
-
 minimized :: proc "contextless" () -> bool {
     return ctx.minimized
 }

@@ -357,14 +357,6 @@ _set_fullscreen :: proc(loc := #caller_location) -> bool {
 	unimplemented()
 }
 
-_hide :: proc "contextless" () -> bool {
-	unimplemented_contextless()
-}
-
-_show :: proc "contextless" () -> bool {
-	unimplemented_contextless()
-}
-
 _minimize :: proc "contextless" () -> bool {
 	unimplemented_contextless()
 }
