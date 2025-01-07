@@ -259,13 +259,22 @@ event_proc :: proc(e: js.Event) {
 	}
 }
 
+/*
+We still need to initialize:
+- cursor
+- dpi/device pixel ratio (what should we do here?)
+- refresh rate
+- monitor dimensions (is this possible in web?)
+*/
+
+/*
+Should be made OS/Windows specific:
+- window
+*/
 _init :: proc(loc := #caller_location) -> bool {
 	ctx.visible = 1
 
-	js.evaluate(fmt.tprintf("const canvas = document.getElementById(\"jo_canvas\"); canvas.width = %v; canvas.height = %v;", f64(ctx.width), f64(ctx.height)))
-
-	ctx.width = int(js.get_element_key_f64("jo_canvas", "width"))
-	ctx.height = int(js.get_element_key_f64("jo_canvas", "height"))
+	js.evaluate(fmt.tprintf(`const canvas = document.getElementById("jo_canvas"); canvas.width = %v; canvas.height = %v;`, f64(ctx.width), f64(ctx.height)))
 	log.infof("App dimensions: %v by %v.", ctx.width, ctx.height, location = loc)
 
 	// TODO
@@ -336,11 +345,13 @@ _cursor_enabled :: proc "contextless" () -> bool {
 }
 
 _enable_cursor :: proc() -> bool {
-	unimplemented()
+	js.evaluate(`document.body.style.cursor = "pointer";`)
+	return true
 }
 
 _disable_cursor :: proc() -> bool {
-	unimplemented()
+	js.evaluate(`document.body.style.cursor = "none";`)
+	return true
 }
 
 _set_title :: proc(title: string, loc := #caller_location) {
