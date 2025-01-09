@@ -7,7 +7,7 @@ import "core:fmt"
 import "core:sys/wasm/js"
 import webgl "vendor:wasm/WebGL"
 
-OS_Specific :: struct {
+OS_Specific :: struct {	
 	using_webgl: bool,
 }
 
@@ -145,17 +145,9 @@ event_proc :: proc(e: js.Event) {
 			panic("Error")
 
 		case .Resize:
-			rect := js.window_get_rect()
+			rect := js.window_get_rect() // TODO
 			ctx.width = int(rect.width)
 			ctx.height = int(rect.height)
-
-		case .Visibility_Change:
-			is_visible := e.data.visibility_change.is_visible
-			ctx.visible = 1 if is_visible else 2
-
-		// TODO: What does this mean? Are we not in fullscreen by default?
-		case .Fullscreen_Change:
-		ctx.fullscreen = !ctx.fullscreen
 
 		case .Fullscreen_Error:
 			panic("Fullscreen error")
@@ -242,10 +234,10 @@ event_proc :: proc(e: js.Event) {
 
         // TODO: What's the difference between these two events?
         case .Focus, .Focus_In:
-        	ctx.focused = true
+        	ctx.open = true
 
         case .Focus_Out:
-        	ctx.focused = false
+        	ctx.open = false
 
         case .Gamepad_Connected:
         	gamepad_state := e.data.gamepad
@@ -261,7 +253,6 @@ event_proc :: proc(e: js.Event) {
 
 /*
 We still need to initialize:
-- cursor
 - dpi/device pixel ratio (what should we do here?)
 - refresh rate
 - monitor dimensions (is this possible in web?)
@@ -272,7 +263,8 @@ Should be made OS/Windows specific:
 - window
 */
 _init :: proc(loc := #caller_location) -> bool {
-	ctx.visible = 1
+	ctx.cursor_enabled = true
+    ctx.exit_key = .Escape
 
 	js.evaluate(fmt.tprintf(`const canvas = document.getElementById("jo_canvas"); canvas.width = %v; canvas.height = %v;`, f64(ctx.width), f64(ctx.height)))
 	log.infof("App dimensions: %v by %v.", ctx.width, ctx.height, location = loc)
@@ -319,9 +311,8 @@ _run :: proc(loc := #caller_location) {
 
 @(export)
 step :: proc(dt: f64) -> bool {
-	ctx.dt = dt
 	if ctx.update_proc != nil {
-		ctx.update_proc(ctx.dt, ctx.update_proc_user_data)
+		ctx.update_proc(dt, ctx.update_proc_user_data)
 	}
 	return running()
 }
@@ -345,26 +336,6 @@ _set_title :: proc(title: string, loc := #caller_location) {
 	js.evaluate(code)
 }
 
-_set_position :: proc(x, y: int, loc := #caller_location) {
-	unimplemented()
-}
-
-_set_windowed :: proc(loc := #caller_location) -> bool {
-	unimplemented()
-}
-
-_set_fullscreen :: proc(loc := #caller_location) -> bool {
-	unimplemented()
-}
-
-_minimize :: proc "contextless" () -> bool {
-	unimplemented_contextless()
-}
-
-_maximize :: proc "contextless" () -> bool {
-	unimplemented_contextless()
-}
-
-_restore :: proc "contextless" () -> bool {
-	unimplemented_contextless()
+_set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) {
+	unimplemented("Window modes unsupported in js_wasm32 (for now).")
 }

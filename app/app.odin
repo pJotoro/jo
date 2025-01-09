@@ -7,54 +7,67 @@ import "core:log"
 import "core:strings"
 import "core:time"
 
-Fullscreen_Mode :: enum {
-    Auto, // windowed in debug mode, fullscreen otherwise
-    Off,  // always windowed
-    On,   // always fullscreen
+Window_Mode_Free_Flag :: enum {
+    Minimize_Box,
+    Maximize_Box,
+    Resizable,
+}
+Window_Mode_Free_Flags :: distinct bit_set[Window_Mode_Free_Flag]
+
+Window_Mode_Free :: struct {
+    x, y, width, height: int,
+    flags: Window_Mode_Free_Flags,
+}
+
+Window_Mode_Maximized :: struct {}
+
+Window_Mode_Fullscreen_Flag :: enum {
+    Topmost,
+}
+Window_Mode_Fullscreen_Flags :: distinct bit_set[Window_Mode_Fullscreen_Flag]
+
+Window_Mode_Fullscreen :: struct {
+    flags: Window_Mode_Fullscreen_Flags,
+}
+
+Window_Mode :: union {
+    Window_Mode_Free,
+    Window_Mode_Maximized,
+    Window_Mode_Fullscreen,
 }
 
 // You must call this before any other procedure.
 // It initializes the library.
-//
-// It is perfectly reasonable and acceptable to call this without passing any arguments whatsoever. 
-// Reasonable defaults will be chosen for you.
-//
-// Leaving width and height as 0 has different meanings depending on whether fullscreen is on. 
-// If fullscreen is off, then the width and height will be automatically set to half the monitor width and height, respectively. 
-// If fullscreen is on, then the width and height will be automatically set to the monitor width and height, respectively.
-init :: proc(title := "", width := 0, height := 0, 
-             fullscreen := Fullscreen_Mode.Auto, resizable: bool = false, minimize_box: bool = false, maximize_box: bool = false, 
-             loc := #caller_location) {
+init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_location) {
     if ctx.app_initialized {
         log.warn("App already initialized.", location = loc)
         return
     }
 
-    if fullscreen == .On {
-        if width != 0 || height != 0 {
-            log.warn("Width and height are ignored when fullscreen is on.", location = loc)
-        }
-    } else if !((width == 0 && height == 0) || (width != 0 && height != 0)) {
-        log.warn("Width and height must be set or unset together.", location = loc)
-    } else {
-        ctx.width = width
-        ctx.height = height
-    }
-    
     ctx.title = title
-    ctx.fullscreen_mode = fullscreen
-    ctx.resizable = resizable
-    ctx.minimize_box = minimize_box
-    ctx.maximize_box = maximize_box
-    ctx.cursor_enabled = true
-    ctx.exit_key = .Escape
+
+    when ODIN_OS == .JS /* || other platforms where there is no window */ {
+        if window_mode != nil {
+            log.warnf("window_mode ignored on %v.", ODIN_OS_STRING)
+        }
+    } else {
+        if window_mode != nil {
+            ctx.window_mode = window_mode
+        } else {
+            when ODIN_DEBUG {
+                ctx.window_mode = Window_Mode_Free{}
+            } else {
+                ctx.window_mode = Window_Mode_Fullscreen{}
+            }
+        }
+    }
 
     if !_init(loc) {
         log.fatal("App failed to initialize.", location = loc)
         return
     }
 
-    if ctx.fullscreen {
+    if _, ok := window_mode.(Window_Mode_Fullscreen); ok {
         disable_cursor(loc)
     }
 
@@ -65,9 +78,6 @@ init :: proc(title := "", width := 0, height := 0,
     }
 
     strings.builder_init_len_cap(&ctx.text_input, 0, 4096)
-
-    // ctx.dt = 1.0/f64(ctx.refresh_rate)
-    // ctx.dt_dur = time.Second / time.Duration(ctx.refresh_rate)
 
     ctx.app_initialized = true
     ctx.running = true
@@ -90,14 +100,8 @@ running :: proc(loc := #caller_location) -> bool {
     // assert(ctx.refresh_rate > 0, "refresh rate <= 0", loc)
 
     // assert(ctx.window != nil, "window == nil", loc)
-    // assert(ctx.monitor_width > 0, "monitor width <= 0", loc)
-    // assert(ctx.monitor_height > 0, "monitor height <= 0", loc)
-
-    // assert(!(ctx.fullscreen && ctx.minimized), "fullscreen && minimized", loc)
-    // assert(!(ctx.fullscreen && ctx.maximized), "fullscreen && maximized", loc)
-    // assert(!(ctx.minimized && ctx.maximized), "minimized && maximized", loc)
-
-    // assert(!(ctx.re_maximize && !ctx.fullscreen), "re-maximize && fullscreen", loc)
+    // assert(ctx.screen_width > 0, "screen width <= 0", loc)
+    // assert(ctx.screen_height > 0, "screen height <= 0", loc)
     // -------------------------
 
     if key_pressed(ctx.exit_key) {
@@ -149,15 +153,15 @@ run :: proc(update_proc: proc(dt: f64, user_data: rawptr), user_data: rawptr, lo
     ctx.update_proc_user_data = user_data
     
     when ODIN_OS != .JS {
+        dt := f64(ctx.refresh_rate) / f64(time.Second)
         for running(loc) {
             start_tick := time.tick_now()
             defer {
                 end_tick := time.tick_now()
-                ctx.dt_dur = time.tick_diff(start_tick, end_tick)
-                ctx.dt = f64(ctx.dt_dur)/f64(time.Second)
+                dt_dur := time.tick_diff(start_tick, end_tick)
+                dt = f64(dt_dur)/f64(time.Second)
             }
-
-            ctx.update_proc(ctx.dt, ctx.update_proc_user_data)
+            ctx.update_proc(dt, ctx.update_proc_user_data)
         }
     }
 }
@@ -184,7 +188,7 @@ swap_buffers :: proc(buffer: []u32, buffer_width := 0, buffer_height := 0, loc :
         ok = false
     }
 
-    if ctx.width == 0 || ctx.height == 0 || ctx.minimized {
+    if ctx.width == 0 || ctx.height == 0 {
         ok = false
     }
 
@@ -201,11 +205,6 @@ swap_buffers :: proc(buffer: []u32, buffer_width := 0, buffer_height := 0, loc :
     _swap_buffers(buffer, buffer_width, buffer_height, loc)
 }
 
-// Returns the native window handle.
-window :: proc "contextless" () -> rawptr {
-    return ctx.window
-}
-
 // By client width or height, I mean the part of the window that you can actually draw into, not the entire window.
 
 // Returns the client width in pixels.
@@ -218,14 +217,14 @@ height :: proc "contextless" () -> int {
     return ctx.height
 }
 
-// Returns the monitor width in pixels.
-monitor_width :: proc "contextless" () -> int {
-    return ctx.monitor_width
+// Returns the screen width in pixels.
+screen_width :: proc "contextless" () -> int {
+    return ctx.screen_width
 }
 
-// Returns the monitor height in pixels.
-monitor_height :: proc "contextless" () -> int {
-    return ctx.monitor_height
+// Returns the screen height in pixels.
+screen_height :: proc "contextless" () -> int {
+    return ctx.screen_height
 }
 
 dpi :: proc "contextless" () -> int {
@@ -244,258 +243,27 @@ set_title :: proc(title: string, loc := #caller_location) {
     _set_title(title, loc)
 }
 
-set_position :: proc(x, y: int, loc := #caller_location) {
-    if ctx.fullscreen {
-        log.error("Cannot set position in fullscreen.", location = loc)
+set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) {
+    if window_mode == ctx.window_mode {
+        log.warn("Identical window mode already set.", location = loc)
         return
     }
 
-    _set_position(x, y, loc)
-}
+    _set_window_mode(window_mode, loc)
 
-// TODO: set_size or resize
 
-fullscreen :: proc "contextless" () -> bool {
-    return ctx.fullscreen
-}
-
-set_windowed :: proc(loc := #caller_location) {
-    if !ctx.fullscreen {
-        log.warn("Already windowed.", location = loc)
-        return
-    }
-
-    if !_set_windowed(loc) {
-        log.error("Failed to set windowed.", location = loc)
+    _, ok := window_mode.(Window_Mode_Fullscreen)
+    if ok {
+        disable_cursor()
     } else {
-        log.debug("Succeeded to set windowed.", location = loc)
-
-        ctx.fullscreen = false
-
-        enable_cursor(loc)
-
-        if ctx.re_maximize {
-            ctx.re_maximize = false
-            maximize(loc)
-        }
+        enable_cursor()
     }
 }
 
-set_fullscreen :: proc(loc := #caller_location) {
-    if ctx.fullscreen {
-        log.warn("Already fullscreen.", location = loc)
-        return
-    }
-    if !ctx.ok_fullscreen {
-        log.error("Cannot enter fullscreen.", location = loc)
-        return
-    }
-
-    re_maximize := false
-    if ctx.maximized {
-        restore(loc)
-        re_maximize = true
-    }
-
-    if !_set_fullscreen(loc) {
-        log.error("Failed to set fullscreen.", location = loc)
-    } else {
-        log.debug("Succeeded to set fullscreen.", location = loc)
-
-        ctx.fullscreen = true
-
-        ctx.width = ctx.monitor_width
-        ctx.height = ctx.monitor_height
-
-        disable_cursor(loc)
-
-        ctx.re_maximize = re_maximize
-    }
+window_mode :: proc "contextless" () -> Window_Mode {
+    return ctx.window_mode
 }
 
-toggle_fullscreen :: proc(loc := #caller_location) {
-    if !ctx.fullscreen {
-        set_fullscreen(loc)
-    } else {
-        set_windowed(loc)
-    }
-}
-
-visible :: proc "contextless" () -> bool {
-    return true if ctx.visible == 1 else false
-}
-
-minimized :: proc "contextless" () -> bool {
-    return ctx.minimized
-}
-
-maximized :: proc "contextless" () -> bool {
-    return ctx.maximized
-}
-
-minimize :: proc(loc := #caller_location) {
-    if ctx.minimized {
-        log.warn("Already minimized.", location = loc)
-        return
-    }
-    if ctx.fullscreen {
-        set_windowed(loc)
-    }
-    
-    if !_minimize() {
-        log.error("Failed to minimize.", location = loc)
-    } else {
-        log.debug("Succeeded to minimize.", location = loc)
-        ctx.minimized = true
-        ctx.maximized = false
-        ctx.re_maximize = false
-    }
-}
-
-maximize :: proc(loc := #caller_location) {
-    if ctx.maximized {
-        log.warn("Already maximized.", location = loc)
-        return
-    }
-    if ctx.fullscreen {
-        set_windowed(loc)
-    }
-
-    if !_maximize() {
-        log.error("Failed to maximize.", location = loc)
-    } else {
-        log.debug("Succeeded to maximize.", location = loc)
-        ctx.maximized = true
-        ctx.minimized = false
-        ctx.re_maximize = false
-    }
-}
-
-// un-minimize and un-maximize
-restore :: proc(loc := #caller_location) {
-    if !ctx.minimized && !ctx.maximized {
-        log.warn("Already restored.", location = loc)
-        return
-    }
-    if ctx.fullscreen {
-        set_windowed(loc)
-    }
-
-    if !_restore() {
-        log.error("Failed to restore.", location = loc)
-    } else {
-        log.debug("Succeeded to restore.", location = loc)
-        ctx.minimized = false
-        ctx.maximized = false
-        ctx.re_maximize = false
-    }
-}
-
-focused :: proc "contextless" () -> bool {
-    return ctx.focused
-}
-
-mouse_x :: proc "contextless" () -> (x: int) {
-    return ctx.mouse_position.x
-}
-
-mouse_y :: proc "contextless" () -> (y: int) {
-    return ctx.mouse_position.y
-}
-
-mouse_position :: proc "contextless" () -> (x, y: int) {
-    return ctx.mouse_position.x, ctx.mouse_position.y
-}
-
-// Actually, this returns whether the mouse is inside the window bounds.
-cursor_on_screen :: proc "contextless" () -> bool {
-    x, y := mouse_position()
-    return x >= 0 && x < ctx.width && y >= 0 && y < ctx.height
-}
-
-cursor_enabled :: proc() -> bool {
-    return ctx.cursor_enabled
-}
-
-enable_cursor :: proc(loc := #caller_location) {
-    if ctx.cursor_enabled {
-        log.warn("Cursor already enabled.", location = loc)
-        return
-    }
-    if !_enable_cursor() {
-        log.error("Failed to enable cursor.", location = loc)
-    } else {
-        log.debug("Succeeded to enable cursor.", location = loc)
-        ctx.cursor_enabled = true
-    }
-}
-
-disable_cursor :: proc(loc := #caller_location) {
-    if !ctx.cursor_enabled {
-        log.warn("Cursor already disabled.", location = loc)
-        return
-    }
-    if !_disable_cursor() {
-        log.error("Failed to disable cursor.", location = loc)
-    } else {
-        log.debug("Succeeded to disable cursor.", location = loc)
-        ctx.cursor_enabled = false
-    }
-}
-
-left_mouse_down :: proc "contextless" () -> bool {
-    return ctx.left_mouse_down
-}
-
-left_mouse_pressed :: proc "contextless" () -> bool {
-    return ctx.left_mouse_pressed
-}
-
-left_mouse_released :: proc "contextless" () -> bool {
-    return ctx.left_mouse_released
-}
-
-left_mouse_double_click :: proc "contextless" () -> bool {
-    return ctx.left_mouse_double_click
-}
-
-right_mouse_down :: proc "contextless" () -> bool {
-    return ctx.right_mouse_down
-}
-
-right_mouse_pressed :: proc "contextless" () -> bool {
-    return ctx.right_mouse_pressed
-}
-
-right_mouse_released :: proc "contextless" () -> bool {
-    return ctx.right_mouse_released
-}
-
-right_mouse_double_click :: proc "contextless" () -> bool {
-    return ctx.right_mouse_double_click
-}
-
-middle_mouse_down :: proc "contextless" () -> bool {
-    return ctx.middle_mouse_down
-}
-
-middle_mouse_pressed :: proc "contextless" () -> bool {
-    return ctx.middle_mouse_pressed
-}
-
-middle_mouse_released :: proc "contextless" () -> bool {
-    return ctx.middle_mouse_released
-}
-
-middle_mouse_double_click :: proc "contextless" () -> bool {
-    return ctx.middle_mouse_double_click
-}
-
-// Returns mouse wheel delta as a normalized floating point value.
-mouse_wheel :: proc "contextless" () -> int {
-    return ctx.mouse_wheel
-}
-
-text_input :: proc() -> string {
-    return strings.to_string(ctx.text_input)
+open :: proc "contextless" () -> bool {
+    return ctx.open
 }

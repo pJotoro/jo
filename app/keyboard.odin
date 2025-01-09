@@ -1,5 +1,7 @@
 package app
 
+import "core:strings"
+
 key_down :: proc "contextless" (key: Key) -> bool {
     return ctx.keys[key]
 }
@@ -29,6 +31,10 @@ any_key_released :: proc "contextless" () -> bool {
 // The default is Escape.
 set_exit_key :: proc "contextless" (exit_key: Key) {
     ctx.exit_key = exit_key
+}
+
+text_input :: proc() -> string {
+    return strings.to_string(ctx.text_input)
 }
 
 // TODO: Add all keyboard keys, or as close to that as possible.
