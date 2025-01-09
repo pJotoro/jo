@@ -50,14 +50,6 @@ Gamepad_Desc :: struct {
 	// event_index: int,
 }
 
-// Returns whether a gamepad can be connected.
-//
-// This will only be false if some platform specific library like XInput is not present on the user's machine.
-// Otherwise, it should always be true.
-can_connect_gamepad :: proc "contextless" () -> bool {
-	return ctx.can_connect_gamepad
-}
-
 // Called for every possible gamepad by app.init().
 // Called again by app.running() for every gamepad which is still connected.
 //

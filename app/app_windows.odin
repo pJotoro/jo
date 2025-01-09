@@ -6,7 +6,6 @@ import win32 "core:sys/windows"
 import "base:intrinsics"
 import "core:log"
 
-import "xinput"
 import "../misc"
 
 import "core:strings"
@@ -449,8 +448,6 @@ _init :: proc(loc := #caller_location) -> bool {
             log.infof("Monitor refresh rate: %v.", ctx.refresh_rate, location = loc)
         }
     }
-
-    ctx.can_connect_gamepad = xinput.init(loc)
 
     return true
 }

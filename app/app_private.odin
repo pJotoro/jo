@@ -65,7 +65,6 @@ Context :: struct {
     // ------------------
 
     // ----- gamepad -----
-    can_connect_gamepad: bool,
     gamepad_debug_flags: Gamepad_Debug_Flags,
     gamepads: [4]Gamepad_Desc,
     // -------------------

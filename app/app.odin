@@ -71,10 +71,8 @@ init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_locatio
         disable_cursor(loc)
     }
 
-    if can_connect_gamepad() {
-        for gamepad_index in 0..<len(ctx.gamepads) {
-            try_connect_gamepad(gamepad_index, loc)
-        }
+    for gamepad_index in 0..<len(ctx.gamepads) {
+        try_connect_gamepad(gamepad_index, loc)
     }
 
     strings.builder_init_len_cap(&ctx.text_input, 0, 4096)
@@ -136,11 +134,9 @@ running :: proc(loc := #caller_location) -> bool {
 
     _run(loc)
 
-    if can_connect_gamepad() {
-        for gamepad_index in 0..<len(ctx.gamepads) {
-            if gamepad_connected(gamepad_index) {
-                try_connect_gamepad(gamepad_index, loc)
-            }
+    for gamepad_index in 0..<len(ctx.gamepads) {
+        if gamepad_connected(gamepad_index) {
+            try_connect_gamepad(gamepad_index, loc)
         }
     }
 

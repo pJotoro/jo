@@ -4,14 +4,13 @@ package app
 import "jo:misc"
 
 import win32 "core:sys/windows"
-import "xinput"
 import "core:log"
 
 _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
-	state: xinput.STATE = ---
+	state: win32.XINPUT_STATE = ---
 	
-	result := xinput.GetState(win32.DWORD(gamepad_index), &state)
-	if result != win32.ERROR_SUCCESS {
+	result := win32.XInputGetState(win32.XUSER(gamepad_index), &state)
+	if result != .SUCCESS {
 		log.infof("Gamepad %v disconnected.", gamepad_index, location = loc)
 		ctx.gamepads[gamepad_index].active = false
 		return false
@@ -49,13 +48,13 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 	}
 	ctx.gamepads[gamepad_index].packet_number = state.dwPacketNumber
 
-	get_input :: proc "contextless" (gamepad: ^Gamepad_Desc, xinput_gamepad: xinput.GAMEPAD) {
+	get_input :: proc "contextless" (gamepad: ^Gamepad_Desc, xinput_gamepad: win32.XINPUT_GAMEPAD) {
 		xinput_gamepad := xinput_gamepad
 		cut_deadzones(&xinput_gamepad)
 	
-		@static TRIGGER_MAX := f64(max(win32.BYTE) - win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD))
-		@static LEFT_THUMB_MAX := f64(max(win32.SHORT) - xinput.GAMEPAD_LEFT_THUMB_DEADZONE)
-		@static RIGHT_THUMB_MAX := f64(max(win32.SHORT) - xinput.GAMEPAD_RIGHT_THUMB_DEADZONE)
+		@static TRIGGER_MAX := f64(max(win32.BYTE) - win32.BYTE(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD))
+		@static LEFT_THUMB_MAX := f64(max(win32.SHORT) - win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
+		@static RIGHT_THUMB_MAX := f64(max(win32.SHORT) - win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
 	
 		gamepad.buttons_previous = gamepad.buttons
 		gamepad.buttons = transmute(Gamepad_Buttons)xinput_gamepad.wButtons
@@ -79,40 +78,40 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 		gamepad.right_stick.x = clamp(gamepad.right_stick.x, -1.0, 1.0)
 		gamepad.right_stick.y = clamp(gamepad.right_stick.y, -1.0, 1.0)
 	
-		cut_deadzones :: proc "contextless" (xinput_gamepad: ^xinput.GAMEPAD) {
-			xinput_gamepad.bLeftTrigger -= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) if xinput_gamepad.bLeftTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) else xinput_gamepad.bLeftTrigger
-			xinput_gamepad.bRightTrigger -= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) if xinput_gamepad.bRightTrigger >= win32.BYTE(xinput.GAMEPAD_TRIGGER_THRESHOLD) else xinput_gamepad.bRightTrigger
+		cut_deadzones :: proc "contextless" (xinput_gamepad: ^win32.XINPUT_GAMEPAD) {
+			xinput_gamepad.bLeftTrigger -= win32.BYTE(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD) if xinput_gamepad.bLeftTrigger >= win32.BYTE(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD) else xinput_gamepad.bLeftTrigger
+			xinput_gamepad.bRightTrigger -= win32.BYTE(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD) if xinput_gamepad.bRightTrigger >= win32.BYTE(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD) else xinput_gamepad.bRightTrigger
 	
-			if xinput_gamepad.sThumbLX < xinput.GAMEPAD_LEFT_THUMB_DEADZONE && xinput_gamepad.sThumbLX > -xinput.GAMEPAD_LEFT_THUMB_DEADZONE { 
+			if xinput_gamepad.sThumbLX < win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE && xinput_gamepad.sThumbLX > -win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE { 
 				xinput_gamepad.sThumbLX = 0 
 			} else if xinput_gamepad.sThumbLX > 0 { 
-				xinput_gamepad.sThumbLX -= xinput.GAMEPAD_LEFT_THUMB_DEADZONE 
+				xinput_gamepad.sThumbLX -= win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE 
 			} else if xinput_gamepad.sThumbLX < 0 {
-				xinput_gamepad.sThumbLX += xinput.GAMEPAD_LEFT_THUMB_DEADZONE
+				xinput_gamepad.sThumbLX += win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE
 			}
 	
-			if xinput_gamepad.sThumbLY < xinput.GAMEPAD_LEFT_THUMB_DEADZONE && xinput_gamepad.sThumbLY > -xinput.GAMEPAD_LEFT_THUMB_DEADZONE {
+			if xinput_gamepad.sThumbLY < win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE && xinput_gamepad.sThumbLY > -win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE {
 				xinput_gamepad.sThumbLY = 0
 			} else if xinput_gamepad.sThumbLY > 0 {
-				xinput_gamepad.sThumbLY -= xinput.GAMEPAD_LEFT_THUMB_DEADZONE
+				xinput_gamepad.sThumbLY -= win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE
 			} else if xinput_gamepad.sThumbLY < 0 {
-				xinput_gamepad.sThumbLY += xinput.GAMEPAD_LEFT_THUMB_DEADZONE
+				xinput_gamepad.sThumbLY += win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE
 			}
 	
-			if xinput_gamepad.sThumbRX < xinput.GAMEPAD_RIGHT_THUMB_DEADZONE && xinput_gamepad.sThumbRX > -xinput.GAMEPAD_RIGHT_THUMB_DEADZONE {
+			if xinput_gamepad.sThumbRX < win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE && xinput_gamepad.sThumbRX > -win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE {
 				xinput_gamepad.sThumbRX = 0
 			} else if xinput_gamepad.sThumbRX > 0 {
-				xinput_gamepad.sThumbRX -= xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
+				xinput_gamepad.sThumbRX -= win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE
 			} else if xinput_gamepad.sThumbRX < 0 {
-				xinput_gamepad.sThumbRX += xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
+				xinput_gamepad.sThumbRX += win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE
 			}
 	
-			if xinput_gamepad.sThumbRY < xinput.GAMEPAD_RIGHT_THUMB_DEADZONE && xinput_gamepad.sThumbRY > -xinput.GAMEPAD_RIGHT_THUMB_DEADZONE {
+			if xinput_gamepad.sThumbRY < win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE && xinput_gamepad.sThumbRY > -win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE {
 				xinput_gamepad.sThumbRY = 0
 			} else if xinput_gamepad.sThumbRY > 0 {
-				xinput_gamepad.sThumbRY -= xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
+				xinput_gamepad.sThumbRY -= win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE
 			} else if xinput_gamepad.sThumbRY < 0 {
-				xinput_gamepad.sThumbRY += xinput.GAMEPAD_RIGHT_THUMB_DEADZONE
+				xinput_gamepad.sThumbRY += win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE
 			}
 		}
 	}
@@ -121,11 +120,11 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 }
 
 _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64, loc := #caller_location) {
-	xinput_vibration: xinput.VIBRATION
+	xinput_vibration: win32.XINPUT_VIBRATION
 	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f64(max(u16)))
 	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f64(max(u16)))
-	result := xinput.SetState(win32.DWORD(gamepad_index), &xinput_vibration)
-	if result != win32.ERROR_SUCCESS {
+	result := win32.XInputSetState(win32.XUSER(gamepad_index), &xinput_vibration)
+	if result != .SUCCESS {
 		log.errorf("Failed to set vibration for gamepad %v.", gamepad_index, location = loc)
 	} else { 
 		log.debugf("Succeeded to set vibration for gamepad %v.", gamepad_index, location = loc)
@@ -133,9 +132,9 @@ _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64,
 }
 
 _gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
-	info: xinput.BATTERY_INFORMATION
-	res := xinput.GetBatteryInformation(win32.DWORD(gamepad_index), 0, &info)
-	if res != win32.ERROR_SUCCESS {
+	info: win32.XINPUT_BATTERY_INFORMATION
+	res := win32.XInputGetBatteryInformation(win32.XUSER(gamepad_index), {}, &info)
+	if res != .SUCCESS {
 		log.errorf("Failed to get battery level for gamepad %v.", gamepad_index, location = loc)
 		return
 	} else {
@@ -151,9 +150,9 @@ _gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (
 }
 
 _gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (capabilities: Gamepad_Capabilities, ok: bool) {
-	c: xinput.CAPABILITIES
-	res := xinput.GetCapabilities(win32.DWORD(gamepad_index), 0, &c)
-	if res != win32.ERROR_SUCCESS {
+	c: win32.XINPUT_CAPABILITIES
+	res := win32.XInputGetCapabilities(win32.XUSER(gamepad_index), {}, &c)
+	if res != .SUCCESS {
 		log.errorf("Failed to get capabilities for gamepad %v.", gamepad_index, location = loc)
 		return
 	} else {
