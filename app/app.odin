@@ -90,18 +90,6 @@ running :: proc(loc := #caller_location) -> bool {
         return false
     }
 
-    // ----- sanity checks -----
-    // assert(!(ctx.width == 0 && !ctx.minimized), "width == 0", loc)
-    // assert(!(ctx.height == 0 && !ctx.minimized), "height == 0", loc)
-
-    // assert(ctx.dpi > 0, "dpi <= 0", loc)
-    // assert(ctx.refresh_rate > 0, "refresh rate <= 0", loc)
-
-    // assert(ctx.window != nil, "window == nil", loc)
-    // assert(ctx.screen_width > 0, "screen width <= 0", loc)
-    // assert(ctx.screen_height > 0, "screen height <= 0", loc)
-    // -------------------------
-
     if key_pressed(ctx.exit_key) {
         ctx.running = false
         return false
