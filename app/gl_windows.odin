@@ -114,7 +114,7 @@ _gl_init :: proc(major, minor: int) -> bool {
             log.info("OpenGL: VSync disabled.")
         } else {
             log.debug("OpenGL: succeeded to load wglSwapIntervalEXT.")
-            ctx.gl_vsync = true
+            ctx.vsync = true
         }
     }
 
@@ -211,13 +211,13 @@ _gl_init :: proc(major, minor: int) -> bool {
         log.debug("OpenGL: succeeded to make context current.")
     }
 
-    if ctx.gl_vsync {
+    if ctx.vsync {
         swap_interval_result := win32.wglSwapIntervalEXT(1)
 
         if !swap_interval_result {
             log.debug("OpenGL: failed to set swap interval.")
             log.info("OpenGL: VSync disabled.")
-            ctx.gl_vsync = false
+            ctx.vsync = false
         }
         else {
             log.debug("OpenGL: succeeded to set swap interval.")

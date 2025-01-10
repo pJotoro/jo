@@ -40,7 +40,7 @@ Window_Mode :: union {
 // It initializes the library.
 init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_location) {
     if ctx.app_initialized {
-        log.warn("App already initialized.", location = loc)
+        log.warn("App: already initialized.", location = loc)
         return
     }
 
@@ -48,7 +48,7 @@ init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_locatio
 
     when ODIN_OS == .JS /* || other platforms where there is no window */ {
         if window_mode != nil {
-            log.warnf("window_mode ignored on %v.", ODIN_OS_STRING)
+            log.warnf("JS: Window modes unsupported (for now).")
         }
     } else {
         if window_mode != nil {
@@ -63,9 +63,17 @@ init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_locatio
     }
 
     if !_init(loc) {
-        log.fatal("App failed to initialize.", location = loc)
+        log.fatal("App: failed to initialize.", location = loc)
         return
     }
+
+    if ctx.title != "" {
+        log.infof("App: title = %v.", ctx.title)
+    }
+    log.infof("App: dimensions = %v by %v.", ctx.width, ctx.height)
+    log.infof("App: dpi = %v.", ctx.dpi)
+    log.infof("App: refresh rate = %v.", ctx.refresh_rate)
+    log.infof("App: screen dimensions = %v by %v.", ctx.screen_width, ctx.screen_height)
 
     if _, ok := window_mode.(Window_Mode_Fullscreen); ok {
         disable_cursor(loc)
@@ -86,7 +94,7 @@ init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_locatio
 // Beyond checking for whether the app is still running, it also gets OS events and updates input.
 running :: proc(loc := #caller_location) -> bool {
     if !ctx.app_initialized {
-        log.fatal("App not initialized.", location = loc)
+        log.fatal("App: not initialized.", location = loc)
         return false
     }
 
@@ -163,11 +171,11 @@ swap_buffers :: proc(buffer: []u32, buffer_width := 0, buffer_height := 0, loc :
     ok := true
 
     if !ctx.app_initialized {
-        log.fatal("App not initialized.", location = loc)
+        log.fatal("App: not initialized.", location = loc)
         ok = false
     }
     if ctx.gl_initialized {
-        log.fatal("Cannot mix software rendering with OpenGL.", location = loc)
+        log.fatal("App: cannot mix software rendering with OpenGL.", location = loc)
         ctx.running = false
         ok = false
     }
@@ -177,7 +185,7 @@ swap_buffers :: proc(buffer: []u32, buffer_width := 0, buffer_height := 0, loc :
     }
 
     if buffer == nil {
-        log.fatal("Buffer == nil.", location = loc)
+        log.fatal("App buffer == nil.", location = loc)
         ctx.running = false
         ok = false
     }
@@ -229,12 +237,11 @@ set_title :: proc(title: string, loc := #caller_location) {
 
 set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) {
     if window_mode == ctx.window_mode {
-        log.warn("Identical window mode already set.", location = loc)
+        log.warn("App: identical window mode already set.", location = loc)
         return
     }
 
     _set_window_mode(window_mode, loc)
-
 
     _, ok := window_mode.(Window_Mode_Fullscreen)
     if ok {

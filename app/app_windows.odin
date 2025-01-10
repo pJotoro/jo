@@ -19,7 +19,6 @@ OS_Specific :: struct {
     dpi_aware: bool,
 
     gl_hdc: win32.HDC,
-    gl_vsync: bool,
     gl_procs_initialized: bool,
 
     window: win32.HWND,
@@ -41,13 +40,13 @@ event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: w
     get_key :: proc(vk: win32.WPARAM) -> Key {
         switch vk {
             case win32.VK_CANCEL:       return .Cancel
-            case win32.VK_BACK:    return .Backspace
+            case win32.VK_BACK:         return .Backspace
             case win32.VK_TAB:          return .Tab
             case win32.VK_CLEAR:        return .Clear
-            case win32.VK_RETURN:        return .Enter
+            case win32.VK_RETURN:       return .Enter
             case win32.VK_SHIFT:        return .Shift
             case win32.VK_CONTROL:      return .Control
-            case win32.VK_MENU:          return .Alt
+            case win32.VK_MENU:         return .Alt
             case win32.VK_PAUSE:        return .Pause
             case win32.VK_CAPITAL:      return .Caps_Lock
             case win32.VK_ESCAPE:       return .Escape
@@ -154,7 +153,7 @@ event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: w
             case win32.VK_VOLUME_UP:    return .Volume_Up
         }
 
-        panic("Unsupported key")
+        panic("Win32: unsupported key")
     }
 
     switch message {
@@ -274,9 +273,9 @@ client_to_window :: proc(x, y, width, height: i32, flags: u32, loc := #caller_lo
     rect = win32.RECT{x, y, width, height}
     
     if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
-        log.errorf("Win32: Failed to adjust window rectangle. %v", misc.get_last_error_message(), location = loc)
+        log.errorf("Win32: failed to adjust window rectangle. %v", misc.get_last_error_message(), location = loc)
     } else {
-        log.debug("Win32: Succeeded to adjust window rectangle.", location = loc)
+        log.debug("Win32: succeeded to adjust window rectangle.", location = loc)
         ok = true
     }
 
@@ -365,21 +364,20 @@ _init :: proc(loc := #caller_location) -> bool {
     
     // Get DPI
     if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
-        log.errorf("Win32: Failed to make process DPI aware. %v", misc.get_last_error_message(), location = loc)
+        log.errorf("Win32: failed to make process DPI aware. %v", misc.get_last_error_message(), location = loc)
     } else {
-        log.debug("Win32: Succeeded to make process DPI aware.", location = loc)
+        log.debug("Win32: succeeded to make process DPI aware.", location = loc)
         ctx.dpi_aware = true
     }
     ctx.dpi = int(GetDpiForSystem())
-    log.infof("DPI: %v.", ctx.dpi, location = loc)
 
     // Get module handle
     ctx.instance = win32.HINSTANCE(win32.GetModuleHandleW(nil))
     if ctx.instance == nil {
-        log.fatalf("Failed to get module handle. %v", misc.get_last_error_message(), location = loc)
+        log.fatalf("Win32: failed to get module handle. %v", misc.get_last_error_message(), location = loc)
         return false
     }
-    log.debug("Succeeded to get module handle.", location = loc)
+    log.debug("Win32: succeeded to get module handle.", location = loc)
         
     // Register window class
     window_class := win32.WNDCLASSEXW{
@@ -389,25 +387,24 @@ _init :: proc(loc := #caller_location) -> bool {
         lpszClassName = L("app_class"),
     }
     if win32.RegisterClassExW(&window_class) == 0 { 
-        log.fatalf("Failed to register window class. %v", misc.get_last_error_message(), location = loc)
+        log.fatalf("Win32: failed to register window class. %v", misc.get_last_error_message(), location = loc)
         return false
     }
-    log.debug("Succeeded to register window class.", location = loc)
+    log.debug("Win32: succeeded to register window class.", location = loc)
 
     // Get screen dimensions
     {
         monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
         monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
         if !win32.GetMonitorInfoW(monitor, &monitor_info) {
-            log.fatalf("Win32: Failed to get monitor info. %v", misc.get_last_error_message(), location = loc)
+            log.fatalf("Win32: failed to get monitor info. %v", misc.get_last_error_message(), location = loc)
             return false
         }
         else {
-            log.debug("Win32: Succeeded to get monitor info.", location = loc)
+            log.debug("Win32: succeeded to get monitor info.", location = loc)
         }
         ctx.screen_width = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
         ctx.screen_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
-        log.infof("Screen dimensions: %v by %v.", ctx.screen_width, ctx.screen_height, location = loc)  
     }
     
     // Create window
@@ -429,10 +426,10 @@ _init :: proc(loc := #caller_location) -> bool {
             nil)
         
         if ctx.window == nil {
-            log.fatalf("Failed to create window. %v", misc.get_last_error_message(), location = loc)
+            log.fatalf("Win32: failed to create window. %v", misc.get_last_error_message(), location = loc)
             return false
         }
-        log.debug("Succeeded to create window.", location = loc)
+        log.debug("Win32: succeeded to create window.", location = loc)
         ctx.width = int(width)
         ctx.height = int(height)
         ctx.window_flags = flags
@@ -441,11 +438,10 @@ _init :: proc(loc := #caller_location) -> bool {
     {
         dev_mode := win32.DEVMODEW{dmSize = size_of(win32.DEVMODEW)}
         if !win32.EnumDisplaySettingsW(nil, win32.ENUM_CURRENT_SETTINGS, &dev_mode) {
-            log.error("Failed to enumerate display settings.", location = loc)
+            log.error("Win32: failed to enumerate display settings.", location = loc)
         } else {
-            log.debug("Succeeded to enumerate display settings.", location = loc)
+            log.debug("Win32: succeeded to enumerate display settings.", location = loc)
             ctx.refresh_rate = int(dev_mode.dmDisplayFrequency)
-            log.infof("Monitor refresh rate: %v.", ctx.refresh_rate, location = loc)
         }
     }
 
@@ -458,7 +454,7 @@ _run :: proc(loc := #caller_location) {
     } else if ctx.window_ready == 0 {
         ctx.window_ready += 1
         win32.ShowWindow(ctx.window, win32.SW_SHOW)
-        log.info("Window shown.", location = loc)
+        log.debug("Win32: window shown.", location = loc)
     }
     for {
         message: win32.MSG
@@ -474,7 +470,7 @@ _run :: proc(loc := #caller_location) {
 _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #caller_location) {
     hdc := win32.GetDC(ctx.window)
     if hdc == nil {
-        log.fatal("Failed to get window device context.", location = loc)
+        log.fatal("Win32: failed to get window device context.", location = loc)
         ctx.running = false
         return
     }
@@ -492,12 +488,12 @@ _swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #c
         biCompression = win32.BI_RGB,
     }
     if win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, src_width, src_height, raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY) == 0 {
-        log.fatal("Failed to render bitmap.", location = loc)
+        log.fatal("Win32: failed to render bitmap.", location = loc)
         ctx.running = false
     }
 
     if win32.ReleaseDC(ctx.window, hdc) == 0 {
-        log.error("Failed to release window device context.", location = loc)
+        log.error("Win32: failed to release window device context.", location = loc)
     }
 }
 
@@ -514,9 +510,9 @@ _disable_cursor :: proc() -> bool {
 _set_title :: proc(title: string, loc := #caller_location) {
     wstring := win32.utf8_to_wstring(title)
     if !win32.SetWindowTextW(ctx.window, wstring) {
-        log.errorf("Win32: Failed to set window title to %v. %v", title, misc.get_last_error_message(), location = loc)
+        log.errorf("Win32: failed to set window title to %v. %v", title, misc.get_last_error_message(), location = loc)
     } else {
-        log.debugf("Win32: Succeeded to set window title to %v.", title, location = loc)
+        log.debugf("Win32: succeeded to set window title to %v.", title, location = loc)
         ctx.title = title
     }
 }
@@ -525,19 +521,19 @@ _set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) -> b
     x, y, width, height, flags := window_properties(window_mode, loc)
     if flags != ctx.window_flags {
         if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(flags)) == 0 {
-            log.errorf("Win32: Failed to set window flags. %v", misc.get_last_error_message(), location = loc)
+            log.errorf("Win32: failed to set window flags. %v", misc.get_last_error_message(), location = loc)
             return false
         }
-        log.debug("Win32: Succeeded to set window flags.", location = loc)
+        log.debug("Win32: succeeded to set window flags.", location = loc)
     }
     if width != i32(ctx.width) || height != i32(ctx.height) {
         if !win32.SetWindowPos(ctx.window, nil, 
              x, y, width, height, 
             win32.SWP_SHOWWINDOW) {
-            log.errorf("Win32: Failed to set window dimensions. %v", misc.get_last_error_message(), location = loc)
+            log.errorf("Win32: failed to set window dimensions. %v", misc.get_last_error_message(), location = loc)
             return false
         }
-        log.debug("Win32: Succeeded to set window dimensions.", location = loc)
+        log.debug("Win32: succeeded to set window dimensions.", location = loc)
     }
     ctx.width = int(width)
     ctx.height = int(height)

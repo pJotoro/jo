@@ -11,6 +11,7 @@ Context :: struct {
 
     dpi: int,
     refresh_rate: int,
+    vsync: bool,
 
     screen_width, screen_height: int,
 

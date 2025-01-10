@@ -11,12 +11,8 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 	
 	result := win32.XInputGetState(win32.XUSER(gamepad_index), &state)
 	if result != .SUCCESS {
-		log.infof("Gamepad %v disconnected.", gamepad_index, location = loc)
 		ctx.gamepads[gamepad_index].active = false
 		return false
-	}
-	if !ctx.gamepads[gamepad_index].active {
-		log.infof("Gamepad %v connected.", gamepad_index, location = loc)
 	}
 	ctx.gamepads[gamepad_index].active = true
 	if ctx.gamepads[gamepad_index].packet_number != state.dwPacketNumber {
@@ -119,26 +115,18 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 	return true
 }
 
-_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64, loc := #caller_location) {
+_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64, loc := #caller_location) -> bool {
 	xinput_vibration: win32.XINPUT_VIBRATION
 	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f64(max(u16)))
 	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f64(max(u16)))
-	result := win32.XInputSetState(win32.XUSER(gamepad_index), &xinput_vibration)
-	if result != .SUCCESS {
-		log.errorf("Failed to set vibration for gamepad %v.", gamepad_index, location = loc)
-	} else { 
-		log.debugf("Succeeded to set vibration for gamepad %v.", gamepad_index, location = loc)
-	}
+	return win32.XInputSetState(win32.XUSER(gamepad_index), &xinput_vibration) == .SUCCESS
 }
 
 _gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
 	info: win32.XINPUT_BATTERY_INFORMATION
 	res := win32.XInputGetBatteryInformation(win32.XUSER(gamepad_index), {}, &info)
 	if res != .SUCCESS {
-		log.errorf("Failed to get battery level for gamepad %v.", gamepad_index, location = loc)
 		return
-	} else {
-		log.debugf("Succeeded to get vattery level for gamepad %v.", gamepad_index, location = loc)
 	}
 	switch info.BatteryType {
 		case .DISCONNECTED, .WIRED, .UNKNOWN:
@@ -152,11 +140,8 @@ _gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (
 _gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (capabilities: Gamepad_Capabilities, ok: bool) {
 	c: win32.XINPUT_CAPABILITIES
 	res := win32.XInputGetCapabilities(win32.XUSER(gamepad_index), {}, &c)
-	if res != .SUCCESS {
-		log.errorf("Failed to get capabilities for gamepad %v.", gamepad_index, location = loc)
+	if res != .SUCCESS {	
 		return
-	} else {
-		log.debugf("Succeeded to get capabilities for gamepad %v.", gamepad_index, location = loc)
 	}
 
 	switch c.SubType {

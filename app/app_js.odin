@@ -134,15 +134,15 @@ event_proc :: proc(e: js.Event) {
 			case "VolumeUp": return .Volume_Up
 		}
 
-		panic("Unkown key")
+		panic("JS: unknown key.")
 	}
 
 	#partial switch e.kind {
 		case .Invalid:
-			panic("Invalid event")
+			panic("JS: event invalid.")
 
 		case .Error:
-			panic("Error")
+			panic("JS: event error.")
 
 		case .Resize:
 			rect := js.window_get_rect() // TODO
@@ -150,7 +150,7 @@ event_proc :: proc(e: js.Event) {
 			ctx.height = int(rect.height)
 
 		case .Fullscreen_Error:
-			panic("Fullscreen error")
+			panic("JS: fullscreen error.")
 
 		case .Click:
 			mouse := e.data.mouse
@@ -267,11 +267,9 @@ _init :: proc(loc := #caller_location) -> bool {
     ctx.exit_key = .Escape
 
 	js.evaluate(fmt.tprintf(`const canvas = document.getElementById("jo_canvas"); canvas.width = %v; canvas.height = %v;`, f64(ctx.width), f64(ctx.height)))
-	log.infof("App dimensions: %v by %v.", ctx.width, ctx.height, location = loc)
 
 	// TODO
 	ctx.dpi = 96
-	log.infof("DPI: %v.", ctx.dpi, location = loc)
 
 	// TODO
 	ctx.refresh_rate = 60
@@ -337,5 +335,5 @@ _set_title :: proc(title: string, loc := #caller_location) {
 }
 
 _set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) {
-	unimplemented("Window modes unsupported in js_wasm32 (for now).")
+	unimplemented("JS: Window modes unsupported (for now).")
 }
