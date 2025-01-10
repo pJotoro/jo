@@ -24,6 +24,7 @@ OS_Specific :: struct {
     window: win32.HWND,
     window_flags: u32,
     window_ready: int, // 0=no, 1=almost, 2=yes
+    window_width, window_height: int,
 
     dt: f64,
     dt_dur: time.Duration,
@@ -270,7 +271,7 @@ foreign user32 {
 
 @(private="file")
 client_to_window :: proc(x, y, width, height: i32, flags: u32, loc := #caller_location) -> (rect: win32.RECT, ok: bool) {
-    rect = win32.RECT{x, y, width, height}
+    rect = win32.RECT{x, y, x + width, y + height}
     
     if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
         log.errorf("Win32: failed to adjust window rectangle. %v", misc.get_last_error_message(), location = loc)
@@ -306,11 +307,12 @@ In maximized mode and fullscreen mode:
 */
 
 @(private="file")
-window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> (x, y, width, height: i32, flags: u32) {
+window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> (wr: win32.RECT, flags: u32) {
     switch wm in window_mode {
         case Window_Mode_Free:
-            width = i32(wm.width)
-            height = i32(wm.height)
+            // set client dimensions, since window_mode may not provide them
+            width := i32(wm.width)
+            height := i32(wm.height)
             screen_width := i32(ctx.screen_width)
             screen_height := i32(ctx.screen_height)
             if width == 0 && height == 0 {
@@ -321,8 +323,21 @@ window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> 
             } else if width == 0 && height > 0 {
                 width = height*screen_width / screen_height
             }
-            x = (screen_width - width) / 2
-            y = (screen_height - height) / 2
+
+            // set x and y, since window_mode may not provide them
+            x, y: i32
+            if wm.x == 0 {
+                x = (screen_width - width) / 2
+            } else {
+                x = i32(wm.x)
+            }
+            if wm.y == 0 {
+                y = (screen_height - height) / 2
+            } else {
+                y = i32(wm.y)
+            }
+
+            // set flags, including extra ones
             flags = win32.WS_CAPTION | win32.WS_SYSMENU
             if .Minimize_Box in wm.flags {
                 flags |= win32.WS_MINIMIZEBOX
@@ -333,23 +348,20 @@ window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> 
             if .Resizable in wm.flags {
                 flags |= win32.WS_SIZEBOX
             }
+
             rect, ok := client_to_window(x, y, width, height, flags, loc)
             if ok {
-                x = rect.left
-                y = rect.top
-                width = rect.right
-                height = rect.bottom 
+                wr = rect
             }
 
         case Window_Mode_Maximized:
-            width = i32(ctx.screen_width)
-            height = i32(ctx.screen_height)
+            wr.right = i32(ctx.screen_width)
+            wr.bottom = i32(ctx.screen_height)
             flags = win32.WS_CAPTION | win32.WS_SYSMENU | win32.WS_MAXIMIZE
 
-
         case Window_Mode_Fullscreen:
-            width = i32(ctx.screen_width)
-            height = i32(ctx.screen_height)
+            wr.right = i32(ctx.screen_width)
+            wr.bottom = i32(ctx.screen_height)
             flags = win32.WS_POPUP 
     }
     return
@@ -409,17 +421,18 @@ _init :: proc(loc := #caller_location) -> bool {
     
     // Create window
     {
-        x, y, width, height, flags := window_properties(ctx.window_mode, loc)
+        window_rect, window_flags := window_properties(ctx.window_mode, loc)
+        log.info(window_rect)
 
         ctx.window = win32.CreateWindowExW(
             0, 
             window_class.lpszClassName, 
             win32.utf8_to_wstring(ctx.title),
-            flags, 
-            x, 
-            y, 
-            width, 
-            height, 
+            window_flags, 
+            window_rect.left, 
+            window_rect.top, 
+            window_rect.right - window_rect.left, 
+            window_rect.bottom - window_rect.top, 
             nil, 
             nil,
             win32.HANDLE(ctx.instance), 
@@ -430,9 +443,16 @@ _init :: proc(loc := #caller_location) -> bool {
             return false
         }
         log.debug("Win32: succeeded to create window.", location = loc)
-        ctx.width = int(width)
-        ctx.height = int(height)
-        ctx.window_flags = flags
+
+        client_rect: win32.RECT
+        if !win32.GetClientRect(ctx.window, &client_rect) {
+            log.fatalf("Win32: failed to get client rectangle. %v", misc.get_last_error_message())
+            return false
+        }
+        ctx.width = int(client_rect.right)
+        ctx.height = int(client_rect.bottom)
+        
+        ctx.window_flags = window_flags
     }
 
     {
@@ -518,24 +538,30 @@ _set_title :: proc(title: string, loc := #caller_location) {
 }
 
 _set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) -> bool {
-    x, y, width, height, flags := window_properties(window_mode, loc)
-    if flags != ctx.window_flags {
-        if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(flags)) == 0 {
-            log.errorf("Win32: failed to set window flags. %v", misc.get_last_error_message(), location = loc)
-            return false
-        }
-        log.debug("Win32: succeeded to set window flags.", location = loc)
+    wr, flags := window_properties(window_mode, loc)
+
+    // set window flags
+    if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(flags)) == 0 {
+        log.errorf("Win32: failed to set window flags. %v", misc.get_last_error_message(), location = loc)
+        return false
     }
-    if width != i32(ctx.width) || height != i32(ctx.height) {
-        if !win32.SetWindowPos(ctx.window, nil, 
-             x, y, width, height, 
-            win32.SWP_SHOWWINDOW) {
-            log.errorf("Win32: failed to set window dimensions. %v", misc.get_last_error_message(), location = loc)
-            return false
-        }
-        log.debug("Win32: succeeded to set window dimensions.", location = loc)
+    log.debug("Win32: succeeded to set window flags.", location = loc)
+
+    // set window dimensions
+    if !win32.SetWindowPos(ctx.window, nil, 
+        wr.left, wr.top, wr.right, wr.bottom, 
+        win32.SWP_SHOWWINDOW) {
+        log.errorf("Win32: failed to set window dimensions. %v", misc.get_last_error_message(), location = loc)
+        return false
     }
-    ctx.width = int(width)
-    ctx.height = int(height)
+    log.debug("Win32: succeeded to set window dimensions.", location = loc)
+
+    client_rect: win32.RECT
+    if !win32.GetClientRect(ctx.window, &client_rect) {
+        log.fatalf("Win32: failed to get client rectangle. %v", misc.get_last_error_message())
+        return false
+    }
+    ctx.width = int(client_rect.right)
+    ctx.height = int(client_rect.bottom)
     return true
 }
