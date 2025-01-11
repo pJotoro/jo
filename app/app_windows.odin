@@ -401,7 +401,6 @@ _init :: proc(loc := #caller_location) -> bool {
     // Create window
     {
         window_rect, window_flags, window_ex_flags := window_properties(ctx.window_mode, loc)
-        log.info(window_rect)
 
         ctx.window = win32.CreateWindowExW(
             window_ex_flags, 
