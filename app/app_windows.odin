@@ -283,29 +283,6 @@ client_to_window :: proc(x, y, width, height: i32, flags: u32, loc := #caller_lo
     return
 }
 
-/*
-In windowed mode:
-    if width == 0 && height == 0 {
-        width = screen_width / 2
-        height = screen_height / 2
-    } else if width > 0 && height == 0 {
-        height = width*screen_height/screen_width
-    } else if width == 0 && height > 0 {
-        width = height*screen_width/screen_height
-    } else if width > 0 && height > 0 {
-        use them as is
-    }
-
-    x = (screen_width - width) / 2
-    y = (screen_height - height) / 2
-
-In maximized mode and fullscreen mode:
-    x = 0
-    y = 0
-    width = screen_width
-    height = screen_height
-*/
-
 @(private="file")
 window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> (wr: win32.RECT, flags: u32) {
     switch wm in window_mode {
