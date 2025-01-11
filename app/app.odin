@@ -57,7 +57,7 @@ init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_locatio
             when ODIN_DEBUG {
                 ctx.window_mode = Window_Mode_Free{}
             } else {
-                ctx.window_mode = Window_Mode_Fullscreen{}
+                ctx.window_mode = Window_Mode_Fullscreen{flags = {.Topmost}}
             }
         }
     }

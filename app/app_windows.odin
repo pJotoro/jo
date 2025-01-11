@@ -22,9 +22,7 @@ OS_Specific :: struct {
     gl_procs_initialized: bool,
 
     window: win32.HWND,
-    window_flags: u32,
     window_ready: int, // 0=no, 1=almost, 2=yes
-    window_width, window_height: int,
 
     dt: f64,
     dt_dur: time.Duration,
@@ -284,7 +282,7 @@ client_to_window :: proc(x, y, width, height: i32, flags: u32, loc := #caller_lo
 }
 
 @(private="file")
-window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> (wr: win32.RECT, flags: u32) {
+window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> (wr: win32.RECT, flags, ex_flags: u32) {
     switch wm in window_mode {
         case Window_Mode_Free:
             // set client dimensions, since window_mode may not provide them
@@ -340,6 +338,9 @@ window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> 
             wr.right = i32(ctx.screen_width)
             wr.bottom = i32(ctx.screen_height)
             flags = win32.WS_POPUP 
+            if .Topmost in wm.flags {
+                ex_flags |= win32.WS_EX_TOPMOST
+            }
     }
     return
 }
@@ -398,11 +399,11 @@ _init :: proc(loc := #caller_location) -> bool {
     
     // Create window
     {
-        window_rect, window_flags := window_properties(ctx.window_mode, loc)
+        window_rect, window_flags, window_ex_flags := window_properties(ctx.window_mode, loc)
         log.info(window_rect)
 
         ctx.window = win32.CreateWindowExW(
-            0, 
+            window_ex_flags, 
             window_class.lpszClassName, 
             win32.utf8_to_wstring(ctx.title),
             window_flags, 
@@ -428,8 +429,6 @@ _init :: proc(loc := #caller_location) -> bool {
         }
         ctx.width = int(client_rect.right)
         ctx.height = int(client_rect.bottom)
-        
-        ctx.window_flags = window_flags
     }
 
     {
@@ -515,7 +514,7 @@ _set_title :: proc(title: string, loc := #caller_location) {
 }
 
 _set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) -> bool {
-    wr, flags := window_properties(window_mode, loc)
+    wr, flags, _ := window_properties(window_mode, loc)
 
     // set window flags
     if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(flags)) == 0 {
