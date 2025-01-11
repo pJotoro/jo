@@ -332,6 +332,7 @@ window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> 
         case Window_Mode_Maximized:
             wr.right = i32(ctx.screen_width)
             wr.bottom = i32(ctx.screen_height)
+            // TODO: How to make the window not move? Does it matter?
             flags = win32.WS_CAPTION | win32.WS_SYSMENU | win32.WS_MAXIMIZE
 
         case Window_Mode_Fullscreen:
@@ -514,7 +515,7 @@ _set_title :: proc(title: string, loc := #caller_location) {
 }
 
 _set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) -> bool {
-    wr, flags, _ := window_properties(window_mode, loc)
+    wr, flags, ex_flags := window_properties(window_mode, loc)
 
     // set window flags
     if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(flags)) == 0 {
@@ -522,6 +523,13 @@ _set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) -> b
         return false
     }
     log.debug("Win32: succeeded to set window flags.", location = loc)
+
+    // set window extended flags
+    if win32.SetWindowLongPtrW(ctx.window, win32.GWL_EXSTYLE, int(ex_flags)) == 0 {
+        log.errorf("Win32: failed to set window extended flags. %v", misc.get_last_error_message(), location = loc)
+        return false
+    }
+    log.debug("Win32: succeeded to set window extended flags.", location = loc)
 
     // set window dimensions
     if !win32.SetWindowPos(ctx.window, nil, 
