@@ -243,7 +243,6 @@ event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: w
             ctx.mouse_wheel = int(amount)
 
         case win32.WM_CHAR:
-            // TODO: Add any_key_down and any_key_pressed for this event.
             r := rune(w_param)
             if !unicode.is_control(r) {
                 strings.write_rune(&ctx.text_input, r)

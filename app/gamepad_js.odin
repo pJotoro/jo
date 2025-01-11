@@ -6,7 +6,6 @@ import "core:log"
 
 import "core:fmt"
 
-// TODO: WASM makes an event when a gamepad is connected or disconnected. Make use of this?
 _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
 	gamepad_state: js.Gamepad_State
 	if !js.get_gamepad_state(gamepad_index, &gamepad_state) {

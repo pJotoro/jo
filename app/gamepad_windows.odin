@@ -16,7 +16,7 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 	}
 	ctx.gamepads[gamepad_index].active = true
 	if ctx.gamepads[gamepad_index].packet_number != state.dwPacketNumber {
-		// TODO(pJotoro): We could make gamepad input delta be in the crossplatform code, considering that it doesn't use any Windows procedures. I might do that eventually. The only reason
+		// TODO: We could make gamepad input delta be in the crossplatform code, considering that it doesn't use any Windows procedures. I might do that eventually. The only reason
 		// I haven't is because I'm not sure if other gamepad input APIs already calculate the input delta for you.
 
 		left_trigger_previous := ctx.gamepads[gamepad_index].left_trigger
@@ -31,8 +31,7 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 		ctx.gamepads[gamepad_index].left_stick_delta = ctx.gamepads[gamepad_index].left_stick - left_stick_previous
 		ctx.gamepads[gamepad_index].right_stick_delta = ctx.gamepads[gamepad_index].right_stick - right_stick_previous
 
-		// NOTE(pJotoro): If the gamepad's state hasn't changed at all, debug info about it doesn't get outputted. This is nice because it prevents the console from getting flooded. The only
-		// issue is if you press buttons not enabled for debug output, debug output will still happen anyway. I don't think it's worth it to fix this.
+		// NOTE: If the gamepad's state hasn't changed at all, debug info about it doesn't get outputted. This is nice because it prevents the console from getting flooded. The only issue is if you press buttons not enabled for debug output, debug output will still happen anyway. I don't think it's worth it to fix this.
 		gamepad_debug(gamepad_index)
 	} else {
 		ctx.gamepads[gamepad_index].buttons_previous = ctx.gamepads[gamepad_index].buttons
@@ -62,7 +61,7 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 		gamepad.right_stick.x = f64(xinput_gamepad.sThumbRX) / RIGHT_THUMB_MAX
 		gamepad.right_stick.y = f64(xinput_gamepad.sThumbRY) / RIGHT_THUMB_MAX
 
-		// NOTE(pJotoro): In theory, this shouldn't be necessary.
+		// NOTE: In theory, this shouldn't be necessary.
 		// The above code should already normalize all the values.
 		// But, some gamepads have more or less threshold than others,
 		// so the input can actually go above 1.0 or below -1.0 (like
