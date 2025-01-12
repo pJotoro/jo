@@ -311,17 +311,7 @@ window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> 
                 y = i32(wm.y)
             }
 
-            // set flags, including extra ones
             flags = win32.WS_CAPTION | win32.WS_SYSMENU
-            if .Minimize_Box in wm.flags {
-                flags |= win32.WS_MINIMIZEBOX
-            }
-            if .Maximize_Box in wm.flags {
-                flags |= win32.WS_MAXIMIZEBOX
-            }
-            if .Resizable in wm.flags {
-                flags |= win32.WS_SIZEBOX
-            }
 
             rect, ok := client_to_window(x, y, width, height, flags, loc)
             if ok {
@@ -338,7 +328,7 @@ window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> 
             wr.right = i32(ctx.screen_width)
             wr.bottom = i32(ctx.screen_height)
             flags = win32.WS_POPUP 
-            if .Topmost in wm.flags {
+            if wm.topmost {
                 ex_flags |= win32.WS_EX_TOPMOST
             }
     }

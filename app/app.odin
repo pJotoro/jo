@@ -7,27 +7,14 @@ import "core:log"
 import "core:strings"
 import "core:time"
 
-Window_Mode_Free_Flag :: enum {
-    Minimize_Box,
-    Maximize_Box,
-    Resizable,
-}
-Window_Mode_Free_Flags :: distinct bit_set[Window_Mode_Free_Flag]
-
 Window_Mode_Free :: struct {
     x, y, width, height: int,
-    flags: Window_Mode_Free_Flags,
 }
 
 Window_Mode_Maximized :: struct {}
 
-Window_Mode_Fullscreen_Flag :: enum {
-    Topmost,
-}
-Window_Mode_Fullscreen_Flags :: distinct bit_set[Window_Mode_Fullscreen_Flag]
-
 Window_Mode_Fullscreen :: struct {
-    flags: Window_Mode_Fullscreen_Flags,
+    topmost: bool,
 }
 
 Window_Mode :: union {
