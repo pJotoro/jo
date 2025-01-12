@@ -167,11 +167,6 @@ event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: w
                 ctx.open = true
             }
 
-        case win32.WM_SIZE:
-            sizes := transmute([4]i16)l_param
-            ctx.width = int(sizes[0])
-            ctx.height = int(sizes[1])
-
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
             key := get_key(w_param)
             if !(int(key) > len(ctx.keys)) {
