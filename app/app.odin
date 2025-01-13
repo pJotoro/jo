@@ -177,10 +177,6 @@ swap_buffers :: proc(buffer: []u32, buffer_width := 0, buffer_height := 0, loc :
         ok = false
     }
 
-    if ctx.width == 0 || ctx.height == 0 {
-        ok = false
-    }
-
     if buffer == nil {
         log.fatal("App buffer == nil.", location = loc)
         ctx.running = false
@@ -205,6 +201,8 @@ width :: proc "contextless" () -> int {
 height :: proc "contextless" () -> int {
     return ctx.height
 }
+
+// screen == monitor
 
 // Returns the screen width in pixels.
 screen_width :: proc "contextless" () -> int {
