@@ -10,14 +10,14 @@ mouse_y :: proc "contextless" () -> (y: int) {
     return ctx.mouse_position.y
 }
 
-mouse_position :: proc "contextless" () -> (x, y: int) {
-    return ctx.mouse_position.x, ctx.mouse_position.y
+mouse_position :: proc "contextless" () -> [2]int {
+    return {ctx.mouse_position.x, ctx.mouse_position.y}
 }
 
 // Actually, this returns whether the mouse is inside the window bounds.
 cursor_on_screen :: proc "contextless" () -> bool {
-    x, y := mouse_position()
-    return x >= 0 && x < ctx.width && y >= 0 && y < ctx.height
+    pos := mouse_position()
+    return pos.x >= 0 && pos.x < ctx.width && pos.y >= 0 && pos.y < ctx.height
 }
 
 cursor_enabled :: proc() -> bool {
