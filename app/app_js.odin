@@ -258,10 +258,6 @@ We still need to initialize:
 - monitor dimensions (is this possible in web?)
 */
 
-/*
-Should be made OS/Windows specific:
-- window
-*/
 _init :: proc(loc := #caller_location) -> bool {
 	ctx.cursor_enabled = true
     ctx.exit_key = .Escape
