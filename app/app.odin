@@ -143,14 +143,13 @@ run :: proc(update_proc: proc(dt: f64, user_data: rawptr), user_data: rawptr, lo
     ctx.update_proc_user_data = user_data
     
     when ODIN_OS != .JS {
-        dt := f64(ctx.refresh_rate) / f64(time.Second)
+        last_tick := time.tick_now()
+        dt: f64
         for running(loc) {
-            start_tick := time.tick_now()
-            defer {
-                end_tick := time.tick_now()
-                dt_dur := time.tick_diff(start_tick, end_tick)
-                dt = f64(dt_dur)/f64(time.Second)
-            }
+            tick := time.tick_now()
+            dt_dur := time.tick_diff(last_tick, tick)
+            last_tick = tick
+            dt = f64(dt_dur)/f64(time.Second)
             ctx.update_proc(dt, ctx.update_proc_user_data)
         }
     }
