@@ -274,9 +274,6 @@ _init :: proc(loc := #caller_location) -> bool {
 		js.add_window_event_listener(kind, nil, event_proc)
 	}
 
-	// TODO
-	ctx.can_connect_gamepad = true
-
 	webgl_init :: proc() -> bool {
 		webgl.CreateCurrentContextById("jo_canvas", {}) or_return
 		webgl.SetCurrentContextById("jo_canvas") or_return
