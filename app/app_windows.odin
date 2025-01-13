@@ -23,6 +23,8 @@ OS_Specific :: struct {
 
     window: win32.HWND,
     window_ready: int, // 0=no, 1=almost, 2=yes
+    window_rect: win32.RECT,
+    window_flags, window_ex_flags: u32,
 
     dt: f64,
     dt_dur: time.Duration,
@@ -411,8 +413,14 @@ _init :: proc(loc := #caller_location) -> bool {
             log.fatalf("Win32: failed to get client rectangle. %v", misc.get_last_error_message())
             return false
         }
+        log.debug("Win32: succeeded to get client rectangle.", location = loc)
+        
         ctx.width = int(client_rect.right)
         ctx.height = int(client_rect.bottom)
+
+        ctx.window_rect = window_rect
+        ctx.window_flags = window_flags
+        ctx.window_ex_flags = window_ex_flags
     }
 
     {
@@ -498,31 +506,40 @@ _set_title :: proc(title: string, loc := #caller_location) {
 }
 
 _set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) -> bool {
-    wr, flags, ex_flags := window_properties(window_mode, loc)
+    rect, flags, ex_flags := window_properties(window_mode, loc)
 
     // set window flags
-    if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(flags)) == 0 {
-        log.errorf("Win32: failed to set window flags. %v", misc.get_last_error_message(), location = loc)
-        return false
+    if flags != ctx.window_flags {
+        if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(flags)) == 0 {
+            log.errorf("Win32: failed to set window flags. %v", misc.get_last_error_message(), location = loc)
+            return false
+        }
+        log.debug("Win32: succeeded to set window flags.", location = loc)
+        ctx.window_flags = flags
     }
-    log.debug("Win32: succeeded to set window flags.", location = loc)
-
+    
     // set window extended flags
-    if win32.SetWindowLongPtrW(ctx.window, win32.GWL_EXSTYLE, int(ex_flags)) == 0 {
-        log.errorf("Win32: failed to set window extended flags. %v", misc.get_last_error_message(), location = loc)
-        return false
+    if ex_flags != ctx.window_ex_flags {
+        if win32.SetWindowLongPtrW(ctx.window, win32.GWL_EXSTYLE, int(ex_flags)) == 0 {
+            log.errorf("Win32: failed to set window extended flags. %v", misc.get_last_error_message(), location = loc)
+            return false
+        }
+        log.debug("Win32: succeeded to set window extended flags.", location = loc)
+        ctx.window_ex_flags = ex_flags
     }
-    log.debug("Win32: succeeded to set window extended flags.", location = loc)
-
+    
     // set window dimensions
-    if !win32.SetWindowPos(ctx.window, nil, 
-        wr.left, wr.top, wr.right, wr.bottom, 
-        win32.SWP_SHOWWINDOW) {
-        log.errorf("Win32: failed to set window dimensions. %v", misc.get_last_error_message(), location = loc)
-        return false
+    if rect != ctx.window_rect {
+        if !win32.SetWindowPos(ctx.window, nil, 
+            rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 
+            win32.SWP_SHOWWINDOW) {
+            log.errorf("Win32: failed to set window dimensions. %v", misc.get_last_error_message(), location = loc)
+            return false
+        }
+        log.debug("Win32: succeeded to set window dimensions.", location = loc)
+        ctx.window_rect = rect
     }
-    log.debug("Win32: succeeded to set window dimensions.", location = loc)
-
+    
     client_rect: win32.RECT
     if !win32.GetClientRect(ctx.window, &client_rect) {
         log.fatalf("Win32: failed to get client rectangle. %v", misc.get_last_error_message())

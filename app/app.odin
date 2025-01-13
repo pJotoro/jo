@@ -72,6 +72,17 @@ init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_locatio
 
     strings.builder_init_len_cap(&ctx.text_input, 0, 4096)
 
+    // Warnings should be put down here so that they don't get buried.
+
+    if wm, ok := ctx.window_mode.(Window_Mode_Free); ok {
+        if wm.width != 0 && wm.width != ctx.width {
+            log.warn("App: width != window_mode.width.", location = loc)
+        }
+        if wm.height != 0 && wm.height != ctx.height {
+            log.warn("App: height != window_mode.height.", location = loc)
+        }
+    }
+
     ctx.app_initialized = true
     ctx.running = true
 }
@@ -232,9 +243,13 @@ set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) {
 
     _, ok := window_mode.(Window_Mode_Fullscreen)
     if ok {
-        disable_cursor()
+        if ctx.cursor_enabled {
+            disable_cursor()
+        }
     } else {
-        enable_cursor()
+        if !ctx.cursor_enabled {
+            enable_cursor()
+        }
     }
 }
 
