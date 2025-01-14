@@ -280,7 +280,7 @@ client_to_window :: proc(x, y, width, height: i32, flags: u32, loc := #caller_lo
 @(private="file")
 window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> (wr: win32.RECT, flags, ex_flags: u32) {
     switch wm in window_mode {
-        case Window_Mode_Free:
+        case Window_Mode_Windowed:
             // set client dimensions, since window_mode may not provide them
             width := i32(wm.width)
             height := i32(wm.height)
@@ -314,12 +314,6 @@ window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> 
             if ok {
                 wr = rect
             }
-
-        case Window_Mode_Maximized:
-            wr.right = i32(ctx.screen_width)
-            wr.bottom = i32(ctx.screen_height)
-            // TODO: How to make the window not move? Does it matter?
-            flags = win32.WS_CAPTION | win32.WS_SYSMENU | win32.WS_MAXIMIZE
 
         case Window_Mode_Fullscreen:
             wr.right = i32(ctx.screen_width)

@@ -99,7 +99,7 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 	return true
 }
 
-_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64, loc := #caller_location) {
+_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64, loc := #caller_location) -> bool {
 	unimplemented()
 }
 

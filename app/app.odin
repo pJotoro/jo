@@ -7,19 +7,16 @@ import "core:log"
 import "core:strings"
 import "core:time"
 
-Window_Mode_Free :: struct {
+Window_Mode_Windowed :: struct {
     x, y, width, height: int,
 }
-
-Window_Mode_Maximized :: struct {}
 
 Window_Mode_Fullscreen :: struct {
     topmost: bool,
 }
 
 Window_Mode :: union {
-    Window_Mode_Free,
-    Window_Mode_Maximized,
+    Window_Mode_Windowed,
     Window_Mode_Fullscreen,
 }
 
@@ -42,9 +39,9 @@ init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_locatio
             ctx.window_mode = window_mode
         } else {
             when ODIN_DEBUG {
-                ctx.window_mode = Window_Mode_Free{}
+                ctx.window_mode = Window_Mode_Windowed{}
             } else {
-                ctx.window_mode = Window_Mode_Fullscreen{flags = {.Topmost}}
+                ctx.window_mode = Window_Mode_Fullscreen{topmost = true}
             }
         }
     }
@@ -74,7 +71,7 @@ init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_locatio
 
     // Warnings should be put down here so that they don't get buried.
 
-    if wm, ok := ctx.window_mode.(Window_Mode_Free); ok {
+    if wm, ok := ctx.window_mode.(Window_Mode_Windowed); ok {
         if wm.width != 0 && wm.width != ctx.width {
             log.warn("App: width != window_mode.width.", location = loc)
         }
