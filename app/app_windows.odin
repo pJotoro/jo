@@ -11,8 +11,6 @@ import "../misc"
 import "core:strings"
 import "core:unicode"
 
-import "core:time"
-
 OS_Specific :: struct {
     instance: win32.HINSTANCE,
     cursor: win32.HCURSOR,
@@ -25,9 +23,6 @@ OS_Specific :: struct {
     window_ready: int, // 0=no, 1=almost, 2=yes
     window_rect: win32.RECT,
     window_flags, window_ex_flags: u32,
-
-    dt: f64,
-    dt_dur: time.Duration,
 }
 
 L :: intrinsics.constant_utf16_cstring
