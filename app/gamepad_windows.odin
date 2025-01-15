@@ -121,7 +121,7 @@ _gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64,
 	return win32.XInputSetState(win32.XUSER(gamepad_index), &xinput_vibration) == .SUCCESS
 }
 
-_gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
+_gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: f64, has_battery: bool) {
 	info: win32.XINPUT_BATTERY_INFORMATION
 	res := win32.XInputGetBatteryInformation(win32.XUSER(gamepad_index), {}, &info)
 	if res != .SUCCESS {
@@ -130,7 +130,16 @@ _gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (
 	switch info.BatteryType {
 		case .DISCONNECTED, .WIRED, .UNKNOWN:
 		case .ALKALINE, .NIMH:
-			battery_level = Gamepad_Battery_Level(info.BatteryLevel)
+			switch info.BatteryLevel {
+				case .EMPTY:
+					battery_level = 0
+				case .LOW:
+					battery_level = 1.0/3.0
+				case .MEDIUM:
+					battery_level = 2.0/3.0
+				case .FULL:
+					battery_level = 1
+			}
 			has_battery = true
 	}
 	return

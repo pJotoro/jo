@@ -45,9 +45,6 @@ Gamepad_Desc :: struct {
 
 	packet_number: u32, // TODO(pJotoro): Do other platforms have a similar concept? I'm assuming they do.
 	active: bool,
-
-	// events: [dynamic]Gamepad_Event,
-	// event_index: int,
 }
 
 // Called for every possible gamepad by app.init().
@@ -147,14 +144,8 @@ gamepad_right_stick_delta :: proc "contextless" (gamepad_index: int) -> [2]f64 {
 	return ctx.gamepads[gamepad_index].right_stick_delta
 }
 
-Gamepad_Battery_Level :: enum {
-	Empty,
-	Low,
-	Medium,
-	Full,
-}
-
-gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: Gamepad_Battery_Level, has_battery: bool) {
+// Returns the battery level of a gamepad as a normalized float. 1=full, 0=empty.
+gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: f64, has_battery: bool) {
 	if !ctx.gamepads[gamepad_index].active {
 		return
 	}
