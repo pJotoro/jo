@@ -55,6 +55,8 @@ Gamepad_Desc :: struct {
 // The way I would recommend would be to make the player open a menu where they have to say they have connected a gamepad.
 // Then, call this procedure again.
 // If it fails, then the player lied to you. If it succeeds, then as long as their gamepad stays connected, you won't have to call this again.
+//
+// Depending on the target platform, the player may have to do something with their gamepad before it is detected.
 try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
 	runtime.bounds_check_error_loc(loc, gamepad_index, len(ctx.gamepads))
 	log_connected := !ctx.gamepads[gamepad_index].active // Only log connected if gamepad not already connected
