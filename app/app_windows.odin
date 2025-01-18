@@ -23,6 +23,8 @@ OS_Specific :: struct {
     window_ready: int, // 0=no, 1=almost, 2=yes
     window_rect: win32.RECT,
     window_flags, window_ex_flags: u32,
+
+    d3d11_ctx: ^D3D11_Context,
 }
 
 L :: intrinsics.constant_utf16_cstring
