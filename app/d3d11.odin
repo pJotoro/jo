@@ -137,6 +137,23 @@ d3d11_init :: proc(d3d11_ctx: ^D3D11_Context, loc := #caller_location) -> (res: 
 		log.infof("D3D11: %v", d3d11_ctx.viewport)
 	}
 
+	// assert(d3d11_ctx.base_device != nil)
+	// assert(d3d11_ctx.base_device_context != nil)
+	// assert(d3d11_ctx.device != nil)
+	// assert(d3d11_ctx.device_context != nil)
+	// assert(d3d11_ctx.dxgi_device != nil)
+	// assert(d3d11_ctx.dxgi_adapter != nil)
+	// assert(d3d11_ctx.dxgi_factory != nil)
+	// assert(d3d11_ctx.swapchain != nil)
+	// assert(d3d11_ctx.render_target != nil)
+	// assert(d3d11_ctx.render_target_view != nil)
+	// assert(d3d11_ctx.depth_buffer != nil)
+	// assert(d3d11_ctx.depth_buffer_view != nil)
+	// assert(d3d11_ctx.viewport != {})
+	// assert(d3d11_ctx.rasterizer_state != nil)
+	// assert(d3d11_ctx.sampler_state != nil)
+	// assert(d3d11_ctx.depth_stencil_state != nil)
+
 	ctx.d3d11_ctx = d3d11_ctx
 	log.info("D3D11: Succeeded to initialize.")
 	return
