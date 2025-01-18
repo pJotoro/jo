@@ -164,6 +164,11 @@ event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: w
                 ctx.open = false
             } else {
                 ctx.open = true
+
+                if _, ok := ctx.window_mode.(Window_Mode_Fullscreen); ok {
+                    ctx.cursor_enabled = true
+                    disable_cursor()
+                }
             }
 
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
