@@ -59,7 +59,7 @@ init :: proc(title := "", window_mode: Window_Mode = nil, loc := #caller_locatio
     log.infof("App: refresh rate = %v.", ctx.refresh_rate)
     log.infof("App: screen dimensions = %v by %v.", ctx.screen_width, ctx.screen_height)
 
-    if _, ok := window_mode.(Window_Mode_Fullscreen); ok {
+    if _, ok := ctx.window_mode.(Window_Mode_Fullscreen); ok {
         disable_cursor(loc)
     }
 
