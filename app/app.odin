@@ -134,7 +134,7 @@ running :: proc(loc := #caller_location) -> bool {
     return ctx.running
 }
 
-// Experimental new way to do game loop. Calculates delta time for you.
+// A different way to do the game loop. Calculates delta time for you. Required in WASM.
 run :: proc(update_proc: proc(dt: f64, user_data: rawptr), user_data: rawptr, loc := #caller_location) {
     ctx.update_proc = update_proc
     ctx.update_proc_user_data = user_data
