@@ -523,7 +523,7 @@ _set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) -> b
     if rect != ctx.window_rect {
         if !win32.SetWindowPos(ctx.window, nil, 
             rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 
-            win32.SWP_SHOWWINDOW) {
+            win32.SWP_SHOWWINDOW | win32.SWP_FRAMECHANGED) {
             log.errorf("Win32: failed to set window dimensions. %v", misc.get_last_error_message(), location = loc)
             return false
         }

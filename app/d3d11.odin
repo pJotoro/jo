@@ -38,6 +38,10 @@ d3d11_init :: proc(d3d11_ctx: ^D3D11_Context, loc := #caller_location) -> (res: 
 	feature_levels := [?]d3d11.FEATURE_LEVEL{._11_0} // TODO: Allow other versions.
 
 	if d3d11_ctx.base_device == nil || d3d11_ctx.base_device_context == nil {
+		flags := d3d11.CREATE_DEVICE_FLAGS{.BGRA_SUPPORT, .SINGLETHREADED}
+		when ODIN_DEBUG {
+			flags += {.DEBUG}
+		}
 		if res = d3d11.CreateDevice(nil, .HARDWARE, nil, {.BGRA_SUPPORT}, &feature_levels[0], len(feature_levels), d3d11.SDK_VERSION, &d3d11_ctx.base_device, nil, &d3d11_ctx.base_device_context); res != 0 { return }
 	}
 	
@@ -153,6 +157,9 @@ d3d11_init :: proc(d3d11_ctx: ^D3D11_Context, loc := #caller_location) -> (res: 
 	// assert(d3d11_ctx.rasterizer_state != nil)
 	// assert(d3d11_ctx.sampler_state != nil)
 	// assert(d3d11_ctx.depth_stencil_state != nil)
+
+	// d3d11_ctx.dxgi_device->SetMaximumFrameLatency(1) TODO
+	d3d11_ctx.dxgi_factory->MakeWindowAssociation(ctx.window, {.NO_ALT_ENTER})
 
 	ctx.d3d11_ctx = d3d11_ctx
 	log.info("D3D11: Succeeded to initialize.")
