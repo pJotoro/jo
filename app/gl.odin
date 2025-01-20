@@ -15,7 +15,6 @@ when JO_GL {
 // Initializes OpenGL.
 gl_init :: proc(ctx: ^Context, major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_callback, user_data: rawptr = nil) {
     assert(ctx.initialized, "OpenGL: app not initialized.")
-    assert(ctx.graphics_api == .OpenGL)
     assert(!ctx.graphics_api_initialized, "OpenGL: already initialized.")
 
     fmt.assertf((major == 4 && minor <= 6) || (major == 3 && minor <= 3) || (major == 2 && minor <= 1) || (major == 1) && (minor <= 5),
@@ -42,6 +41,7 @@ gl_init :: proc(ctx: ^Context, major, minor: int, debug_callback: gl.debug_proc_
     cr := client_rect(ctx)
     gl.Viewport(0, 0, i32(cr.w), i32(cr.h))
 
+    ctx.graphics_api = .OpenGL
     ctx.graphics_api_initialized = true
 }
 
