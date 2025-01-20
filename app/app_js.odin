@@ -258,8 +258,8 @@ We still need to initialize:
 - monitor dimensions (is this possible in web?)
 */
 
-_init :: proc(loc := #caller_location) -> bool {
-	ctx.cursor_enabled = true
+_init :: proc(loc) -> bool {
+	ctx.win32_cursor_enabled = true
     ctx.exit_key = .Escape
 
 	js.evaluate(fmt.tprintf(`const canvas = document.getElementById("jo_canvas"); canvas.width = %v; canvas.height = %v;`, f64(ctx.width), f64(ctx.height)))
@@ -285,7 +285,7 @@ _init :: proc(loc := #caller_location) -> bool {
 		set_title(ctx.title)
 	}
 
-	ctx.cursor_enabled = true // TODO
+	ctx.win32_cursor_enabled = true // TODO
 
 	ctx.app_initialized = true
 	ctx.running = true
@@ -293,7 +293,7 @@ _init :: proc(loc := #caller_location) -> bool {
 	return true
 }
 
-_run :: proc(loc := #caller_location) {
+_run :: proc(loc) {
 	// TODO: How exactly does visibility work? Since a window is not actually
 	// being created, are we visible immediately?
 	//
@@ -308,7 +308,7 @@ step :: proc(dt: f64) -> bool {
 	return running()
 }
 
-_swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #caller_location) {
+_swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int) {
 	unimplemented()
 }
 
@@ -322,11 +322,11 @@ _disable_cursor :: proc() -> bool {
 	return true
 }
 
-_set_title :: proc(title: string, loc := #caller_location) {
+_set_title :: proc(title: string) {
 	code := fmt.tprint("document.title = \"", title, "\"")
 	js.evaluate(code)
 }
 
-_set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) {
+_set_window_mode :: proc(window_mode: Window_Mode) {
 	unimplemented("JS: Window modes unsupported (for now).")
 }

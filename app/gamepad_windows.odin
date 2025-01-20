@@ -1,4 +1,3 @@
-#+ private
 package app
 
 import "jo:misc"
@@ -6,44 +5,44 @@ import "jo:misc"
 import win32 "core:sys/windows"
 import "core:log"
 
-_try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
+_try_connect_gamepad :: proc(ctx: ^Context, g_idx: int) {
 	state: win32.XINPUT_STATE = ---
 	
-	result := win32.XInputGetState(win32.XUSER(gamepad_index), &state)
+	result := win32.XInputGetState(win32.XUSER(g_idx), &state)
 	if result != .SUCCESS {
-		ctx.gamepads[gamepad_index].active = false
-		return false
+		ctx.gamepads[g_idx].connected = false
+		return
 	}
-	ctx.gamepads[gamepad_index].active = true
-	if ctx.gamepads[gamepad_index].packet_number != state.dwPacketNumber {
+	ctx.gamepads[g_idx].connected = true
+	if ctx.gamepads[g_idx].packet_number != state.dwPacketNumber {
 		// TODO: We could make gamepad input delta be in the crossplatform code, considering that it doesn't use any Windows procedures. I might do that eventually. The only reason
 		// I haven't is because I'm not sure if other gamepad input APIs already calculate the input delta for you.
 
-		left_trigger_previous := ctx.gamepads[gamepad_index].left_trigger
-		right_trigger_previous := ctx.gamepads[gamepad_index].right_trigger
-		left_stick_previous := ctx.gamepads[gamepad_index].left_stick
-		right_stick_previous := ctx.gamepads[gamepad_index].right_stick
+		left_trigger_previous := ctx.gamepads[g_idx].left_trigger
+		right_trigger_previous := ctx.gamepads[g_idx].right_trigger
+		left_stick_previous := ctx.gamepads[g_idx].left_stick
+		right_stick_previous := ctx.gamepads[g_idx].right_stick
 
-		get_input(&ctx.gamepads[gamepad_index], state.Gamepad)
+		get_input(&ctx.gamepads[g_idx], state.Gamepad)
 
-		ctx.gamepads[gamepad_index].left_trigger_delta = ctx.gamepads[gamepad_index].left_trigger - left_trigger_previous
-		ctx.gamepads[gamepad_index].right_trigger_delta = ctx.gamepads[gamepad_index].right_trigger - right_trigger_previous
-		ctx.gamepads[gamepad_index].left_stick_delta = ctx.gamepads[gamepad_index].left_stick - left_stick_previous
-		ctx.gamepads[gamepad_index].right_stick_delta = ctx.gamepads[gamepad_index].right_stick - right_stick_previous
+		ctx.gamepads[g_idx].left_trigger_delta = ctx.gamepads[g_idx].left_trigger - left_trigger_previous
+		ctx.gamepads[g_idx].right_trigger_delta = ctx.gamepads[g_idx].right_trigger - right_trigger_previous
+		ctx.gamepads[g_idx].left_stick_delta = ctx.gamepads[g_idx].left_stick - left_stick_previous
+		ctx.gamepads[g_idx].right_stick_delta = ctx.gamepads[g_idx].right_stick - right_stick_previous
 
 		// NOTE: If the gamepad's state hasn't changed at all, debug info about it doesn't get outputted. This is nice because it prevents the console from getting flooded. The only issue is if you press buttons not enabled for debug output, debug output will still happen anyway. I don't think it's worth it to fix this.
-		gamepad_debug(gamepad_index)
+		// gamepad_debug(g_idx) TODO
 	} else {
-		ctx.gamepads[gamepad_index].buttons_previous = ctx.gamepads[gamepad_index].buttons
+		ctx.gamepads[g_idx].buttons_previous = ctx.gamepads[g_idx].buttons
 		
-		ctx.gamepads[gamepad_index].left_trigger_delta = 0.0
-		ctx.gamepads[gamepad_index].right_trigger_delta = 0.0
-		ctx.gamepads[gamepad_index].left_stick_delta = {0.0, 0.0}
-		ctx.gamepads[gamepad_index].right_stick_delta = {0.0, 0.0}
+		ctx.gamepads[g_idx].left_trigger_delta = 0.0
+		ctx.gamepads[g_idx].right_trigger_delta = 0.0
+		ctx.gamepads[g_idx].left_stick_delta = {0.0, 0.0}
+		ctx.gamepads[g_idx].right_stick_delta = {0.0, 0.0}
 	}
-	ctx.gamepads[gamepad_index].packet_number = state.dwPacketNumber
+	ctx.gamepads[g_idx].packet_number = state.dwPacketNumber
 
-	get_input :: proc "contextless" (gamepad: ^Gamepad_Desc, xinput_gamepad: win32.XINPUT_GAMEPAD) {
+	get_input :: proc "contextless" (gamepad: ^Gamepad, xinput_gamepad: win32.XINPUT_GAMEPAD) {
 		xinput_gamepad := xinput_gamepad
 		cut_deadzones(&xinput_gamepad)
 	
@@ -110,20 +109,18 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 			}
 		}
 	}
-	
-	return true
 }
 
-_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64, loc := #caller_location) -> bool {
+_gamepad_set_vibration :: proc(ctx: ^Context, g_idx: int, left_motor, right_motor: f64) -> bool {
 	xinput_vibration: win32.XINPUT_VIBRATION
 	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f64(max(u16)))
 	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f64(max(u16)))
-	return win32.XInputSetState(win32.XUSER(gamepad_index), &xinput_vibration) == .SUCCESS
+	return win32.XInputSetState(win32.XUSER(g_idx), &xinput_vibration) == .SUCCESS
 }
 
-_gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: f64, has_battery: bool) {
+_gamepad_battery_level :: proc(ctx: ^Context, g_idx: int) -> (battery_level: f64, has_battery: bool) {
 	info: win32.XINPUT_BATTERY_INFORMATION
-	res := win32.XInputGetBatteryInformation(win32.XUSER(gamepad_index), {}, &info)
+	res := win32.XInputGetBatteryInformation(win32.XUSER(g_idx), {}, &info)
 	if res != .SUCCESS {
 		return
 	}
@@ -145,9 +142,9 @@ _gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (
 	return
 }
 
-_gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (capabilities: Gamepad_Capabilities, ok: bool) {
+_gamepad_capabilities :: proc(ctx: ^Context, g_idx: int) -> (capabilities: Gamepad_Capabilities, ok: bool) {
 	c: win32.XINPUT_CAPABILITIES
-	res := win32.XInputGetCapabilities(win32.XUSER(gamepad_index), {}, &c)
+	res := win32.XInputGetCapabilities(win32.XUSER(g_idx), {}, &c)
 	if res != .SUCCESS {	
 		return
 	}

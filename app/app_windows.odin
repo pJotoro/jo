@@ -1,37 +1,41 @@
-#+ private
 package app
 
 import "base:runtime"
 import win32 "core:sys/windows"
 import "base:intrinsics"
-import "core:log"
+import "core:fmt"
 
 import "../misc"
 
-import "core:strings"
+import "core:io"
 import "core:unicode"
 
 OS_Specific :: struct {
-    instance: win32.HINSTANCE,
-    cursor: win32.HCURSOR,
-    dpi_aware: bool,
+    win32_instance: win32.HINSTANCE,
+    win32_cursor: win32.HCURSOR,
+    win32_dpi_aware: bool,
 
-    gl_hdc: win32.HDC,
-    gl_procs_initialized: bool,
+    win32_hdc: win32.HDC,
+    win32_gl_procs_initialized: bool,
 
-    window: win32.HWND,
-    window_ready: int, // 0=no, 1=almost, 2=yes
-    window_rect: win32.RECT,
-    window_flags, window_ex_flags: u32,
+    win32_window: win32.HWND,
+    win32_event_proc: win32.WNDPROC, // TODO
+    win32_window_ready: int, // 0=no, 1=almost, 2=yes
+    win32_window_flags, win32_window_ex_flags: u32,
 
+    window_rect: Rect,
     d3d11_ctx: ^D3D11_Context,
 }
 
 L :: intrinsics.constant_utf16_cstring
 
-@(private="file")
-event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
+_win32_event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: win32.WPARAM, l_param: win32.LPARAM) -> win32.LRESULT {
     context = runtime.default_context()
+
+    ctx := transmute(^Context)win32.GetWindowLongPtrW(window, win32.GWLP_USERDATA)
+    if ctx == nil {
+        return win32.DefWindowProcW(window, message, w_param, l_param)
+    }
 
     result := win32.LRESULT(0)
 
@@ -166,75 +170,73 @@ event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: w
                 ctx.open = true
 
                 if _, ok := ctx.window_mode.(Window_Mode_Fullscreen); ok {
-                    ctx.cursor_enabled = true
-                    disable_cursor()
+                    _toggle_cursor(ctx, false)
                 }
             }
 
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
             key := get_key(w_param)
             if !(int(key) > len(ctx.keys)) {
-                if !ctx.keys[key] {
-                    ctx.keys_pressed[key] = true
-                    ctx.any_key_pressed = true
+                if .Down not_in ctx.keys[key] {
+                    ctx.keys[key] += {.Pressed}
                 }
-                ctx.keys[key] = true
-                ctx.any_key_down = true
+                ctx.keys[key] += {.Down}
             }
 
         case win32.WM_KEYUP, win32.WM_SYSKEYUP:
             key := get_key(w_param)
             if int(key) < len(ctx.keys) {
-                ctx.keys[key] = false
-                ctx.keys_released[key] = true
-                ctx.any_key_released = true
+                ctx.keys[key] -= {.Down}
+                ctx.keys[key] += {.Released}
             }
 
         case win32.WM_LBUTTONDOWN:
-            if !ctx.left_mouse_down {
-                ctx.left_mouse_pressed = true
+            if .Down not_in ctx.mouse_left {
+                ctx.mouse_left += {.Pressed}
             }
-            ctx.left_mouse_down = true
+            ctx.mouse_left += {.Down}
             
         case win32.WM_LBUTTONUP:
-            ctx.left_mouse_down = false
-            ctx.left_mouse_released = true
+            ctx.mouse_left -= {.Down}
+            ctx.mouse_left += {.Released}
 
         // TODO: Why are mouse double click events not happening
         // Is the mouse not captured by the window?
         case win32.WM_LBUTTONDBLCLK:
-            ctx.left_mouse_double_click = true
+            ctx.mouse_left += {.Double_Click}
 
         case win32.WM_RBUTTONDOWN:
-            if !ctx.right_mouse_down {
-                ctx.right_mouse_pressed = true
+            if .Down not_in ctx.mouse_right {
+                ctx.mouse_right += {.Pressed}
             }
-            ctx.right_mouse_down = true
+            ctx.mouse_right += {.Down}
 
         case win32.WM_RBUTTONUP:
-            ctx.right_mouse_down = false
-            ctx.right_mouse_released = true
+            ctx.mouse_right -= {.Down}
+            ctx.mouse_right += {.Released}
 
         case win32.WM_RBUTTONDBLCLK:
-            ctx.right_mouse_double_click = true
+            ctx.mouse_right += {.Double_Click}
 
         case win32.WM_MBUTTONDOWN:
-            if !ctx.middle_mouse_down {
-                ctx.middle_mouse_pressed = true
+            if .Down not_in ctx.mouse_middle {
+                ctx.mouse_middle += {.Pressed}
             }
-            ctx.middle_mouse_down = true
+            ctx.mouse_middle += {.Down}
 
         case win32.WM_MBUTTONUP:
-            ctx.middle_mouse_down = false
-            ctx.middle_mouse_released = true
+            ctx.mouse_middle -= {.Down}
+            ctx.mouse_middle += {.Released}
 
         case win32.WM_MBUTTONDBLCLK:
-            ctx.middle_mouse_double_click = true
+            ctx.mouse_middle += {.Double_Click}
 
         case win32.WM_MOUSEMOVE:
+            cr := client_rect(ctx)
+
             params := transmute([4]i16)l_param
-            ctx.mouse_position.x = int(params[0])
-            ctx.mouse_position.y = int(-params[1]) + ctx.height
+            ctx.mouse_pos.x = int(params[0])
+            ctx.mouse_pos.y = int(-params[1]) + cr.h
 
         case win32.WM_MOUSEWHEEL:
             WHEEL_DELTA :: 120
@@ -244,7 +246,7 @@ event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: w
         case win32.WM_CHAR:
             r := rune(w_param)
             if !unicode.is_control(r) {
-                strings.write_rune(&ctx.text_input, r)
+                io.write_rune(ctx.text_input, r)
             }
             
         case:
@@ -257,7 +259,7 @@ event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_param: w
 
 foreign import user32 "system:User32.lib"
 
-@(default_calling_convention="system", private="file")
+@(default_calling_convention="system")
 foreign user32 {
     GetDpiForSystem :: proc() -> win32.UINT ---
     ShowCursor :: proc(bShow: win32.BOOL) -> i32 ---
@@ -265,126 +267,105 @@ foreign user32 {
     SetCursor :: proc(hCursor: win32.HCURSOR) -> win32.HCURSOR ---
 }
 
-@(private="file")
-client_to_window :: proc(x, y, width, height: i32, flags: u32, loc := #caller_location) -> (rect: win32.RECT, ok: bool) {
+// TODO: use Rect instead of win32.RECT
+_win32_client_to_window :: proc(ctx: ^Context, x, y, width, height: i32, flags: u32) -> (rect: win32.RECT) {
     rect = win32.RECT{x, y, x + width, y + height}
     
-    if !win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi)) {
-        log.errorf("Win32: failed to adjust window rectangle. %v", misc.get_last_error_message(), location = loc)
-    } else {
-        log.debug("Win32: succeeded to adjust window rectangle.", location = loc)
-        ok = true
-    }
+    res := win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi))
+    fmt.assertf(res == true, "Win32: failed to adjust window rectangle. %v", misc.get_last_error_message())
 
     return
 }
 
-@(private="file")
-window_properties :: proc(window_mode: Window_Mode, loc := #caller_location) -> (wr: win32.RECT, flags, ex_flags: u32) {
+_win32_window_properties :: proc(ctx: ^Context, window_mode: Window_Mode) -> (wr: win32.RECT, flags, ex_flags: u32) {
     switch wm in window_mode {
         case Window_Mode_Windowed:
             // set client dimensions, since window_mode may not provide them
-            width := i32(wm.width)
-            height := i32(wm.height)
-            screen_width := i32(ctx.screen_width)
-            screen_height := i32(ctx.screen_height)
-            if width == 0 && height == 0 {
-                width = screen_width / 2
-                height = screen_height / 2
-            } else if width > 0 && height == 0 {
-                height = width*screen_height / screen_width
-            } else if width == 0 && height > 0 {
-                width = height*screen_width / screen_height
+            w := i32(wm.w)
+            h := i32(wm.h)
+            screen_w := i32(ctx.screen.w)
+            screen_h := i32(ctx.screen.h)
+            if w == 0 && h == 0 {
+                w = screen_w / 2
+                h = screen_h / 2
+            } else if w > 0 && h == 0 {
+                h = w*screen_h / screen_w
+            } else if w == 0 && h > 0 {
+                w = h*screen_w / screen_h
             }
 
             // set x and y, since window_mode may not provide them
             x, y: i32
             if wm.x == 0 {
-                x = (screen_width - width) / 2
+                x = (screen_w - w) / 2
             } else {
                 x = i32(wm.x)
             }
             if wm.y == 0 {
-                y = (screen_height - height) / 2
+                y = (screen_h - h) / 2
             } else {
                 y = i32(wm.y)
             }
 
             flags = win32.WS_CAPTION | win32.WS_SYSMENU
 
-            rect, ok := client_to_window(x, y, width, height, flags, loc)
-            if ok {
-                wr = rect
-            }
+            wr = _win32_client_to_window(ctx, x, y, w, h, flags)
 
         case Window_Mode_Fullscreen:
-            wr.right = i32(ctx.screen_width)
-            wr.bottom = i32(ctx.screen_height)
+            wr.right = i32(ctx.screen.w)
+            wr.bottom = i32(ctx.screen.h)
             flags = win32.WS_POPUP 
             if wm.topmost {
                 ex_flags |= win32.WS_EX_TOPMOST
             }
+
+        case:
+            panic("Unknown window mode.")
     }
     return
 }
 
-_init :: proc(loc := #caller_location) -> bool {
-    ctx.cursor_enabled = true
-    ctx.exit_key = .Escape
-
-    // Get cursor
-    ctx.cursor = GetCursor()
+_init :: proc(ctx: ^Context) {
+    // cursor
+    ctx.win32_cursor = GetCursor()
     
-    // Get DPI
-    if !win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
-        log.errorf("Win32: failed to make process DPI aware. %v", misc.get_last_error_message(), location = loc)
-    } else {
-        log.debug("Win32: succeeded to make process DPI aware.", location = loc)
-        ctx.dpi_aware = true
+    // dpi
+    if win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) {
+        ctx.win32_dpi_aware = true
     }
     ctx.dpi = int(GetDpiForSystem())
 
-    // Get module handle
-    ctx.instance = win32.HINSTANCE(win32.GetModuleHandleW(nil))
-    if ctx.instance == nil {
-        log.fatalf("Win32: failed to get module handle. %v", misc.get_last_error_message(), location = loc)
-        return false
-    }
-    log.debug("Win32: succeeded to get module handle.", location = loc)
-        
-    // Register window class
+    // instance
+    ctx.win32_instance = win32.HINSTANCE(win32.GetModuleHandleW(nil))
+    fmt.assertf(ctx.win32_instance != nil, "Win32: failed to get module handle. %v", misc.get_last_error_message())
+
+    // window class
     window_class := win32.WNDCLASSEXW{
         cbSize = size_of(win32.WNDCLASSEXW),
-        lpfnWndProc = event_proc,
-        hInstance = win32.HANDLE(ctx.instance),
+        lpfnWndProc = _win32_event_proc,
+        hInstance = win32.HANDLE(ctx.win32_instance),
         lpszClassName = L("app_class"),
     }
-    if win32.RegisterClassExW(&window_class) == 0 { 
-        log.fatalf("Win32: failed to register window class. %v", misc.get_last_error_message(), location = loc)
-        return false
+    {
+        res := win32.RegisterClassExW(&window_class)
+        fmt.assertf(res != 0, "Win32: failed to register window class. %v", misc.get_last_error_message())
     }
-    log.debug("Win32: succeeded to register window class.", location = loc)
-
-    // Get screen dimensions
+    
+    // screen dimensions
     {
         monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
         monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
-        if !win32.GetMonitorInfoW(monitor, &monitor_info) {
-            log.fatalf("Win32: failed to get monitor info. %v", misc.get_last_error_message(), location = loc)
-            return false
-        }
-        else {
-            log.debug("Win32: succeeded to get monitor info.", location = loc)
-        }
-        ctx.screen_width = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
-        ctx.screen_height = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
+        res := win32.GetMonitorInfoW(monitor, &monitor_info)
+        fmt.assertf(res == true, "Win32: failed to get monitor info. %v", misc.get_last_error_message())
+        ctx.screen.w = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
+        ctx.screen.h = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
     }
     
-    // Create window
+    // window
     {
-        window_rect, window_flags, window_ex_flags := window_properties(ctx.window_mode, loc)
+        window_rect, window_flags, window_ex_flags := _win32_window_properties(ctx, ctx.window_mode)
 
-        ctx.window = win32.CreateWindowExW(
+        ctx.win32_window = win32.CreateWindowExW(
             window_ex_flags, 
             window_class.lpszClassName, 
             win32.utf8_to_wstring(ctx.title),
@@ -395,54 +376,44 @@ _init :: proc(loc := #caller_location) -> bool {
             window_rect.bottom - window_rect.top, 
             nil, 
             nil,
-            win32.HANDLE(ctx.instance), 
+            win32.HANDLE(ctx.win32_instance), 
             nil)
-        
-        if ctx.window == nil {
-            log.fatalf("Win32: failed to create window. %v", misc.get_last_error_message(), location = loc)
-            return false
-        }
-        log.debug("Win32: succeeded to create window.", location = loc)
+        fmt.assertf(ctx.win32_window != nil, "Win32: failed to create window. %v", misc.get_last_error_message())
 
-        client_rect: win32.RECT
-        if !win32.GetClientRect(ctx.window, &client_rect) {
-            log.fatalf("Win32: failed to get client rectangle. %v", misc.get_last_error_message())
-            return false
-        }
-        log.debug("Win32: succeeded to get client rectangle.", location = loc)
+        _win32_set_windowed_rect(ctx)
         
-        ctx.width = int(client_rect.right)
-        ctx.height = int(client_rect.bottom)
-
-        ctx.window_rect = window_rect
-        ctx.window_flags = window_flags
-        ctx.window_ex_flags = window_ex_flags
+        ctx.window_rect = _win32_rect_to_rect(window_rect)
+        ctx.win32_window_flags = window_flags
+        ctx.win32_window_ex_flags = window_ex_flags
     }
 
+    // set event callback user data
+    win32.SetWindowLongPtrW(ctx.win32_window, win32.GWLP_USERDATA, transmute(win32.LONG_PTR)ctx)
+
+    // get window device context
+    {
+        ctx.win32_hdc = win32.GetDC(ctx.win32_window)
+        assert(ctx.win32_hdc != nil, "Win32: failed to get window device context.")
+    }
+    
     {
         dev_mode := win32.DEVMODEW{dmSize = size_of(win32.DEVMODEW)}
-        if !win32.EnumDisplaySettingsW(nil, win32.ENUM_CURRENT_SETTINGS, &dev_mode) {
-            log.error("Win32: failed to enumerate display settings.", location = loc)
-        } else {
-            log.debug("Win32: succeeded to enumerate display settings.", location = loc)
-            ctx.refresh_rate = int(dev_mode.dmDisplayFrequency)
-        }
+        res := win32.EnumDisplaySettingsW(nil, win32.ENUM_CURRENT_SETTINGS, &dev_mode)
+        assert(res == true, "Win32: failed to enumerate display settings.")
+        ctx.refresh_rate = int(dev_mode.dmDisplayFrequency)
     }
-
-    return true
 }
 
-_run :: proc(loc := #caller_location) {
-    if ctx.window_ready == -1 {
-        ctx.window_ready += 1
-    } else if ctx.window_ready == 0 {
-        ctx.window_ready += 1
-        win32.ShowWindow(ctx.window, win32.SW_SHOW)
-        log.debug("Win32: window shown.", location = loc)
+_run :: proc(ctx: ^Context) {
+    if ctx.win32_window_ready == -1 {
+        ctx.win32_window_ready += 1
+    } else if ctx.win32_window_ready == 0 {
+        ctx.win32_window_ready += 1
+        win32.ShowWindow(ctx.win32_window, win32.SW_SHOW)
     }
     for {
         message: win32.MSG
-        if win32.PeekMessageW(&message, ctx.window, 0, 0, win32.PM_REMOVE) {
+        if win32.PeekMessageW(&message, ctx.win32_window, 0, 0, win32.PM_REMOVE) {
             win32.TranslateMessage(&message)
             win32.DispatchMessageW(&message)
             continue
@@ -451,97 +422,86 @@ _run :: proc(loc := #caller_location) {
     }
 }
 
-_swap_buffers :: proc(buffer: []u32, buffer_width, buffer_height: int, loc := #caller_location) {
-    hdc := win32.GetDC(ctx.window)
-    if hdc == nil {
-        log.fatal("Win32: failed to get window device context.", location = loc)
-        ctx.running = false
-        return
-    }
+_cpu_swap_buffers :: proc(ctx: ^Context, buf: []u32, buf_w, buf_h: int) {
+    cr := client_rect(ctx)
 
-    src_width := i32(buffer_width) if buffer_width != 0 else i32(ctx.width)
-    src_height := i32(buffer_height) if buffer_height != 0 else i32(ctx.height)
+    src_w := i32(buf_w) if buf_w != 0 else i32(cr.w)
+    src_h := i32(buf_h) if buf_h != 0 else i32(cr.h)
+    dest_w := i32(cr.w)
+    dest_h := i32(cr.h)
 
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
         biSize = size_of(win32.BITMAPINFOHEADER),
-        biWidth = src_width,
-        biHeight = src_height,
+        biWidth = src_w,
+        biHeight = src_h,
         biPlanes = 1,
         biBitCount = 32,
         biCompression = win32.BI_RGB,
     }
-    if win32.StretchDIBits(hdc, 0, 0, i32(ctx.width), i32(ctx.height), 0, 0, src_width, src_height, raw_data(buffer), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY) == 0 {
-        log.fatal("Win32: failed to render bitmap.", location = loc)
-        ctx.running = false
-    }
-
-    if win32.ReleaseDC(ctx.window, hdc) == 0 {
-        log.error("Win32: failed to release window device context.", location = loc)
-    }
+    res := win32.StretchDIBits(ctx.win32_hdc, 0, 0, dest_w, dest_h, 0, 0, src_w, src_h, raw_data(buf), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
+    assert(res != 0, "Win32: failed to render bitmap.")
 }
 
-_enable_cursor :: proc() -> bool {
-    SetCursor(ctx.cursor)
-    return true
-}
-
-_disable_cursor :: proc() -> bool {
-    SetCursor(nil)
-    return true
-}
-
-_set_title :: proc(title: string, loc := #caller_location) {
-    wstring := win32.utf8_to_wstring(title)
-    if !win32.SetWindowTextW(ctx.window, wstring) {
-        log.errorf("Win32: failed to set window title to %v. %v", title, misc.get_last_error_message(), location = loc)
+_toggle_cursor :: proc "contextless" (ctx: ^Context, toggle: bool) {
+    if toggle {
+        SetCursor(ctx.win32_cursor)
     } else {
-        log.debugf("Win32: succeeded to set window title to %v.", title, location = loc)
-        ctx.title = title
+        SetCursor(nil)
     }
 }
 
-_set_window_mode :: proc(window_mode: Window_Mode, loc := #caller_location) -> bool {
-    rect, flags, ex_flags := window_properties(window_mode, loc)
+_set_title :: proc(ctx: ^Context) {
+    title := ctx.title
+    wstring := win32.utf8_to_wstring(title)
+    res := win32.SetWindowTextW(ctx.win32_window, wstring)
+    fmt.assertf(res == true, "Win32: failed to set window title to %v. %v", title, misc.get_last_error_message())
+}
+
+_win32_rect_to_rect :: proc "contextless" (win32_rect: win32.RECT) -> (rect: Rect) {
+    rect.x = int(win32_rect.left)
+    rect.y = int(win32_rect.top)
+    rect.w = int(win32_rect.right - win32_rect.left)
+    rect.h = int(win32_rect.bottom - win32_rect.top)
+    return
+}
+
+_set_window_mode :: proc(ctx: ^Context) {
+    window_mode := ctx.window_mode
+    rect, flags, ex_flags := _win32_window_properties(ctx, window_mode)
 
     // set window flags
-    if flags != ctx.window_flags {
-        if win32.SetWindowLongPtrW(ctx.window, win32.GWL_STYLE, int(flags)) == 0 {
-            log.errorf("Win32: failed to set window flags. %v", misc.get_last_error_message(), location = loc)
-            return false
-        }
-        log.debug("Win32: succeeded to set window flags.", location = loc)
-        ctx.window_flags = flags
+    if flags != ctx.win32_window_flags {
+        res := win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_STYLE, int(flags))
+        fmt.assertf(res != 0, "Win32: failed to set window flags. %v", misc.get_last_error_message())
+        ctx.win32_window_flags = flags
     }
     
     // set window extended flags
-    if ex_flags != ctx.window_ex_flags {
-        if win32.SetWindowLongPtrW(ctx.window, win32.GWL_EXSTYLE, int(ex_flags)) == 0 {
-            log.errorf("Win32: failed to set window extended flags. %v", misc.get_last_error_message(), location = loc)
-            return false
-        }
-        log.debug("Win32: succeeded to set window extended flags.", location = loc)
-        ctx.window_ex_flags = ex_flags
+    if ex_flags != ctx.win32_window_ex_flags {
+        res := win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_EXSTYLE, int(ex_flags))
+        fmt.assertf(res != 0, "Win32: failed to set window extended flags. %v", misc.get_last_error_message())
+        ctx.win32_window_ex_flags = ex_flags
     }
     
     // set window dimensions
-    if rect != ctx.window_rect {
-        if !win32.SetWindowPos(ctx.window, nil, 
+    if window_rect := _win32_rect_to_rect(rect); window_rect != ctx.window_rect {
+        res := win32.SetWindowPos(ctx.win32_window, nil, 
             rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 
-            win32.SWP_SHOWWINDOW | win32.SWP_FRAMECHANGED) {
-            log.errorf("Win32: failed to set window dimensions. %v", misc.get_last_error_message(), location = loc)
-            return false
-        }
-        log.debug("Win32: succeeded to set window dimensions.", location = loc)
-        ctx.window_rect = rect
+            win32.SWP_SHOWWINDOW | win32.SWP_FRAMECHANGED)
+        fmt.assertf(res == true, "Win32: failed to set window pos. %v", misc.get_last_error_message())
+        ctx.window_rect = window_rect
     }
     
-    client_rect: win32.RECT
-    if !win32.GetClientRect(ctx.window, &client_rect) {
-        log.fatalf("Win32: failed to get client rectangle. %v", misc.get_last_error_message())
-        return false
+    _win32_set_windowed_rect(ctx)
+}
+
+_win32_set_windowed_rect :: proc(ctx: ^Context) {
+    if _, ok := ctx.window_mode.(Window_Mode_Windowed); ok {
+        cr: win32.RECT
+        res := win32.GetClientRect(ctx.win32_window, &cr)
+        fmt.assertf(res == true, "Win32: failed to get client rectangle. %v", misc.get_last_error_message())
+
+        ctx.window_mode = Window_Mode_Windowed(_win32_rect_to_rect(cr))
     }
-    ctx.width = int(client_rect.right)
-    ctx.height = int(client_rect.bottom)
-    return true
 }

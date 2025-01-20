@@ -1,8 +1,6 @@
 #+ build windows
 package app
 
-import "core:log"
-
 import win32 "core:sys/windows"
 import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
@@ -29,11 +27,14 @@ D3D11_Context :: struct {
 }
 
 // If you have already initialized any D3D11 objects, this procedure won't touch them.
-d3d11_init :: proc(d3d11_ctx: ^D3D11_Context, loc := #caller_location) -> (res: win32.HRESULT) {
+d3d11_init :: proc(ctx: ^Context, d3d11_ctx: ^D3D11_Context = nil) -> (res: win32.HRESULT) {
+	assert(!ctx.graphics_api_initialized, "Graphics API already initialized.")
+
+	d3d11_ctx := d3d11_ctx
 	if d3d11_ctx == nil {
-		log.fatal("d3d11_ctx == nil", location = loc)
-		return 0
+		d3d11_ctx = new(D3D11_Context)
 	}
+	ctx.d3d11_ctx = d3d11_ctx
 
 	feature_levels := [?]d3d11.FEATURE_LEVEL{._11_0} // TODO: Allow other versions.
 
@@ -66,9 +67,11 @@ d3d11_init :: proc(d3d11_ctx: ^D3D11_Context, loc := #caller_location) -> (res: 
 	}
 
 	if d3d11_ctx.swapchain == nil {
+		r := client_rect(ctx)
+
 		swapchain_desc := dxgi.SWAP_CHAIN_DESC1{
-			Width  = u32(ctx.width),
-			Height = u32(ctx.height),
+			Width  = u32(r.w),
+			Height = u32(r.h),
 			Format = .B8G8R8A8_UNORM_SRGB,
 			Stereo = false,
 			SampleDesc = {
@@ -83,7 +86,7 @@ d3d11_init :: proc(d3d11_ctx: ^D3D11_Context, loc := #caller_location) -> (res: 
 			Flags       = {},
 		}
 
-		if res = d3d11_ctx.dxgi_factory->CreateSwapChainForHwnd(d3d11_ctx.device, ctx.window, &swapchain_desc, nil, nil, &d3d11_ctx.swapchain); res != 0 { return }
+		if res = d3d11_ctx.dxgi_factory->CreateSwapChainForHwnd(d3d11_ctx.device, ctx.win32_window, &swapchain_desc, nil, nil, &d3d11_ctx.swapchain); res != 0 { return }
 	}
 
 	if d3d11_ctx.render_target == nil {
@@ -138,7 +141,6 @@ d3d11_init :: proc(d3d11_ctx: ^D3D11_Context, loc := #caller_location) -> (res: 
 
 	if d3d11_ctx.viewport == {} {
 		d3d11_ctx.viewport = d3d11.VIEWPORT{0, 0, f32(depth_buffer_desc.Width), f32(depth_buffer_desc.Height), 0, 1}
-		log.infof("D3D11: %v", d3d11_ctx.viewport)
 	}
 
 	// assert(d3d11_ctx.base_device != nil)
@@ -159,9 +161,14 @@ d3d11_init :: proc(d3d11_ctx: ^D3D11_Context, loc := #caller_location) -> (res: 
 	// assert(d3d11_ctx.depth_stencil_state != nil)
 
 	// d3d11_ctx.dxgi_device->SetMaximumFrameLatency(1) TODO
-	d3d11_ctx.dxgi_factory->MakeWindowAssociation(ctx.window, {.NO_ALT_ENTER})
+	d3d11_ctx.dxgi_factory->MakeWindowAssociation(ctx.win32_window, {.NO_ALT_ENTER})
 
 	ctx.d3d11_ctx = d3d11_ctx
-	log.info("D3D11: Succeeded to initialize.")
+	ctx.graphics_api = .D3D11
+	ctx.graphics_api_initialized = true
 	return
+}
+
+d3d11_swap_buffers :: proc(ctx: ^Context) {
+	ctx.d3d11_ctx.swapchain->Present(1, {})
 }

@@ -6,7 +6,7 @@ import "core:log"
 
 import "core:fmt"
 
-_try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> bool {
+_try_connect_gamepad :: proc(gamepad_index: int) -> bool {
 	gamepad_state: js.Gamepad_State
 	if !js.get_gamepad_state(gamepad_index, &gamepad_state) {
 		return false
@@ -95,18 +95,16 @@ _try_connect_gamepad :: proc(gamepad_index: int, loc := #caller_location) -> boo
 
 		gamepad_debug(gamepad_index)
 	}
-
-	return true
 }
 
-_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64, loc := #caller_location) -> bool {
+_gamepad_set_vibration :: proc(gamepad_index: int, left_motor, right_motor: f64) -> bool {
 	unimplemented()
 }
 
-_gamepad_battery_level :: proc(gamepad_index: int, loc := #caller_location) -> (battery_level: f64, has_battery: bool) {
+_gamepad_battery_level :: proc(gamepad_index: int) -> (battery_level: f64, has_battery: bool) {
 	unimplemented()
 }
 
-_gamepad_capabilities :: proc(gamepad_index: int, loc := #caller_location) -> (capabilities: Gamepad_Capabilities, ok: bool) {
+_gamepad_capabilities :: proc(gamepad_index: int) -> (capabilities: Gamepad_Capabilities, ok: bool) {
 	unimplemented()
 }

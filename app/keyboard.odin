@@ -2,41 +2,6 @@ package app
 
 import "core:strings"
 
-key_down :: proc "contextless" (key: Key) -> bool {
-    return ctx.keys[key]
-}
-
-key_pressed :: proc "contextless" (key: Key) -> bool {
-    return ctx.keys_pressed[key]
-}
-
-key_released :: proc "contextless" (key: Key) -> bool {
-    return ctx.keys_released[key]
-}
-
-any_key_down :: proc "contextless" () -> bool {
-    return ctx.any_key_down
-}
-
-any_key_pressed :: proc "contextless" () -> bool {
-    return ctx.any_key_pressed
-}
-
-any_key_released :: proc "contextless" () -> bool {
-    return ctx.any_key_released
-}
-
-// When this key is pressed, the program exits.
-//
-// The default is Escape.
-set_exit_key :: proc "contextless" (exit_key: Key) {
-    ctx.exit_key = exit_key
-}
-
-text_input :: proc() -> string {
-    return strings.to_string(ctx.text_input)
-}
-
 // TODO: Add all keyboard keys, or as close to that as possible.
 Key :: enum u16 {
     Cancel,
