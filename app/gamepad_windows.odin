@@ -3,6 +3,8 @@ package app
 import win32 "core:sys/windows"
 import "core:log"
 
+import "core:math"
+
 _try_connect_gamepad :: proc(ctx: ^Context, g_idx: int) {
 	state: win32.XINPUT_STATE = ---
 	
@@ -63,12 +65,28 @@ _try_connect_gamepad :: proc(ctx: ^Context, g_idx: int) {
 		// But, some gamepads have more or less threshold than others,
 		// so the input can actually go above 1.0 or below -1.0 (like
 		// my controller). That said, the amount shouldn't be that high.
-		gamepad.left_trigger = clamp(gamepad.left_trigger, -1.0, 1.0)
-		gamepad.right_trigger = clamp(gamepad.right_trigger, -1.0, 1.0)
-		gamepad.left_stick.x = clamp(gamepad.left_stick.x, -1.0, 1.0)
-		gamepad.left_stick.y = clamp(gamepad.left_stick.y, -1.0, 1.0)
-		gamepad.right_stick.x = clamp(gamepad.right_stick.x, -1.0, 1.0)
-		gamepad.right_stick.y = clamp(gamepad.right_stick.y, -1.0, 1.0)
+		// gamepad.left_trigger = clamp(gamepad.left_trigger, -1.0, 1.0)
+		// gamepad.right_trigger = clamp(gamepad.right_trigger, -1.0, 1.0)
+		// gamepad.left_stick.x = clamp(gamepad.left_stick.x, -1.0, 1.0)
+		// gamepad.left_stick.y = clamp(gamepad.left_stick.y, -1.0, 1.0)
+		// gamepad.right_stick.x = clamp(gamepad.right_stick.x, -1.0, 1.0)
+		// gamepad.right_stick.y = clamp(gamepad.right_stick.y, -1.0, 1.0)
+
+		gamepad.left_stick.x, gamepad.left_stick.y = clamp_magnitude(gamepad.left_stick.x, gamepad.left_stick.y)
+		gamepad.right_stick.x, gamepad.right_stick.y = clamp_magnitude(gamepad.right_stick.x, gamepad.right_stick.y)
+
+		clamp_magnitude :: proc "contextless" (x0, y0: f64) -> (x1, y1: f64) {
+			squared_magnitude := x0*x0 + y0*y0
+			if squared_magnitude > 1 {
+				scale := 1.0 / math.sqrt(squared_magnitude)
+				x1 = x0 * scale
+				y1 = y0 * scale
+			} else {
+				x1 = x0
+				y1 = y0 
+			}
+			return
+		}
 	
 		cut_deadzones :: proc "contextless" (xinput_gamepad: ^win32.XINPUT_GAMEPAD) {
 			xinput_gamepad.bLeftTrigger -= win32.BYTE(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD) if xinput_gamepad.bLeftTrigger >= win32.BYTE(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD) else xinput_gamepad.bLeftTrigger
