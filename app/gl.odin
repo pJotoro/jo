@@ -33,6 +33,7 @@ gl_init :: proc(ctx: ^Context, major, minor: int, debug_callback: gl.debug_proc_
     ctx.graphics_api_initialized = true
 }
 
+@(private)
 gl_swap_buffers :: proc(ctx: ^Context) {
     assert(ctx.initialized, "app not initialized")
     assert(ctx.graphics_api == .OpenGL)
