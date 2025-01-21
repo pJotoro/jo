@@ -67,6 +67,8 @@ Context :: struct {
 
     gamepads: [4]Gamepad,                       // get
 
+    user_data: rawptr,                          // get/set
+
     using os_specific: OS_Specific,
 }
 
