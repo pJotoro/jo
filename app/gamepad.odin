@@ -65,7 +65,11 @@ try_connect_gamepad :: proc(ctx: ^Context, g_idx: int) {
 		g.right_stick.x, g.right_stick.y = clamp_magnitude(g.right_stick.x, g.right_stick.y)
 
 		remove_deadzone :: proc "contextless" (v, d: f64) -> f64 {
-			return (v - d) / (1 - d)
+			s := math.sign(v)
+			v := abs(v)
+			minv := max(v-d, 0)
+			maxv := 1-d
+			return s*v*minv/maxv
 		}
 
 		clamp_magnitude :: proc "contextless" (x0, y0: f64) -> (x1, y1: f64) {
