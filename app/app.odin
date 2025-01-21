@@ -43,7 +43,7 @@ Context :: struct {
     initialized: bool,                          // get
 
     graphics_api_initialized: bool,             // get
-    graphics_api: Graphics_Api,                 // get/set init only
+    graphics_api: Graphics_Api,                 // get
 
     title, _title: string,                      // get/set safe
     window_mode, _window_mode: Window_Mode,     // get/set safe

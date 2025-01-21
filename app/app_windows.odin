@@ -4,11 +4,9 @@ import "base:runtime"
 import win32 "core:sys/windows"
 import "base:intrinsics"
 import "core:fmt"
-
-import "../misc"
-
 import "core:io"
 import "core:unicode"
+import "core:strings"
 
 OS_Specific :: struct {
     win32_instance: win32.HINSTANCE,
@@ -272,7 +270,7 @@ _win32_client_to_window :: proc(ctx: ^Context, x, y, width, height: i32, flags: 
     rect = win32.RECT{x, y, x + width, y + height}
     
     res := win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi))
-    fmt.assertf(res == true, "Win32: failed to adjust window rectangle. %v", misc.get_last_error_message())
+    fmt.assertf(res == true, "Win32: failed to adjust window rectangle. %v", _win32_last_error_message())
 
     return
 }
@@ -337,7 +335,7 @@ _init :: proc(ctx: ^Context) {
 
     // instance
     ctx.win32_instance = win32.HINSTANCE(win32.GetModuleHandleW(nil))
-    fmt.assertf(ctx.win32_instance != nil, "Win32: failed to get module handle. %v", misc.get_last_error_message())
+    fmt.assertf(ctx.win32_instance != nil, "Win32: failed to get module handle. %v", _win32_last_error_message())
 
     // window class
     window_class := win32.WNDCLASSEXW{
@@ -348,7 +346,7 @@ _init :: proc(ctx: ^Context) {
     }
     {
         res := win32.RegisterClassExW(&window_class)
-        fmt.assertf(res != 0, "Win32: failed to register window class. %v", misc.get_last_error_message())
+        fmt.assertf(res != 0, "Win32: failed to register window class. %v", _win32_last_error_message())
     }
     
     // screen dimensions
@@ -356,7 +354,7 @@ _init :: proc(ctx: ^Context) {
         monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
         monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
         res := win32.GetMonitorInfoW(monitor, &monitor_info)
-        fmt.assertf(res == true, "Win32: failed to get monitor info. %v", misc.get_last_error_message())
+        fmt.assertf(res == true, "Win32: failed to get monitor info. %v", _win32_last_error_message())
         ctx.screen.w = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
         ctx.screen.h = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
     }
@@ -378,7 +376,7 @@ _init :: proc(ctx: ^Context) {
             nil,
             win32.HANDLE(ctx.win32_instance), 
             nil)
-        fmt.assertf(ctx.win32_window != nil, "Win32: failed to create window. %v", misc.get_last_error_message())
+        fmt.assertf(ctx.win32_window != nil, "Win32: failed to create window. %v", _win32_last_error_message())
 
         _win32_set_windowed_rect(ctx)
         
@@ -455,7 +453,7 @@ _set_title :: proc(ctx: ^Context) {
     title := ctx.title
     wstring := win32.utf8_to_wstring(title)
     res := win32.SetWindowTextW(ctx.win32_window, wstring)
-    fmt.assertf(res == true, "Win32: failed to set window title to %v. %v", title, misc.get_last_error_message())
+    fmt.assertf(res == true, "Win32: failed to set window title to %v. %v", title, _win32_last_error_message())
 }
 
 _win32_rect_to_rect :: proc "contextless" (win32_rect: win32.RECT) -> (rect: Rect) {
@@ -473,14 +471,14 @@ _set_window_mode :: proc(ctx: ^Context) {
     // set window flags
     if flags != ctx.win32_window_flags {
         res := win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_STYLE, int(flags))
-        fmt.assertf(res != 0, "Win32: failed to set window flags. %v", misc.get_last_error_message())
+        fmt.assertf(res != 0, "Win32: failed to set window flags. %v", _win32_last_error_message())
         ctx.win32_window_flags = flags
     }
     
     // set window extended flags
     if ex_flags != ctx.win32_window_ex_flags {
         res := win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_EXSTYLE, int(ex_flags))
-        fmt.assertf(res != 0, "Win32: failed to set window extended flags. %v", misc.get_last_error_message())
+        fmt.assertf(res != 0, "Win32: failed to set window extended flags. %v", _win32_last_error_message())
         ctx.win32_window_ex_flags = ex_flags
     }
     
@@ -489,7 +487,7 @@ _set_window_mode :: proc(ctx: ^Context) {
         res := win32.SetWindowPos(ctx.win32_window, nil, 
             rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 
             win32.SWP_SHOWWINDOW | win32.SWP_FRAMECHANGED)
-        fmt.assertf(res == true, "Win32: failed to set window pos. %v", misc.get_last_error_message())
+        fmt.assertf(res == true, "Win32: failed to set window pos. %v", _win32_last_error_message())
         ctx.window_rect = window_rect
     }
     
@@ -500,8 +498,23 @@ _win32_set_windowed_rect :: proc(ctx: ^Context) {
     if _, ok := ctx.window_mode.(Window_Mode_Windowed); ok {
         cr: win32.RECT
         res := win32.GetClientRect(ctx.win32_window, &cr)
-        fmt.assertf(res == true, "Win32: failed to get client rectangle. %v", misc.get_last_error_message())
+        fmt.assertf(res == true, "Win32: failed to get client rectangle. %v", _win32_last_error_message())
 
         ctx.window_mode = Window_Mode_Windowed(_win32_rect_to_rect(cr))
     }
+}
+
+_win32_last_error_message :: proc() -> (string, runtime.Allocator_Error) #optional_allocator_error {
+    error := win32.GetLastError()
+    buf: [512]u16 = ---
+    win32.FormatMessageW(win32.FORMAT_MESSAGE_FROM_SYSTEM, nil, error, 0, raw_data(buf[:]), win32.DWORD(len(buf)), nil)
+    res, err := win32.wstring_to_utf8(raw_data(buf[:]), -1)
+    return strings.trim_suffix(res, "\n"), err
+}
+
+_win32_hresult_message :: proc(hr: win32.HRESULT) -> (string, runtime.Allocator_Error) #optional_allocator_error {
+    buf: [512]u16 = ---
+    win32.FormatMessageW(win32.FORMAT_MESSAGE_FROM_SYSTEM, nil, u32(hr), 0, raw_data(buf[:]), win32.DWORD(len(buf)), nil)
+    res, err := win32.wstring_to_utf8(raw_data(buf[:]), -1)
+    return strings.trim_suffix(res, "\n"), err
 }
