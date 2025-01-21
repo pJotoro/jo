@@ -19,7 +19,7 @@ OS_Specific :: struct {
     win32_window: win32.HWND,
     win32_event_proc: win32.WNDPROC, // TODO
     win32_window_ready: int, // 0=no, 1=almost, 2=yes
-    win32_window_flags, win32_window_ex_flags: u32,
+    win32_window_style, win32_window_ex_style: u32,
 
     window_rect: Rect,
     d3d11_ctx: ^D3D11_Context,
@@ -267,56 +267,59 @@ foreign user32 {
     SetCursor :: proc(hCursor: win32.HCURSOR) -> win32.HCURSOR ---
 }
 
-// TODO: use Rect instead of win32.RECT
-_win32_client_to_window :: proc(ctx: ^Context, x, y, width, height: i32, flags: u32) -> (rect: win32.RECT) {
-    rect = win32.RECT{x, y, x + width, y + height}
+_win32_client_rect_to_window_rect :: proc(ctx: ^Context, client_rect: Rect, style, ex_style: u32) -> (window_rect: Rect) {
+    win32_rect := win32.RECT{i32(client_rect.x), i32(client_rect.y), i32(client_rect.x + client_rect.w), i32(client_rect.y + client_rect.h)}
     
-    res := win32.AdjustWindowRectExForDpi(&rect, flags, false, 0, u32(ctx.dpi))
+    res := win32.AdjustWindowRectExForDpi(&win32_rect, style, false, ex_style, u32(ctx.dpi))
     fmt.assertf(res == true, "Win32: failed to adjust window rectangle. %v", _win32_last_error_message())
+
+    window_rect = Rect {
+        x = int(win32_rect.left),
+        y = int(win32_rect.top),
+        w = int(win32_rect.right - win32_rect.left),
+        h = int(win32_rect.bottom - win32_rect.top),
+    }
 
     return
 }
 
-_win32_window_properties :: proc(ctx: ^Context, window_mode: Window_Mode) -> (wr: win32.RECT, flags, ex_flags: u32) {
+_win32_window_properties :: proc(ctx: ^Context, window_mode: Window_Mode) -> (window_rect: Rect, style, ex_style: u32) {
     switch wm in window_mode {
         case Window_Mode_Windowed:
-            // set client dimensions, since window_mode may not provide them
-            w := i32(wm.w)
-            h := i32(wm.h)
-            screen_w := i32(ctx.screen.w)
-            screen_h := i32(ctx.screen.h)
-            if w == 0 && h == 0 {
-                w = screen_w / 2
-                h = screen_h / 2
-            } else if w > 0 && h == 0 {
-                h = w*screen_h / screen_w
-            } else if w == 0 && h > 0 {
-                w = h*screen_w / screen_h
-            }
+            rect := Rect(wm)
 
-            // set x and y, since window_mode may not provide them
-            x, y: i32
-            if wm.x == 0 {
-                x = (screen_w - w) / 2
-            } else {
-                x = i32(wm.x)
+            // TODO: This doesn't really belong here. Move this into a cross-platform procedure.
+            if rect.w == 0 && rect.h == 0 {
+                rect.w = ctx.screen.w / 2
+                rect.h = ctx.screen.h / 2
+            } else if rect.w > 0 && rect.h == 0 {
+                rect.h = rect.w*ctx.screen.h / ctx.screen.w
+            } else if rect.w == 0 && rect.h > 0 {
+                rect.w = rect.h*ctx.screen.w / ctx.screen.h
             }
-            if wm.y == 0 {
-                y = (screen_h - h) / 2
-            } else {
-                y = i32(wm.y)
+            if rect.x == 0 {
+                rect.x = (ctx.screen.w - rect.w) / 2
             }
+            if rect.y == 0 {
+                rect.y = (ctx.screen.h - rect.h) / 2
+            }
+            ctx.window_mode = Window_Mode_Windowed(rect)
 
-            flags = win32.WS_CAPTION | win32.WS_SYSMENU
+            style = win32.WS_CAPTION | win32.WS_SYSMENU
+            ex_style = 0
 
-            wr = _win32_client_to_window(ctx, x, y, w, h, flags)
+            window_rect = _win32_client_rect_to_window_rect(ctx, 
+                client_rect = rect, 
+                style = style, 
+                ex_style = ex_style)
 
         case Window_Mode_Fullscreen:
-            wr.right = i32(ctx.screen.w)
-            wr.bottom = i32(ctx.screen.h)
-            flags = win32.WS_POPUP 
+            window_rect.w = ctx.screen.w
+            window_rect.h = ctx.screen.h
+            style = win32.WS_POPUP
+            ex_style = 0
             if wm.topmost {
-                ex_flags |= win32.WS_EX_TOPMOST
+                ex_style |= win32.WS_EX_TOPMOST
             }
 
         case:
@@ -363,28 +366,26 @@ _init :: proc(ctx: ^Context) {
     
     // window
     {
-        window_rect, window_flags, window_ex_flags := _win32_window_properties(ctx, ctx.window_mode)
+        window_rect, window_style, window_ex_style := _win32_window_properties(ctx, ctx.window_mode)
 
         ctx.win32_window = win32.CreateWindowExW(
-            window_ex_flags, 
+            window_ex_style, 
             window_class.lpszClassName, 
             win32.utf8_to_wstring(ctx.title),
-            window_flags, 
-            window_rect.left, 
-            window_rect.top, 
-            window_rect.right - window_rect.left, 
-            window_rect.bottom - window_rect.top, 
+            window_style, 
+            i32(window_rect.x), 
+            i32(window_rect.y), 
+            i32(window_rect.w), 
+            i32(window_rect.h), 
             nil, 
             nil,
             win32.HANDLE(ctx.win32_instance), 
             nil)
         fmt.assertf(ctx.win32_window != nil, "Win32: failed to create window. %v", _win32_last_error_message())
-
-        _win32_set_windowed_rect(ctx)
         
-        ctx.window_rect = _win32_rect_to_rect(window_rect)
-        ctx.win32_window_flags = window_flags
-        ctx.win32_window_ex_flags = window_ex_flags
+        ctx.window_rect = window_rect
+        ctx.win32_window_style = window_style
+        ctx.win32_window_ex_style = window_ex_style
     }
 
     // set event callback user data
@@ -458,49 +459,29 @@ _set_title :: proc(ctx: ^Context) {
     fmt.assertf(res == true, "Win32: failed to set window title to %v. %v", title, _win32_last_error_message())
 }
 
-_win32_rect_to_rect :: proc "contextless" (win32_rect: win32.RECT) -> (rect: Rect) {
-    rect.x = int(win32_rect.left)
-    rect.y = int(win32_rect.top)
-    rect.w = int(win32_rect.right - win32_rect.left)
-    rect.h = int(win32_rect.bottom - win32_rect.top)
-    return
-}
-
 _set_window_mode :: proc(ctx: ^Context) {
     window_mode := ctx.window_mode
-    rect, flags, ex_flags := _win32_window_properties(ctx, window_mode)
+    window_rect, window_style, window_ex_style := _win32_window_properties(ctx, window_mode)
 
     // set window flags
-    if flags != ctx.win32_window_flags {
-        win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_STYLE, int(flags))
-        ctx.win32_window_flags = flags
+    if window_style != ctx.win32_window_style {
+        win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_STYLE, int(window_style))
+        ctx.win32_window_style = window_style
     }
     
     // set window extended flags
-    if ex_flags != ctx.win32_window_ex_flags {
-        win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_EXSTYLE, int(ex_flags))
-        ctx.win32_window_ex_flags = ex_flags
+    if window_ex_style != ctx.win32_window_ex_style {
+        win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_EXSTYLE, int(window_ex_style))
+        ctx.win32_window_ex_style = window_ex_style
     }
     
     // set window dimensions
-    if window_rect := _win32_rect_to_rect(rect); window_rect != ctx.window_rect {
+    if window_rect != ctx.window_rect {
         res := win32.SetWindowPos(ctx.win32_window, nil, 
-            rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 
+            i32(window_rect.x), i32(window_rect.y), i32(window_rect.w), i32(window_rect.h), 
             win32.SWP_SHOWWINDOW | win32.SWP_FRAMECHANGED)
         fmt.assertf(res == true, "Win32: failed to set window pos. %v", _win32_last_error_message())
         ctx.window_rect = window_rect
-    }
-    
-    _win32_set_windowed_rect(ctx)
-}
-
-_win32_set_windowed_rect :: proc(ctx: ^Context) {
-    if _, ok := ctx.window_mode.(Window_Mode_Windowed); ok {
-        cr: win32.RECT
-        res := win32.GetClientRect(ctx.win32_window, &cr)
-        fmt.assertf(res == true, "Win32: failed to get client rectangle. %v", _win32_last_error_message())
-
-        ctx.window_mode = Window_Mode_Windowed(_win32_rect_to_rect(cr))
     }
 }
 
