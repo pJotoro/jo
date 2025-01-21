@@ -271,7 +271,7 @@ _win32_client_rect_to_window_rect :: proc(ctx: ^Context, client_rect: Rect, styl
     win32_rect := win32.RECT{i32(client_rect.x), i32(client_rect.y), i32(client_rect.x + client_rect.w), i32(client_rect.y + client_rect.h)}
     
     res := win32.AdjustWindowRectExForDpi(&win32_rect, style, false, ex_style, u32(ctx.dpi))
-    fmt.assertf(res == true, "Win32: failed to adjust window rectangle. %v", _win32_last_error_message())
+    fmt.assertf(res == true, "Failed to adjust window rectangle. %v", _win32_last_error_message())
 
     window_rect = Rect {
         x = int(win32_rect.left),
@@ -323,7 +323,7 @@ _win32_window_properties :: proc(ctx: ^Context, window_mode: Window_Mode) -> (wi
             }
 
         case:
-            panic("Unknown window mode.")
+            panic("unknown window mode")
     }
     return
 }
@@ -340,7 +340,7 @@ _init :: proc(ctx: ^Context) {
 
     // instance
     ctx.win32_instance = win32.HINSTANCE(win32.GetModuleHandleW(nil))
-    fmt.assertf(ctx.win32_instance != nil, "Win32: failed to get module handle. %v", _win32_last_error_message())
+    fmt.assertf(ctx.win32_instance != nil, "Failed to get module handle. %v", _win32_last_error_message())
 
     // window class
     window_class := win32.WNDCLASSEXW{
@@ -351,7 +351,7 @@ _init :: proc(ctx: ^Context) {
     }
     {
         res := win32.RegisterClassExW(&window_class)
-        fmt.assertf(res != 0, "Win32: failed to register window class. %v", _win32_last_error_message())
+        fmt.assertf(res != 0, "Failed to register window class. %v", _win32_last_error_message())
     }
     
     // screen dimensions
@@ -359,7 +359,7 @@ _init :: proc(ctx: ^Context) {
         monitor := win32.MonitorFromPoint({0, 0}, .MONITOR_DEFAULTTOPRIMARY)
         monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
         res := win32.GetMonitorInfoW(monitor, &monitor_info)
-        fmt.assertf(res == true, "Win32: failed to get monitor info. %v", _win32_last_error_message())
+        fmt.assertf(res == true, "Failed to get monitor info. %v", _win32_last_error_message())
         ctx.screen.w = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
         ctx.screen.h = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
     }
@@ -381,7 +381,7 @@ _init :: proc(ctx: ^Context) {
             nil,
             win32.HANDLE(ctx.win32_instance), 
             nil)
-        fmt.assertf(ctx.win32_window != nil, "Win32: failed to create window. %v", _win32_last_error_message())
+        fmt.assertf(ctx.win32_window != nil, "Failed to create window. %v", _win32_last_error_message())
         
         ctx.window_rect = window_rect
         ctx.win32_window_style = window_style
@@ -394,13 +394,13 @@ _init :: proc(ctx: ^Context) {
     // get window device context
     {
         ctx.win32_hdc = win32.GetDC(ctx.win32_window)
-        assert(ctx.win32_hdc != nil, "Win32: failed to get window device context.")
+        assert(ctx.win32_hdc != nil, "Failed to get window device context.")
     }
     
     {
         dev_mode := win32.DEVMODEW{dmSize = size_of(win32.DEVMODEW)}
         res := win32.EnumDisplaySettingsW(nil, win32.ENUM_CURRENT_SETTINGS, &dev_mode)
-        assert(res == true, "Win32: failed to enumerate display settings.")
+        assert(res == true, "Failed to enumerate display settings.")
         ctx.refresh_rate = int(dev_mode.dmDisplayFrequency)
     }
 }
@@ -441,7 +441,7 @@ _cpu_swap_buffers :: proc(ctx: ^Context, buf: []u32, buf_w, buf_h: int) {
         biCompression = win32.BI_RGB,
     }
     res := win32.StretchDIBits(ctx.win32_hdc, 0, 0, dest_w, dest_h, 0, 0, src_w, src_h, raw_data(buf), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
-    assert(res != 0, "Win32: failed to render bitmap.")
+    assert(res != 0, "Failed to render bitmap.")
 }
 
 _toggle_cursor :: proc "contextless" (ctx: ^Context, toggle: bool) {
@@ -456,7 +456,7 @@ _set_title :: proc(ctx: ^Context) {
     title := ctx.title
     wstring := win32.utf8_to_wstring(title)
     res := win32.SetWindowTextW(ctx.win32_window, wstring)
-    fmt.assertf(res == true, "Win32: failed to set window title to %v. %v", title, _win32_last_error_message())
+    fmt.assertf(res == true, "Failed to set window title to %v. %v", title, _win32_last_error_message())
 }
 
 _set_window_mode :: proc(ctx: ^Context) {
@@ -480,7 +480,7 @@ _set_window_mode :: proc(ctx: ^Context) {
         res := win32.SetWindowPos(ctx.win32_window, nil, 
             i32(window_rect.x), i32(window_rect.y), i32(window_rect.w), i32(window_rect.h), 
             win32.SWP_SHOWWINDOW | win32.SWP_FRAMECHANGED)
-        fmt.assertf(res == true, "Win32: failed to set window pos. %v", _win32_last_error_message())
+        fmt.assertf(res == true, "Failed to set window pos. %v", _win32_last_error_message())
         ctx.window_rect = window_rect
     }
 }

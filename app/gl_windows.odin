@@ -7,18 +7,18 @@ import "core:fmt"
 _gl_init :: proc(ctx: ^Context, major, minor: int) -> bool {
     if ctx.win32_gl_procs_initialized {
         assert(win32.wglChoosePixelFormatARB == nil && win32.wglCreateContextAttribsARB == nil && win32.wglSwapIntervalEXT == nil,
-            "OpenGL: unable to initialize after having already failed to load wgl procedures.")
+            "Unable to initialize OpenGL after having already failed to load wgl procedures.")
     } else {
         ctx.win32_gl_procs_initialized = true
 
         dummy := win32.CreateWindowExW(0, L("STATIC"), L("DummyWindow"), 0, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, win32.CW_USEDEFAULT, nil, nil, nil, nil)
-        fmt.assertf(dummy != nil, "OpenGL: failed to create dummy window. %v", _win32_last_error_message())
+        fmt.assertf(dummy != nil, "Failed to create dummy window. %v", _win32_last_error_message())
         defer {
             win32.DestroyWindow(dummy)
         }
 
         hdc := win32.GetDC(dummy)
-        assert(hdc != nil, "OpenGL: failed to get dummy window device context.")
+        assert(hdc != nil, "failed to get dummy window device context")
         defer win32.ReleaseDC(dummy, hdc)
 
         desc := win32.PIXELFORMATDESCRIPTOR{
@@ -30,30 +30,30 @@ _gl_init :: proc(ctx: ^Context, major, minor: int) -> bool {
         }
 
         format := win32.ChoosePixelFormat(hdc, &desc)
-        fmt.assertf(format != 0, "OpenGL: failed to choose pixel format for dummy window. %v", _win32_last_error_message())
+        fmt.assertf(format != 0, "Failed to choose pixel format for dummy window. %v", _win32_last_error_message())
 
         describe_pixel_format_result := win32.DescribePixelFormat(hdc, format, size_of(desc), &desc)
-        fmt.assertf(describe_pixel_format_result != 0, "OpenGL: failed to describe pixel format for dummy window. %v", _win32_last_error_message())
+        fmt.assertf(describe_pixel_format_result != 0, "Failed to describe pixel format for dummy window. %v", _win32_last_error_message())
 
         set_pixel_format_result := win32.SetPixelFormat(hdc, format, &desc)
-        fmt.assertf(set_pixel_format_result == true, "OpenGL: failed to set pixel format for dummy window. %v", _win32_last_error_message())
+        fmt.assertf(set_pixel_format_result == true, "Failed to set pixel format for dummy window. %v", _win32_last_error_message())
 
         rc := win32.wglCreateContext(hdc)
-        fmt.assertf(rc != nil, "OpenGL: failed to create dummy context. %v", _win32_last_error_message())
+        fmt.assertf(rc != nil, "Failed to create dummy OpenGL context. %v", _win32_last_error_message())
         defer win32.wglDeleteContext(rc)
 
         make_current_result := win32.wglMakeCurrent(hdc, rc)
-        fmt.assertf(make_current_result == true, "OpenGL: failed to make dummy context current. %v", _win32_last_error_message())
+        fmt.assertf(make_current_result == true, "Failed to make dummy OpenGL context current. %v", _win32_last_error_message())
         defer win32.wglMakeCurrent(nil, nil)
 
         win32.wglChoosePixelFormatARB = win32.ChoosePixelFormatARBType(win32.wglGetProcAddress("wglChoosePixelFormatARB"))
-        fmt.assertf(win32.wglChoosePixelFormatARB != nil, "OpenGL: failed to load wglChoosePixelFormatARB. %v", _win32_last_error_message())
+        fmt.assertf(win32.wglChoosePixelFormatARB != nil, "Failed to load wglChoosePixelFormatARB. %v", _win32_last_error_message())
 
         win32.wglCreateContextAttribsARB = win32.CreateContextAttribsARBType(win32.wglGetProcAddress("wglCreateContextAttribsARB"))
-        fmt.assertf(win32.wglCreateContextAttribsARB != nil, "OpenGL: failed to load wglCreateContextAttribsARB. %v", _win32_last_error_message())
+        fmt.assertf(win32.wglCreateContextAttribsARB != nil, "Failed to load wglCreateContextAttribsARB. %v", _win32_last_error_message())
 
         win32.wglSwapIntervalEXT = win32.SwapIntervalEXTType(win32.wglGetProcAddress("wglSwapIntervalEXT"))
-        fmt.assertf(win32.wglSwapIntervalEXT != nil, "OpenGL: failed to load wglSwapIntervalEXT. %v", _win32_last_error_message())
+        fmt.assertf(win32.wglSwapIntervalEXT != nil, "Failed to load wglSwapIntervalEXT. %v", _win32_last_error_message())
     }
     
     {
@@ -72,16 +72,16 @@ _gl_init :: proc(ctx: ^Context, major, minor: int) -> bool {
         formats: u32
         
         choose_pixel_format_result := win32.wglChoosePixelFormatARB(ctx.win32_hdc, &attrib[0], nil, 1, &format, &formats)
-        assert(choose_pixel_format_result == true, "OpenGL: failed to choose pixel format.")
+        assert(choose_pixel_format_result == true, "Failed to choose pixel format.")
         
         desc := win32.PIXELFORMATDESCRIPTOR{
             nSize = size_of(win32.PIXELFORMATDESCRIPTOR),
         }
         describe_pixel_format_result := win32.DescribePixelFormat(ctx.win32_hdc, format, size_of(desc), &desc)
-        fmt.assertf(describe_pixel_format_result != 0, "OpenGL: failed to describe pixel format. %v", _win32_last_error_message())
+        fmt.assertf(describe_pixel_format_result != 0, "Failed to describe pixel format. %v", _win32_last_error_message())
 
         set_pixel_format_result := win32.SetPixelFormat(ctx.win32_hdc, format, &desc)
-        fmt.assertf(set_pixel_format_result == true, "OpenGL: failed to set pixel format. %v", _win32_last_error_message())
+        fmt.assertf(set_pixel_format_result == true, "Failed to set pixel format. %v", _win32_last_error_message())
     }
     
     {
@@ -106,14 +106,14 @@ _gl_init :: proc(ctx: ^Context, major, minor: int) -> bool {
         }
 
         rc := win32.wglCreateContextAttribsARB(ctx.win32_hdc, nil, raw_data(&attrib))
-        assert(rc != nil, "OpenGL: failed to create context.")
+        assert(rc != nil, "Failed to create OpenGL context.")
 
         make_current_result := win32.wglMakeCurrent(ctx.win32_hdc, rc)
-        fmt.assertf(make_current_result == true, "OpenGL: failed to make context current. %v", _win32_last_error_message())
+        fmt.assertf(make_current_result == true, "Failed to make OpenGL context current. %v", _win32_last_error_message())
     }
 
     swap_interval_result := win32.wglSwapIntervalEXT(1)
-    assert(swap_interval_result, "OpenGL: failed to set swap interval.") // TODO: should we handle vsync not being available?
+    assert(swap_interval_result, "Failed to set swap interval.") // TODO: should we handle vsync not being available?
 
     gl.load_up_to(major, minor, win32.gl_set_proc_address)
 
@@ -122,5 +122,5 @@ _gl_init :: proc(ctx: ^Context, major, minor: int) -> bool {
 
 _gl_swap_buffers :: proc(ctx: ^Context) {
     res := win32.SwapBuffers(ctx.win32_hdc)
-    fmt.assertf(res == true, "OpenGL: failed to swap buffers. %v", _win32_last_error_message())
+    fmt.assertf(res == true, "Failed to swap buffers. %v", _win32_last_error_message())
 }

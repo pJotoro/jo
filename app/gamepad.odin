@@ -96,7 +96,7 @@ gamepad_set_vibration :: proc(ctx: ^Context, g_idx: int, left_motor, right_motor
 		return
 	}
 	res := _gamepad_set_vibration(ctx, g_idx, left_motor, right_motor)
-	fmt.assertf(res, "App: failed to set vibration for gamepad %v.", g_idx)
+	fmt.assertf(res, "Failed to set vibration for gamepad %v.", g_idx)
 }
 
 // Returns the battery level of a gamepad as a normalized float. 1=full, 0=empty.
@@ -139,6 +139,6 @@ gamepad_capabilities :: proc(ctx: ^Context, g_idx: int) -> (capabilities: Gamepa
 	}
 	ok: bool
 	capabilities, ok = _gamepad_capabilities(ctx, g_idx)
-	fmt.assertf(ok, "App: failed to get capabilities for gamepad %v.", g_idx)
+	fmt.assertf(ok, "Failed to get capabilities for gamepad %v.", g_idx)
 	return
 }

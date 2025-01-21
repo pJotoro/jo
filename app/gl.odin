@@ -9,17 +9,17 @@ import "base:intrinsics"
 
 // Initializes OpenGL.
 gl_init :: proc(ctx: ^Context, major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_callback, user_data: rawptr = nil) {
-    assert(ctx.initialized, "OpenGL: app not initialized.")
-    assert(!ctx.graphics_api_initialized, "OpenGL: already initialized.")
+    assert(ctx.initialized, "app not initialized")
+    assert(!ctx.graphics_api_initialized, "OpenGL already initialized")
 
     fmt.assertf((major == 4 && minor <= 6) || (major == 3 && minor <= 3) || (major == 2 && minor <= 1) || (major == 1) && (minor <= 5),
-        "OpenGL: invalid version %v.%v used. See https://www.khronos.org/opengl/wiki/History_of_OpenGL for valid OpenGL versions.", major, minor)
+        "Invalid OpenGL version %v.%v used. See https://www.khronos.org/opengl/wiki/History_of_OpenGL for valid OpenGL versions.", major, minor)
 
     _gl_init(ctx, major, minor)
     when ODIN_DEBUG {
         if major == 4 && minor >= 3 {
             when gl.GL_DEBUG {
-                panic("OpenGL: cannot use debug message callback when GL_DEBUG == true. Consider adding command line argument -define:GL_DEBUG=false.")
+                panic("Cannot use OpenGL debug message callback when GL_DEBUG == true. Consider adding command line argument -define:GL_DEBUG=false.")
             } else {
                 gl.Enable(gl.DEBUG_OUTPUT)
                 gl.DebugMessageCallback(debug_callback, user_data)
@@ -35,9 +35,9 @@ gl_init :: proc(ctx: ^Context, major, minor: int, debug_callback: gl.debug_proc_
 }
 
 gl_swap_buffers :: proc(ctx: ^Context) {
-    assert(ctx.initialized, "OpenGL: app not initialized.")
+    assert(ctx.initialized, "app not initialized")
     assert(ctx.graphics_api == .OpenGL)
-    assert(ctx.graphics_api_initialized, "OpenGL: not initialized.")
+    assert(ctx.graphics_api_initialized, "OpenGL not initialized")
     _gl_swap_buffers(ctx)
 }
 

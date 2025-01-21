@@ -73,11 +73,11 @@ Context :: struct {
 // You must call this before any other procedure.
 // It initializes the library.
 init :: proc(ctx: ^Context) {
-    assert(!ctx.initialized, "App: already initialized.")
+    assert(!ctx.initialized, "app already initialized.")
 
     if ctx.window_mode != nil {
         when ODIN_OS == .JS {
-            panic("JS: Window modes unsupported (for now).")
+            panic("window modes unsupported (for now)")
         }
     } else {
         when ODIN_DEBUG {
@@ -105,7 +105,7 @@ init :: proc(ctx: ^Context) {
 //
 // Beyond checking for whether the app is still running, it also gets OS events and updates input.
 running :: proc(ctx: ^Context) -> bool {
-    assert(ctx.initialized, "App: not initialized.")
+    assert(ctx.initialized, "app not initialized")
 
     INPUT_REMOVE :: Input{.Pressed, .Released, /*.Repeat,*/ .Double_Click}
     for &key in ctx.keys {
@@ -161,7 +161,7 @@ run :: proc(ctx: ^Context, update_proc: proc(ctx: ^Context, dt: f64)) {
             dt = f64(dt_dur)/f64(time.Second)
             ctx.update_proc(ctx, dt)
             if ctx.graphics_api_initialized && !ctx.gpu_swapped_buffers {
-                panic("App: forgot to call swap_buffers().")
+                panic("forgot to call swap_buffers")
             }
             ctx.gpu_swapped_buffers = false
         }
@@ -177,7 +177,7 @@ cpu_swap_buffers :: proc(ctx: ^Context, buf: []u32, buf_w := 0, buf_h := 0) {
 gpu_swap_buffers :: proc(ctx: ^Context) {
     switch ctx.graphics_api {
         case .Software:
-            panic("App: software rendering requires a buffer to blit.")
+            panic("software rendering requires a buffer to blit")
 
         case .OpenGL:
             gl_swap_buffers(ctx)
@@ -186,7 +186,7 @@ gpu_swap_buffers :: proc(ctx: ^Context) {
             d3d11_swap_buffers(ctx)
 
         case:
-            panic("App: unknown graphics API used.")
+            panic("unknown graphics API used")
     }
     ctx.gpu_swapped_buffers = true
 }
