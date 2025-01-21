@@ -26,6 +26,8 @@ D3D11_Context :: struct {
 	depth_stencil_state: ^d3d11.IDepthStencilState,
 }
 
+// TODO: figure out fullscreen thing.
+
 // If you have already initialized any D3D11 objects, this procedure won't touch them.
 d3d11_init :: proc(ctx: ^Context, d3d11_ctx: ^D3D11_Context = nil) -> (res: win32.HRESULT) {
 	assert(!ctx.graphics_api_initialized, "Graphics API already initialized.")

@@ -1,7 +1,6 @@
 package app
 
 import gl "vendor:OpenGL"
-import "core:log"
 import "core:fmt"
 import "core:strings"
 import "core:encoding/ansi"
@@ -20,18 +19,12 @@ gl_init :: proc(ctx: ^Context, major, minor: int, debug_callback: gl.debug_proc_
     when ODIN_DEBUG {
         if major == 4 && minor >= 3 {
             when gl.GL_DEBUG {
-                log.warn("OpenGL: cannot use debug message callback when GL_DEBUG == true. Consider adding command line argument -define:GL_DEBUG=false.")
-                log.info("OpenGL: debug output disabled.")
+                panic("OpenGL: cannot use debug message callback when GL_DEBUG == true. Consider adding command line argument -define:GL_DEBUG=false.")
             } else {
                 gl.Enable(gl.DEBUG_OUTPUT)
                 gl.DebugMessageCallback(debug_callback, user_data)
-                log.info("OpenGL: debug output enabled.")
             }
-        } else {
-            log.info("OpenGL: debug output disabled.")
         }
-    } else {
-        log.info("OpenGL: debug output disabled.")
     }
     
     cr := client_rect(ctx)

@@ -1,7 +1,6 @@
 #+ private
 package app
 
-import "core:log"
 import "core:fmt"
 
 import "core:sys/wasm/js"
@@ -11,7 +10,6 @@ OS_Specific :: struct {
 	using_webgl: bool,
 }
 
-// TODO: How to log changes happening in here?
 @(private="file")
 event_proc :: proc(e: js.Event) {
 	MOUSE_LEFT :: 0
@@ -41,7 +39,7 @@ event_proc :: proc(e: js.Event) {
 			case "ArrowDown": return .Down
 			case "ArrowUp": return .Up
 			case "Select": return .Select
-			case "Print": return .Print // TODO?
+			case "Print": return .Print
 			case "Execute": return .Execute
 			case "PrintScreen": return .Print_Screen
 			case "Insert": return .Insert
@@ -129,7 +127,7 @@ event_proc :: proc(e: js.Event) {
 			case "F24": return .F24
 			case "NumLock": return .Num_Lock
 			case "ScrollLock": return .Scroll
-			case "VolumeMute": return .Volume_Mute // TODO?
+			case "VolumeMute": return .Volume_Mute
 			case "VolumeDown": return .Volume_Down
 			case "VolumeUp": return .Volume_Up
 		}

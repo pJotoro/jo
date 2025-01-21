@@ -2,8 +2,6 @@ package app
 
 import "core:sys/wasm/js"
 
-import "core:log"
-
 import "core:fmt"
 
 _try_connect_gamepad :: proc(gamepad_index: int) -> bool {
