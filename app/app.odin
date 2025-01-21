@@ -1,6 +1,3 @@
-// jo:app is a stupidly easy to use platform layer. 
-// If all you want is a window, an OpenGL context, and keyboard or gamepad input, then this is for you. 
-// It takes inspiration from the simplicity of Raylib while still being lightweight and fairly low level.
 package app
 
 import "base:runtime"

@@ -7,7 +7,6 @@ import "core:encoding/ansi"
 import "base:runtime"
 import "base:intrinsics"
 
-// Initializes OpenGL.
 gl_init :: proc(ctx: ^Context, major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_callback, user_data: rawptr = nil) {
     assert(ctx.initialized, "app not initialized")
     assert(!ctx.graphics_api_initialized, "OpenGL already initialized")

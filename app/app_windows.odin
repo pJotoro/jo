@@ -259,7 +259,7 @@ _win32_event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_p
 
 foreign import user32 "system:User32.lib"
 
-@(default_calling_convention="system")
+@(default_calling_convention="system", private)
 foreign user32 {
     GetDpiForSystem :: proc() -> win32.UINT ---
     ShowCursor :: proc(bShow: win32.BOOL) -> i32 ---
