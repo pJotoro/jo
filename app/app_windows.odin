@@ -471,14 +471,12 @@ _set_window_mode :: proc(ctx: ^Context) {
     // set window flags
     if flags != ctx.win32_window_flags {
         res := win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_STYLE, int(flags))
-        fmt.assertf(res != 0, "Win32: failed to set window flags. %v", _win32_last_error_message())
         ctx.win32_window_flags = flags
     }
     
     // set window extended flags
     if ex_flags != ctx.win32_window_ex_flags {
         res := win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_EXSTYLE, int(ex_flags))
-        fmt.assertf(res != 0, "Win32: failed to set window extended flags. %v", _win32_last_error_message())
         ctx.win32_window_ex_flags = ex_flags
     }
     

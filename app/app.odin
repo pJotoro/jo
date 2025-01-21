@@ -44,6 +44,7 @@ Context :: struct {
 
     graphics_api_initialized: bool,             // get
     graphics_api: Graphics_Api,                 // get
+    gpu_swapped_buffers: bool,                  // get
 
     title, _title: string,                      // get/set safe
     window_mode, _window_mode: Window_Mode,     // get/set safe
@@ -131,11 +132,11 @@ running :: proc(ctx: ^Context) -> bool {
 
     if ctx.title != ctx._title {
         _set_title(ctx)
-        ctx.title = ctx._title
+        ctx._title = ctx.title
     }
     if ctx.window_mode != ctx._window_mode {
         _set_window_mode(ctx)
-        ctx.window_mode = ctx._window_mode
+        ctx._window_mode = ctx.window_mode 
         _, ok := ctx.window_mode.(Window_Mode_Fullscreen)
         if ok {
             _toggle_cursor(ctx, false)
@@ -162,6 +163,10 @@ run :: proc(ctx: ^Context, update_proc: proc(ctx: ^Context, dt: f64)) {
             last_tick = tick
             dt = f64(dt_dur)/f64(time.Second)
             ctx.update_proc(ctx, dt)
+            if ctx.graphics_api_initialized && !ctx.gpu_swapped_buffers {
+                gpu_swap_buffers(ctx)
+            }
+            ctx.gpu_swapped_buffers = false
         }
     }
 }
@@ -186,6 +191,7 @@ gpu_swap_buffers :: proc(ctx: ^Context) {
         case:
             panic("App: unknown graphics API used.")
     }
+    ctx.gpu_swapped_buffers = true
 }
 
 swap_buffers :: proc {
