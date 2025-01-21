@@ -17,18 +17,18 @@ _try_connect_gamepad :: proc(ctx: ^Context, g_idx: int) {
 
 	ctx.gamepads[g_idx].buttons = transmute(Gamepad_Buttons)xinput_gamepad.wButtons
 	
-	ctx.gamepads[g_idx].left_trigger = f64(xinput_gamepad.bLeftTrigger)/f64(size_of(win32.BYTE))
-	ctx.gamepads[g_idx].right_trigger = f64(xinput_gamepad.bRightTrigger)/f64(size_of(win32.BYTE))
-	ctx.gamepads[g_idx].left_stick.x = f64(xinput_gamepad.sThumbLX)/f64(size_of(win32.SHORT))
-	ctx.gamepads[g_idx].left_stick.y = f64(xinput_gamepad.sThumbLY)/f64(size_of(win32.SHORT))
-	ctx.gamepads[g_idx].right_stick.x = f64(xinput_gamepad.sThumbRX)/f64(size_of(win32.SHORT))
-	ctx.gamepads[g_idx].right_stick.y = f64(xinput_gamepad.sThumbRY)/f64(size_of(win32.SHORT))
+	ctx.gamepads[g_idx].left_trigger = f64(xinput_gamepad.bLeftTrigger)/f64(max(win32.BYTE))
+	ctx.gamepads[g_idx].right_trigger = f64(xinput_gamepad.bRightTrigger)/f64(max(win32.BYTE))
+	ctx.gamepads[g_idx].left_stick.x = f64(xinput_gamepad.sThumbLX)/f64(max(win32.SHORT))
+	ctx.gamepads[g_idx].left_stick.y = f64(xinput_gamepad.sThumbLY)/f64(max(win32.SHORT))
+	ctx.gamepads[g_idx].right_stick.x = f64(xinput_gamepad.sThumbRX)/f64(max(win32.SHORT))
+	ctx.gamepads[g_idx].right_stick.y = f64(xinput_gamepad.sThumbRY)/f64(max(win32.SHORT))
 
 	// TODO: custom deadzones?
 
-	ctx.gamepads[g_idx].trigger_deadzone = f64(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD)/f64(size_of(win32.BYTE))
-	ctx.gamepads[g_idx].left_stick_deadzone = f64(win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)/f64(size_of(win32.SHORT))
-	ctx.gamepads[g_idx].right_stick_deadzone = f64(win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)/f64(size_of(win32.SHORT))
+	ctx.gamepads[g_idx].trigger_deadzone = f64(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD)/f64(max(win32.BYTE))
+	ctx.gamepads[g_idx].left_stick_deadzone = f64(win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)/f64(max(win32.SHORT))
+	ctx.gamepads[g_idx].right_stick_deadzone = f64(win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)/f64(max(win32.SHORT))
 }
 
 _gamepad_set_vibration :: proc(ctx: ^Context, g_idx: int, left_motor, right_motor: f64) -> bool {
