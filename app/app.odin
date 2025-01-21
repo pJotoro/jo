@@ -174,7 +174,7 @@ run :: proc(ctx: ^Context, update_proc: proc(ctx: ^Context, dt: f64)) {
 cpu_swap_buffers :: proc(ctx: ^Context, buf: []u32, buf_w := 0, buf_h := 0) {
     assert(ctx.graphics_api == .Software)
     assert(buf != nil)
-    cpu_swap_buffers(ctx, buf, buf_w, buf_h)
+    _cpu_swap_buffers(ctx, buf, buf_w, buf_h)
 }
 
 gpu_swap_buffers :: proc(ctx: ^Context) {
