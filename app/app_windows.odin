@@ -151,6 +151,8 @@ _win32_event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_p
             case win32.VK_VOLUME_MUTE:  return .Volume_Mute
             case win32.VK_VOLUME_DOWN:  return .Volume_Down
             case win32.VK_VOLUME_UP:    return .Volume_Up
+            case win32.VK_OEM_COMMA:    return .Comma
+            case win32.VK_OEM_PERIOD:   return .Period
         }
 
         panic("Win32: unsupported key")

@@ -119,4 +119,6 @@ Key :: enum u16 {
     Volume_Mute,
     Volume_Down,
     Volume_Up,
+    Comma,
+    Period,
 }
