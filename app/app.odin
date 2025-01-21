@@ -178,11 +178,7 @@ gpu_swap_buffers :: proc(ctx: ^Context) {
             panic("App: software rendering requires a buffer to blit.")
 
         case .OpenGL:
-            when JO_GL {
-                gl_swap_buffers(ctx)
-            } else {
-                panic("App: must add command line argument -define:JO_GL=true to use OpenGL.")
-            }
+            gl_swap_buffers(ctx)
 
         case .D3D11:
             d3d11_swap_buffers(ctx)
