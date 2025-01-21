@@ -6,8 +6,6 @@ package app
 import "base:runtime"
 import "core:io"
 import "core:time"
-import "core:mem"
-import "core:fmt"
 
 Window_Mode_Windowed :: distinct Rect
 
@@ -30,7 +28,7 @@ Input_Kind :: enum u8 {
     Down,
     Pressed,
     Released,
-    Repeat,
+    // Repeat, TODO
     Double_Click,
     Exit, // exits the program when pressed
 }
@@ -68,7 +66,6 @@ Context :: struct {
     mouse_wheel: int,                           // get
 
     gamepads: [4]Gamepad,                       // get
-    gamepad_debug_flags: Gamepad_Debug_Flags,   // get/set
 
     using os_specific: OS_Specific,
 }
@@ -110,7 +107,7 @@ init :: proc(ctx: ^Context) {
 running :: proc(ctx: ^Context) -> bool {
     assert(ctx.initialized, "App: not initialized.")
 
-    INPUT_REMOVE :: Input{.Pressed, .Released, .Repeat, .Double_Click}
+    INPUT_REMOVE :: Input{.Pressed, .Released, /*.Repeat,*/ .Double_Click}
     for &key in ctx.keys {
         if .Pressed in key && .Exit in key {
             ctx.running = false

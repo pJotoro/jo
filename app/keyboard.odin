@@ -1,7 +1,5 @@
 package app
 
-import "core:strings"
-
 // TODO: Add all keyboard keys, or as close to that as possible.
 Key :: enum u16 {
     Cancel,
