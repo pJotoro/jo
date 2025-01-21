@@ -161,7 +161,7 @@ run :: proc(ctx: ^Context, update_proc: proc(ctx: ^Context, dt: f64)) {
             dt = f64(dt_dur)/f64(time.Second)
             ctx.update_proc(ctx, dt)
             if ctx.graphics_api_initialized && !ctx.gpu_swapped_buffers {
-                gpu_swap_buffers(ctx)
+                panic("App: forgot to call swap_buffers().")
             }
             ctx.gpu_swapped_buffers = false
         }
