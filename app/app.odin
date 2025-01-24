@@ -4,32 +4,8 @@ import "base:runtime"
 import "core:io"
 import "core:time"
 
-Window_Mode_Windowed :: distinct Rect
-
-Window_Mode_Fullscreen :: struct {
-    topmost: bool,
-}
-
-Window_Mode :: union {
-    Window_Mode_Windowed,
-    Window_Mode_Fullscreen,
-}
-
-Graphics_Api :: enum {
-    Software,
-    OpenGL,
-    D3D11,
-}
-
-Input_Kind :: enum u8 {
-    Down,
-    Pressed,
-    Released,
-    // Repeat, TODO
-    Double_Click,
-    Exit, // exits the program when pressed
-}
-Input :: distinct bit_set[Input_Kind; u8]
+JO_GL :: #config(JO_GL, true)
+JO_D3D11 :: #config(JO_D3D11, true)
 
 Context :: struct {
     // There is no law saying you have to follow what the side comments say.
@@ -68,6 +44,33 @@ Context :: struct {
 
     using os_specific: OS_Specific,
 }
+
+Window_Mode :: union {
+    Window_Mode_Windowed,
+    Window_Mode_Fullscreen,
+}
+
+Window_Mode_Windowed :: distinct Rect
+
+Window_Mode_Fullscreen :: struct {
+    topmost: bool,
+}
+
+Graphics_Api :: enum {
+    Software,
+    OpenGL,
+    D3D11,
+}
+
+Input_Kind :: enum u8 {
+    Down,
+    Pressed,
+    Released,
+    // Repeat, TODO
+    Double_Click,
+    Exit, // exits the program when pressed
+}
+Input :: distinct bit_set[Input_Kind; u8]
 
 // You must call this before any other procedure.
 // It initializes the library.

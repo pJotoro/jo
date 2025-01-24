@@ -7,6 +7,8 @@ import "vendor:directx/dxgi"
 
 // Based off https://github.com/odin-lang/examples/blob/master/directx/d3d11_minimal_sdl2/d3d11_in_odin.odin
 
+when JO_D3D11 {
+
 D3D11_Context :: struct {
 	base_device: ^d3d11.IDevice,
 	base_device_context: ^d3d11.IDeviceContext,
@@ -174,4 +176,11 @@ d3d11_init :: proc(ctx: ^Context, d3d11_ctx: ^D3D11_Context = nil) -> (res: win3
 d3d11_swap_buffers :: proc(ctx: ^Context) {
 	ctx.d3d11_ctx.swapchain->Present(1, {})
 	ctx.gpu_swapped_buffers = true
+}
+
+} // JO_D3D11
+else {
+
+D3D11_Context :: struct {}
+
 }
