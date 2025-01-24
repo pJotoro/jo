@@ -191,57 +191,57 @@ _win32_event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_p
             }
 
         case win32.WM_LBUTTONDOWN:
-            if .Down not_in ctx.mouse_left {
-                ctx.mouse_left += {.Pressed}
+            if .Down not_in ctx.mouse.left {
+                ctx.mouse.left += {.Pressed}
             }
-            ctx.mouse_left += {.Down}
+            ctx.mouse.left += {.Down}
             
         case win32.WM_LBUTTONUP:
-            ctx.mouse_left -= {.Down}
-            ctx.mouse_left += {.Released}
+            ctx.mouse.left -= {.Down}
+            ctx.mouse.left += {.Released}
 
         // TODO: Why are mouse double click events not happening
         // Is the mouse not captured by the window?
         case win32.WM_LBUTTONDBLCLK:
-            ctx.mouse_left += {.Double_Click}
+            ctx.mouse.left += {.Double_Click}
 
         case win32.WM_RBUTTONDOWN:
-            if .Down not_in ctx.mouse_right {
-                ctx.mouse_right += {.Pressed}
+            if .Down not_in ctx.mouse.right {
+                ctx.mouse.right += {.Pressed}
             }
-            ctx.mouse_right += {.Down}
+            ctx.mouse.right += {.Down}
 
         case win32.WM_RBUTTONUP:
-            ctx.mouse_right -= {.Down}
-            ctx.mouse_right += {.Released}
+            ctx.mouse.right -= {.Down}
+            ctx.mouse.right += {.Released}
 
         case win32.WM_RBUTTONDBLCLK:
-            ctx.mouse_right += {.Double_Click}
+            ctx.mouse.right += {.Double_Click}
 
         case win32.WM_MBUTTONDOWN:
-            if .Down not_in ctx.mouse_middle {
-                ctx.mouse_middle += {.Pressed}
+            if .Down not_in ctx.mouse.middle {
+                ctx.mouse.middle += {.Pressed}
             }
-            ctx.mouse_middle += {.Down}
+            ctx.mouse.middle += {.Down}
 
         case win32.WM_MBUTTONUP:
-            ctx.mouse_middle -= {.Down}
-            ctx.mouse_middle += {.Released}
+            ctx.mouse.middle -= {.Down}
+            ctx.mouse.middle += {.Released}
 
         case win32.WM_MBUTTONDBLCLK:
-            ctx.mouse_middle += {.Double_Click}
+            ctx.mouse.middle += {.Double_Click}
 
         case win32.WM_MOUSEMOVE:
             cr := client_rect(ctx)
 
             params := transmute([4]i16)l_param
-            ctx.mouse_pos.x = int(params[0])
-            ctx.mouse_pos.y = int(-params[1]) + cr.h
+            ctx.mouse.pos.x = int(params[0])
+            ctx.mouse.pos.y = int(-params[1]) + cr.h
 
         case win32.WM_MOUSEWHEEL:
             WHEEL_DELTA :: 120
             amount := i16(w_param >> 16) / WHEEL_DELTA
-            ctx.mouse_wheel = int(amount)
+            ctx.mouse.wheel = int(amount)
 
         case win32.WM_CHAR:
             r := rune(w_param)

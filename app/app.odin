@@ -32,11 +32,13 @@ Context :: struct {
     keys: [Key]Input,                           // get
     text_input: io.Writer,                      // get/set
 
-    mouse_left: Input,                          // get
-    mouse_right: Input,                         // get
-    mouse_middle: Input,                        // get
-    mouse_pos: [2]int,                          // get
-    mouse_wheel: int,                           // get
+    mouse: struct {
+        left: Input,                            // get
+        right: Input,                           // get
+        middle: Input,                          // get
+        pos: [2]int,                            // get
+        wheel: int,                             // get
+    },
 
     gamepads: [4]Gamepad,                       // get
 
@@ -118,10 +120,10 @@ running :: proc(ctx: ^Context) -> bool {
 
         key -= INPUT_REMOVE
     }
-    ctx.mouse_left -= INPUT_REMOVE
-    ctx.mouse_right -= INPUT_REMOVE
-    ctx.mouse_middle -= INPUT_REMOVE
-    ctx.mouse_wheel = 0
+    ctx.mouse.left -= INPUT_REMOVE
+    ctx.mouse.right -= INPUT_REMOVE
+    ctx.mouse.middle -= INPUT_REMOVE
+    ctx.mouse.wheel = 0
 
     for g_idx in 0..<len(ctx.gamepads) {
         if ctx.gamepads[g_idx].connected {
