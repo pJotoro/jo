@@ -171,7 +171,7 @@ d3d11_init :: proc(ctx: ^Context, d3d11_ctx: ^D3D11_Context = nil) -> (res: win3
 	return
 }
 
-@(private)
 d3d11_swap_buffers :: proc(ctx: ^Context) {
 	ctx.d3d11_ctx.swapchain->Present(1, {})
+	ctx.gpu_swapped_buffers = true
 }

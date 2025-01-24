@@ -141,7 +141,7 @@ running :: proc(ctx: ^Context) -> bool {
         }
     }
 
-    _run(ctx)
+    _running(ctx)
 
     return ctx.running
 }
@@ -160,39 +160,17 @@ run :: proc(ctx: ^Context, update_proc: proc(ctx: ^Context, dt: f64)) {
             dt = f64(dt_dur)/f64(time.Second)
             ctx.update_proc(ctx, dt)
             if ctx.graphics_api_initialized && !ctx.gpu_swapped_buffers {
-                panic("forgot to call swap_buffers")
+                panic("forgot to call _xxx_swap_buffers")
             }
             ctx.gpu_swapped_buffers = false
         }
     }
 }
 
-cpu_swap_buffers :: proc(ctx: ^Context, buf: []u32, buf_w := 0, buf_h := 0) {
+swap_buffers :: proc(ctx: ^Context, buf: []u32, buf_w := 0, buf_h := 0) {
     assert(ctx.graphics_api == .Software)
     assert(buf != nil)
-    _cpu_swap_buffers(ctx, buf, buf_w, buf_h)
-}
-
-gpu_swap_buffers :: proc(ctx: ^Context) {
-    switch ctx.graphics_api {
-        case .Software:
-            panic("software rendering requires a buffer to blit")
-
-        case .OpenGL:
-            gl_swap_buffers(ctx)
-
-        case .D3D11:
-            d3d11_swap_buffers(ctx)
-
-        case:
-            panic("unknown graphics API used")
-    }
-    ctx.gpu_swapped_buffers = true
-}
-
-swap_buffers :: proc {
-    cpu_swap_buffers,
-    gpu_swap_buffers,
+    _swap_buffers(ctx, buf, buf_w, buf_h)
 }
 
 Rect :: struct {

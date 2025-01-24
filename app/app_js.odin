@@ -1,4 +1,3 @@
-#+ private
 package app
 
 import "core:fmt"
@@ -10,8 +9,7 @@ OS_Specific :: struct {
 	using_webgl: bool,
 }
 
-@(private="file")
-event_proc :: proc(e: js.Event) {
+_js_event_proc :: proc(e: js.Event) {
 	MOUSE_LEFT :: 0
 	MOUSE_MIDDLE :: 1
 	MOUSE_RIGHT :: 2
@@ -291,7 +289,7 @@ _init :: proc(loc) -> bool {
 	return true
 }
 
-_run :: proc(loc) {
+_running :: proc(ctx: ^Context) {
 	// TODO: How exactly does visibility work? Since a window is not actually
 	// being created, are we visible immediately?
 	//

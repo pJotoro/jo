@@ -405,7 +405,7 @@ _init :: proc(ctx: ^Context) {
     }
 }
 
-_run :: proc(ctx: ^Context) {
+_running :: proc(ctx: ^Context) {
     if ctx.win32_window_ready == -1 {
         ctx.win32_window_ready += 1
     } else if ctx.win32_window_ready == 0 {
@@ -423,7 +423,7 @@ _run :: proc(ctx: ^Context) {
     }
 }
 
-_cpu_swap_buffers :: proc(ctx: ^Context, buf: []u32, buf_w, buf_h: int) {
+_swap_buffers :: proc(ctx: ^Context, buf: []u32, buf_w, buf_h: int) {
     cr := client_rect(ctx)
 
     src_w := i32(buf_w) if buf_w != 0 else i32(cr.w)
