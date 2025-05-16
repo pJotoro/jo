@@ -1,3 +1,3 @@
 # IMPORTANT:
 
-jo is still early in development. For now, it is Windows only.
+This is a library I tried to develop in my free time during college, the goal being to replace libraries like SDL. At this point, I've realized SDL is perfectly fine.
