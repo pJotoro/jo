@@ -33,10 +33,10 @@ Context :: struct {
     graphics_api: Graphics_Api,
     gpu_swapped_buffers: bool,
 
-    title,
+    title: string,
     dpi: int,
     refresh_rate: int,
-    screen: struct {w, h: int},
+    monitor: struct {w, h: int},
 
     running: bool,
     open: bool,
@@ -48,6 +48,18 @@ Context :: struct {
     using os_specific: OS_Specific,
 }
 ctx: Context
+
+title :: proc "contextless" () -> string {
+    return ctx.title
+}
+
+dpi :: proc "contextless" () -> int {
+    return ctx.dpi
+}
+
+refresh_rate :: proc "contextless" () -> int {
+    return ctx.refresh_rate
+}
 
 Update_Proc :: #type proc(dt: f32, user_data: rawptr)
 
@@ -87,6 +99,9 @@ init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, user_da
     ctx.initialized = true
     ctx.running = true
 
+    last_tick := time.tick_now()
+    dt: f32
+
     for ctx.running {
         INPUT_REMOVE :: Input{.Pressed, .Released, /*.Repeat,*/ .Double_Click}
         for &key in ctx.keys {
@@ -110,48 +125,37 @@ init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, user_da
         }
         */
 
-        if ctx.window_mode != ctx._window_mode {
-            _set_window_mode()
-            ctx._window_mode = ctx.window_mode 
-            _, ok := ctx.window_mode.(Window_Mode_Fullscreen)
-            if ok {
-                _toggle_cursor(false)
-            } else {
-                _toggle_cursor(true)
-            }
-        }
-
         _update()
+
+        if update_proc != nil {
+            tick := time.tick_now()
+            dt_dur := time.tick_diff(last_tick, tick)
+            last_tick = tick
+            dt = f32(dt_dur)/f32(time.Second)
+
+            update_proc(dt, user_data)
+
+            // TODO: How should swapping buffers be handled?
+        }
     }
 }
-
-toggle_fullscreen :: proc() {
-    if !ctx.fullscreen {
-
-    }
-}
-
-// A different way to do the game loop. Calculates delta time for you.
-// run :: proc(update_proc: proc(dt: f64)) {
-//     ctx.update_proc = update_proc
-    
-//     when ODIN_OS != .JS {
-//         last_tick := time.tick_now()
-//         dt: f64
-//         for running() {
-//             tick := time.tick_now()
-//             dt_dur := time.tick_diff(last_tick, tick)
-//             last_tick = tick
-//             dt = f64(dt_dur)/f64(time.Second)
-//             ctx.update_proc(dt)
-//             if ctx.graphics_api_initialized && !ctx.gpu_swapped_buffers {
-//                 panic("forgot to call _xxx_swap_buffers")
-//             }
-//             ctx.gpu_swapped_buffers = false
-//         }
-//     }
-// }
 
 Rect :: struct {
     x, y, w, h: int,
+}
+
+width :: proc "contextless" () -> int {
+    when !JO_FULLSCREEN {
+        return ctx.monitor.w/2
+    } else {
+        return ctx.monitor.w
+    }
+}
+
+height :: proc "contextless" () -> int {
+    when !JO_FULLSCREEN {
+        return ctx.monitor.h/2
+    } else {
+        return ctx.monitor.h
+    }
 }

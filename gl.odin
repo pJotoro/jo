@@ -3,7 +3,7 @@ package jo
 import gl "vendor:OpenGL"
 import "core:fmt"
 import "core:strings"
-import "core:encoding/ansi"
+import "core:terminal/ansi"
 import "base:runtime"
 import "base:intrinsics"
 

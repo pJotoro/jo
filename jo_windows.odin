@@ -17,9 +17,7 @@ OS_Specific :: struct {
     win32_gl_procs_initialized: bool,
 
     win32_window: win32.HWND,
-    win32_event_proc: win32.WNDPROC, // TODO
     win32_window_ready: int, // 0=no, 1=almost, 2=yes
-    win32_window_style, win32_window_ex_style: u32,
 
     window_rect: Rect,
     d3d11_ctx: ^D3D11_Context,
@@ -291,21 +289,21 @@ _init :: proc() {
         monitor_info := win32.MONITORINFO{cbSize = size_of(win32.MONITORINFO)}
         res := win32.GetMonitorInfoW(monitor, &monitor_info)
         ensure(res == true, _win32_last_error_message())
-        ctx.screen.w = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
-        ctx.screen.h = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
+        ctx.monitor.w = int(monitor_info.rcMonitor.right - monitor_info.rcMonitor.left)
+        ctx.monitor.h = int(monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top)
     }
     
     // window
     {
-        style, ex_style: u32
+        window_style, window_ex_style: u32
         window_rect: Rect
         when !JO_FULLSCREEN {
-            style = win32.WS_CAPTION | win32.WS_SYSMENU
-            ex_style = 0
+            window_style = win32.WS_CAPTION | win32.WS_SYSMENU
+            window_ex_style = 0
 
-            win32_rect := win32.RECT{i32(ctx.screen.x/4), i32(ctx.screen.y/4), i32(ctx.screen.x/2), i32(ctx.screen.y/2),}
+            win32_rect := win32.RECT{i32(ctx.monitor.x/4), i32(ctx.monitor.y/4), i32(ctx.monitor.x/2), i32(ctx.monitor.y/2),}
     
-            res := win32.AdjustWindowRectExForDpi(&win32_rect, style, false, ex_style, u32(ctx.dpi))
+            res := win32.AdjustWindowRectExForDpi(&win32_rect, window_style, false, window_ex_style, u32(ctx.dpi))
             ensure(res == true, _win32_last_error_message())
 
             window_rect = Rect {
@@ -315,13 +313,13 @@ _init :: proc() {
                 h = int(win32_rect.bottom - win32_rect.top),
             }
         } else {
-            window_rect.w = ctx.screen.w
-            window_rect.h = ctx.screen.h
-            style = win32.WS_POPUP
-            ex_style = 0
+            window_rect.w = ctx.monitor.w
+            window_rect.h = ctx.monitor.h
+            window_style = win32.WS_POPUP
+            window_ex_style = 0
         }
         when JO_TOPMOST {
-            ex_style |= win32.WS_EX_TOPMOST
+            window_ex_style |= win32.WS_EX_TOPMOST
         }
 
         ctx.win32_window = win32.CreateWindowExW(
@@ -338,10 +336,6 @@ _init :: proc() {
             win32.HANDLE(ctx.win32_instance), 
             nil)
         ensure(ctx.win32_window != nil, _win32_last_error_message())
-        
-        ctx.window_rect = window_rect
-        ctx.win32_window_style = window_style
-        ctx.win32_window_ex_style = window_ex_style
     }
 
     // set event callback user data
@@ -362,12 +356,15 @@ _init :: proc() {
 }
 
 _update :: proc() {
+    // TADALA: Should these really be kept in the same procedure? They seem pretty unrelated.
+
     if ctx.win32_window_ready == -1 {
         ctx.win32_window_ready += 1
     } else if ctx.win32_window_ready == 0 {
         ctx.win32_window_ready += 1
         win32.ShowWindow(ctx.win32_window, win32.SW_SHOW)
     }
+
     for {
         message: win32.MSG
         if win32.PeekMessageW(&message, ctx.win32_window, 0, 0, win32.PM_REMOVE) {
@@ -379,24 +376,19 @@ _update :: proc() {
     }
 }
 
-_swap_buffers :: proc(buf: []u32, buf_w, buf_h: int) {
-    cr := client_rect()
-
-    src_w := i32(buf_w) if buf_w != 0 else i32(cr.w)
-    src_h := i32(buf_h) if buf_h != 0 else i32(cr.h)
-    dest_w := i32(cr.w)
-    dest_h := i32(cr.h)
+_swap_buffers :: proc(buf: []u32) {
+    assert(len(buf) == width()*height())
 
     bitmap_info: win32.BITMAPINFO
     bitmap_info.bmiHeader = win32.BITMAPINFOHEADER{
         biSize = size_of(win32.BITMAPINFOHEADER),
-        biWidth = src_w,
-        biHeight = src_h,
+        biWidth = i32(width()),
+        biHeight = i32(height()),
         biPlanes = 1,
         biBitCount = 32,
         biCompression = win32.BI_RGB,
     }
-    res := win32.StretchDIBits(ctx.win32_hdc, 0, 0, dest_w, dest_h, 0, 0, src_w, src_h, raw_data(buf), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
+    res := win32.StretchDIBits(ctx.win32_hdc, 0, 0, i32(width()), i32(height()), 0, 0, i32(width()), i32(height()), raw_data(buf), &bitmap_info, win32.DIB_RGB_COLORS, win32.SRCCOPY)
     ensure(res != 0, "Failed to render bitmap.")
 }
 
@@ -408,50 +400,17 @@ _toggle_cursor :: proc "contextless" (toggle: bool) {
     }
 }
 
-_set_title :: proc() {
-    title := ctx.title
-    wstring := win32.utf8_to_wstring(title)
-    res := win32.SetWindowTextW(ctx.win32_window, wstring)
-    ensure(res == true, _win32_last_error_message())
-}
-
-_set_window_mode :: proc() {
-    window_mode := ctx.window_mode
-    window_rect, window_style, window_ex_style := _win32_window_properties(window_mode)
-
-    // set window flags
-    if window_style != ctx.win32_window_style {
-        win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_STYLE, int(window_style))
-        ctx.win32_window_style = window_style
-    }
-    
-    // set window extended flags
-    if window_ex_style != ctx.win32_window_ex_style {
-        win32.SetWindowLongPtrW(ctx.win32_window, win32.GWL_EXSTYLE, int(window_ex_style))
-        ctx.win32_window_ex_style = window_ex_style
-    }
-    
-    // set window dimensions
-    if window_rect != ctx.window_rect {
-        res := win32.SetWindowPos(ctx.win32_window, nil, 
-            i32(window_rect.x), i32(window_rect.y), i32(window_rect.w), i32(window_rect.h), 
-            win32.SWP_SHOWWINDOW | win32.SWP_FRAMECHANGED)
-        ensure(res == true, _win32_last_error_message())
-        ctx.window_rect = window_rect
-    }
-}
-
 _win32_last_error_message :: proc() -> (string, runtime.Allocator_Error) #optional_allocator_error {
     error := win32.GetLastError()
     buf: [512]u16 = ---
     win32.FormatMessageW(win32.FORMAT_MESSAGE_FROM_SYSTEM, nil, error, 0, raw_data(buf[:]), win32.DWORD(len(buf)), nil)
-    res, err := win32.wstring_to_utf8(raw_data(buf[:]), -1)
+    res, err := win32.wstring_to_utf8(cstring16(raw_data(buf[:])), -1)
     return strings.trim_suffix(res, "\n"), err
 }
 
 _win32_hresult_message :: proc(hr: win32.HRESULT) -> (string, runtime.Allocator_Error) #optional_allocator_error {
     buf: [512]u16 = ---
     win32.FormatMessageW(win32.FORMAT_MESSAGE_FROM_SYSTEM, nil, u32(hr), 0, raw_data(buf[:]), win32.DWORD(len(buf)), nil)
-    res, err := win32.wstring_to_utf8(raw_data(buf[:]), -1)
+    res, err := win32.wstring_to_utf8(cstring16(raw_data(buf[:])), -1)
     return strings.trim_suffix(res, "\n"), err
 }
