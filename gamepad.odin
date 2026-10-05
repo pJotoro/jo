@@ -1,5 +1,7 @@
 package jo
 
+/*
+
 import "core:fmt"
 import "core:math"
 
@@ -54,36 +56,40 @@ try_connect_gamepad :: proc(g_idx: int) {
 	_try_connect_gamepad(g_idx)
 	g := &ctx.gamepads[g_idx]
 	if g.connected {
-		g.left_trigger = remove_deadzone(g.left_trigger, g.trigger_deadzone)
-		g.right_trigger = remove_deadzone(g.right_trigger, g.trigger_deadzone)
-		g.left_stick.x = remove_deadzone(g.left_stick.x, g.left_stick_deadzone)
-		g.left_stick.y = remove_deadzone(g.left_stick.y, g.left_stick_deadzone)
-		g.right_stick.x = remove_deadzone(g.right_stick.x, g.right_stick_deadzone)
-		g.right_stick.y = remove_deadzone(g.right_stick.y, g.right_stick_deadzone)
+		remove_deadzones(g)
+	}
+}
 
-		g.left_stick.x, g.left_stick.y = clamp_magnitude(g.left_stick.x, g.left_stick.y)
-		g.right_stick.x, g.right_stick.y = clamp_magnitude(g.right_stick.x, g.right_stick.y)
+remove_deadzones :: proc "contextless" (g: ^Gamepad) {
+	g.left_trigger = remove_deadzone(g.left_trigger, g.trigger_deadzone)
+	g.right_trigger = remove_deadzone(g.right_trigger, g.trigger_deadzone)
+	g.left_stick.x = remove_deadzone(g.left_stick.x, g.left_stick_deadzone)
+	g.left_stick.y = remove_deadzone(g.left_stick.y, g.left_stick_deadzone)
+	g.right_stick.x = remove_deadzone(g.right_stick.x, g.right_stick_deadzone)
+	g.right_stick.y = remove_deadzone(g.right_stick.y, g.right_stick_deadzone)
 
-		remove_deadzone :: #force_inline proc "contextless" (v, d: f32) -> f32 {
-			s := math.sign(v)
-			v := abs(v)
-			minv := max(v-d, 0)
-			maxv := 1-d
-			return s*v*minv/maxv
+	g.left_stick.x, g.left_stick.y = clamp_magnitude(g.left_stick.x, g.left_stick.y)
+	g.right_stick.x, g.right_stick.y = clamp_magnitude(g.right_stick.x, g.right_stick.y)
+
+	remove_deadzone :: #force_inline proc "contextless" (v, d: f32) -> f32 {
+		s := math.sign(v)
+		v := abs(v)
+		minv := max(v-d, 0)
+		maxv := 1-d
+		return s*v*minv/maxv
+	}
+
+	clamp_magnitude :: #force_inline proc "contextless" (x0, y0: f32) -> (x1, y1: f32) {
+		squared_magnitude := x0*x0 + y0*y0
+		if squared_magnitude > 1 {
+			scale := 1.0 / math.sqrt(squared_magnitude)
+			x1 = x0 * scale
+			y1 = y0 * scale
+		} else {
+			x1 = x0
+			y1 = y0 
 		}
-
-		clamp_magnitude :: proc "contextless" (x0, y0: f32) -> (x1, y1: f32) {
-			squared_magnitude := x0*x0 + y0*y0
-			if squared_magnitude > 1 {
-				scale := 1.0 / math.sqrt(squared_magnitude)
-				x1 = x0 * scale
-				y1 = y0 * scale
-			} else {
-				x1 = x0
-				y1 = y0 
-			}
-			return
-		}
+		return
 	}
 }
 
@@ -142,3 +148,5 @@ gamepad_capabilities :: proc(g_idx: int) -> (capabilities: Gamepad_Capabilities)
 	fmt.assertf(ok, "Failed to get capabilities for gamepad %v.", g_idx)
 	return
 }
+
+*/

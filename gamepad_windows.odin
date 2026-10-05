@@ -1,5 +1,7 @@
 package jo
 
+/*
+
 import win32 "core:sys/windows"
 import "core:fmt"
 
@@ -109,3 +111,5 @@ _gamepad_capabilities :: proc(g_idx: int) -> (capabilities: Gamepad_Capabilities
 	ok = true
 	return
 }
+
+*/

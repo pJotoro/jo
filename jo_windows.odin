@@ -345,7 +345,7 @@ _init :: proc() {
     }
 
     // set event callback user data
-    win32.SetWindowLongPtrW(ctx.win32_window, win32.GWLP_USERDATA, transmute(win32.LONG_PTR)ctx)
+    win32.SetWindowLongPtrW(ctx.win32_window, win32.GWLP_USERDATA, transmute(win32.LONG_PTR)&ctx)
 
     // get window device context
     {
@@ -361,7 +361,7 @@ _init :: proc() {
     }
 }
 
-_running :: proc() {
+_update :: proc() {
     if ctx.win32_window_ready == -1 {
         ctx.win32_window_ready += 1
     } else if ctx.win32_window_ready == 0 {

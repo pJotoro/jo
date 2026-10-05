@@ -41,7 +41,7 @@ Context :: struct {
     running: bool,
     open: bool,
 
-    gamepads: [4]Gamepad,
+    // gamepads: [4]Gamepad,
 
     user_data: rawptr,
 
@@ -78,9 +78,11 @@ init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, user_da
         _toggle_cursor(false)
     }
 
+    /*
     for gamepad_index in 0..<len(ctx.gamepads) {
         try_connect_gamepad(gamepad_index)
     }
+    */
 
     ctx.initialized = true
     ctx.running = true
@@ -100,11 +102,13 @@ init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, user_da
         ctx.mouse.middle -= INPUT_REMOVE
         ctx.mouse.wheel = 0
 
+        /*
         for g_idx in 0..<len(ctx.gamepads) {
             if ctx.gamepads[g_idx].connected {
                 try_connect_gamepad(g_idx)
             }
         }
+        */
 
         if ctx.window_mode != ctx._window_mode {
             _set_window_mode()
@@ -117,7 +121,7 @@ init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, user_da
             }
         }
 
-        _running()
+        _update()
     }
 }
 
