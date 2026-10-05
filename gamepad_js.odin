@@ -1,5 +1,7 @@
 package jo
 
+/*
+
 import "core:sys/wasm/js"
 
 import "core:fmt"
@@ -106,3 +108,5 @@ _gamepad_battery_level :: proc(gamepad_index: int) -> (battery_level: f64, has_b
 _gamepad_capabilities :: proc(gamepad_index: int) -> (capabilities: Gamepad_Capabilities, ok: bool) {
 	unimplemented()
 }
+
+*/

@@ -1,5 +1,7 @@
 package jo
 
+/*
+
 import "core:fmt"
 
 import "core:sys/wasm/js"
@@ -289,7 +291,7 @@ _init :: proc(loc) -> bool {
 	return true
 }
 
-_running :: proc(ctx: ^Context) {
+_running :: proc() {
 	// TODO: How exactly does visibility work? Since a window is not actually
 	// being created, are we visible immediately?
 	//
@@ -326,3 +328,5 @@ _set_title :: proc(title: string) {
 _set_window_mode :: proc(window_mode: Window_Mode) {
 	unimplemented("JS: Window modes unsupported (for now).")
 }
+
+*/

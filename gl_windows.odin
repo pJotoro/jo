@@ -6,7 +6,7 @@ import "core:fmt"
 
 when JO_GL {
 
-_gl_init :: proc(ctx: ^Context, major, minor: int) -> bool {
+_gl_init :: proc(major, minor: int) -> bool {
     if ctx.win32_gl_procs_initialized {
         assert(win32.wglChoosePixelFormatARB == nil && win32.wglCreateContextAttribsARB == nil && win32.wglSwapIntervalEXT == nil,
             "Unable to initialize OpenGL after having already failed to load wgl procedures.")
@@ -122,7 +122,7 @@ _gl_init :: proc(ctx: ^Context, major, minor: int) -> bool {
     return true
 }
 
-_gl_swap_buffers :: proc(ctx: ^Context) {
+_gl_swap_buffers :: proc() {
     res := win32.SwapBuffers(ctx.win32_hdc)
     fmt.assertf(res == true, "Failed to swap buffers. %v", _win32_last_error_message())
 }

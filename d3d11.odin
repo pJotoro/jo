@@ -31,7 +31,7 @@ D3D11_Context :: struct {
 // TODO: figure out fullscreen thing.
 
 // If you have already initialized any D3D11 objects, this procedure won't touch them.
-d3d11_init :: proc(ctx: ^Context, d3d11_ctx: ^D3D11_Context = nil) -> (res: win32.HRESULT) {
+d3d11_init :: proc(d3d11_ctx: ^D3D11_Context = nil) -> (res: win32.HRESULT) {
 	assert(!ctx.graphics_api_initialized, "Graphics API already initialized.")
 
 	d3d11_ctx := d3d11_ctx
@@ -71,7 +71,7 @@ d3d11_init :: proc(ctx: ^Context, d3d11_ctx: ^D3D11_Context = nil) -> (res: win3
 	}
 
 	if d3d11_ctx.swapchain == nil {
-		r := client_rect(ctx)
+		r := client_rect()
 
 		swapchain_desc := dxgi.SWAP_CHAIN_DESC1{
 			Width  = u32(r.w),
@@ -173,7 +173,7 @@ d3d11_init :: proc(ctx: ^Context, d3d11_ctx: ^D3D11_Context = nil) -> (res: win3
 	return
 }
 
-d3d11_swap_buffers :: proc(ctx: ^Context) {
+d3d11_swap_buffers :: proc() {
 	ctx.d3d11_ctx.swapchain->Present(1, {})
 	ctx.gpu_swapped_buffers = true
 }

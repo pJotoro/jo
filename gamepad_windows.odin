@@ -3,7 +3,7 @@ package jo
 import win32 "core:sys/windows"
 import "core:fmt"
 
-_try_connect_gamepad :: proc(ctx: ^Context, g_idx: int) {
+_try_connect_gamepad :: proc(g_idx: int) {
 	state: win32.XINPUT_STATE = ---
 	
 	result := win32.XInputGetState(win32.XUSER(g_idx), &state)
@@ -17,31 +17,31 @@ _try_connect_gamepad :: proc(ctx: ^Context, g_idx: int) {
 
 	ctx.gamepads[g_idx].buttons = transmute(Gamepad_Buttons)xinput_gamepad.wButtons
 	
-	ctx.gamepads[g_idx].left_trigger = f64(xinput_gamepad.bLeftTrigger)/f64(max(win32.BYTE))
-	ctx.gamepads[g_idx].right_trigger = f64(xinput_gamepad.bRightTrigger)/f64(max(win32.BYTE))
-	ctx.gamepads[g_idx].left_stick.x = f64(xinput_gamepad.sThumbLX)/f64(max(win32.SHORT))
-	ctx.gamepads[g_idx].left_stick.y = f64(xinput_gamepad.sThumbLY)/f64(max(win32.SHORT))
-	ctx.gamepads[g_idx].right_stick.x = f64(xinput_gamepad.sThumbRX)/f64(max(win32.SHORT))
-	ctx.gamepads[g_idx].right_stick.y = f64(xinput_gamepad.sThumbRY)/f64(max(win32.SHORT))
+	ctx.gamepads[g_idx].left_trigger = f32(xinput_gamepad.bLeftTrigger)/f32(max(win32.BYTE))
+	ctx.gamepads[g_idx].right_trigger = f32(xinput_gamepad.bRightTrigger)/f32(max(win32.BYTE))
+	ctx.gamepads[g_idx].left_stick.x = f32(xinput_gamepad.sThumbLX)/f32(max(win32.SHORT))
+	ctx.gamepads[g_idx].left_stick.y = f32(xinput_gamepad.sThumbLY)/f32(max(win32.SHORT))
+	ctx.gamepads[g_idx].right_stick.x = f32(xinput_gamepad.sThumbRX)/f32(max(win32.SHORT))
+	ctx.gamepads[g_idx].right_stick.y = f32(xinput_gamepad.sThumbRY)/f32(max(win32.SHORT))
 
 	// TODO: custom deadzones?
 
-	ctx.gamepads[g_idx].trigger_deadzone = f64(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD)/f64(max(win32.BYTE))
-	ctx.gamepads[g_idx].left_stick_deadzone = f64(win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)/f64(max(win32.SHORT))
-	ctx.gamepads[g_idx].right_stick_deadzone = f64(win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)/f64(max(win32.SHORT))
+	ctx.gamepads[g_idx].trigger_deadzone = f32(win32.XINPUT_GAMEPAD_TRIGGER_THRESHOLD)/f32(max(win32.BYTE))
+	ctx.gamepads[g_idx].left_stick_deadzone = f32(win32.XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)/f32(max(win32.SHORT))
+	ctx.gamepads[g_idx].right_stick_deadzone = f32(win32.XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)/f32(max(win32.SHORT))
 }
 
-_gamepad_set_vibration :: proc(ctx: ^Context, g_idx: int, left_motor, right_motor: f64) -> bool {
+_gamepad_set_vibration :: proc(g_idx: int, left_motor, right_motor: f32) -> bool {
 	xinput_vibration: win32.XINPUT_VIBRATION
-	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f64(max(u16)))
-	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f64(max(u16)))
+	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f32(max(u16)))
+	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f32(max(u16)))
 	return win32.XInputSetState(win32.XUSER(g_idx), &xinput_vibration) == .SUCCESS
 }
 
-_gamepad_battery_level :: proc(ctx: ^Context, g_idx: int) -> (battery_level: f64, has_battery: bool) {
+_gamepad_battery_level :: proc(g_idx: int) -> (battery_level: f32, has_battery: bool) {
 	info: win32.XINPUT_BATTERY_INFORMATION
 	res := win32.XInputGetBatteryInformation(win32.XUSER(g_idx), {}, &info)
-	fmt.assertf(res == .SUCCESS, "Win32: failed to get battery level information for gamepad %v", g_idx)
+	ensure(res == .SUCCESS)
 	switch info.BatteryType {
 		case .DISCONNECTED, .WIRED, .UNKNOWN:
 		case .ALKALINE, .NIMH:
@@ -60,7 +60,7 @@ _gamepad_battery_level :: proc(ctx: ^Context, g_idx: int) -> (battery_level: f64
 	return
 }
 
-_gamepad_capabilities :: proc(ctx: ^Context, g_idx: int) -> (capabilities: Gamepad_Capabilities, ok: bool) {
+_gamepad_capabilities :: proc(g_idx: int) -> (capabilities: Gamepad_Capabilities, ok: bool) {
 	c: win32.XINPUT_CAPABILITIES
 	res := win32.XInputGetCapabilities(win32.XUSER(g_idx), {}, &c)
 	if res != .SUCCESS {	
