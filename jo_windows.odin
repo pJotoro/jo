@@ -263,22 +263,6 @@ foreign user32 {
     GetCursor :: proc() -> win32.HCURSOR ---
 }
 
-_win32_client_rect_to_window_rect :: proc(client_rect: Rect, style, ex_style: u32) -> (window_rect: Rect) {
-    win32_rect := win32.RECT{i32(client_rect.x), i32(client_rect.y), i32(client_rect.x + client_rect.w), i32(client_rect.y + client_rect.h)}
-    
-    res := win32.AdjustWindowRectExForDpi(&win32_rect, style, false, ex_style, u32(ctx.dpi))
-    ensure(res == true, _win32_last_error_message())
-
-    window_rect = Rect {
-        x = int(win32_rect.left),
-        y = int(win32_rect.top),
-        w = int(win32_rect.right - win32_rect.left),
-        h = int(win32_rect.bottom - win32_rect.top),
-    }
-
-    return
-}
-
 _init :: proc() {
     ctx.win32_cursor = GetCursor()
     
@@ -315,46 +299,29 @@ _init :: proc() {
     {
         style, ex_style: u32
         window_rect: Rect
-        switch wm in window_mode {
-            case Window_Mode_Windowed:
-                rect := Rect(wm)
+        when !JO_FULLSCREEN {
+            style = win32.WS_CAPTION | win32.WS_SYSMENU
+            ex_style = 0
 
-                // TODO: This doesn't really belong here. Move this into a cross-platform procedure.
-                if rect.w == 0 && rect.h == 0 {
-                    rect.w = ctx.screen.w / 2
-                    rect.h = ctx.screen.h / 2
-                } else if rect.w > 0 && rect.h == 0 {
-                    rect.h = rect.w*ctx.screen.h / ctx.screen.w
-                } else if rect.w == 0 && rect.h > 0 {
-                    rect.w = rect.h*ctx.screen.w / ctx.screen.h
-                }
-                if rect.x == 0 {
-                    rect.x = (ctx.screen.w - rect.w) / 2
-                }
-                if rect.y == 0 {
-                    rect.y = (ctx.screen.h - rect.h) / 2
-                }
-                ctx.window_mode = Window_Mode_Windowed(rect)
+            win32_rect := win32.RECT{i32(ctx.screen.x/4), i32(ctx.screen.y/4), i32(ctx.screen.x/2), i32(ctx.screen.y/2),}
+    
+            res := win32.AdjustWindowRectExForDpi(&win32_rect, style, false, ex_style, u32(ctx.dpi))
+            ensure(res == true, _win32_last_error_message())
 
-                style = win32.WS_CAPTION | win32.WS_SYSMENU
-                ex_style = 0
-
-                window_rect = _win32_client_rect_to_window_rect(
-                    client_rect = rect, 
-                    style = style, 
-                    ex_style = ex_style)
-
-            case Window_Mode_Fullscreen:
-                window_rect.w = ctx.screen.w
-                window_rect.h = ctx.screen.h
-                style = win32.WS_POPUP
-                ex_style = 0
-                if wm.topmost {
-                    ex_style |= win32.WS_EX_TOPMOST
-                }
-
-            case:
-                panic("unknown window mode")
+            window_rect = Rect {
+                x = int(win32_rect.left),
+                y = int(win32_rect.top),
+                w = int(win32_rect.right - win32_rect.left),
+                h = int(win32_rect.bottom - win32_rect.top),
+            }
+        } else {
+            window_rect.w = ctx.screen.w
+            window_rect.h = ctx.screen.h
+            style = win32.WS_POPUP
+            ex_style = 0
+        }
+        when JO_TOPMOST {
+            ex_style |= win32.WS_EX_TOPMOST
         }
 
         ctx.win32_window = win32.CreateWindowExW(

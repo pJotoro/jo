@@ -6,6 +6,7 @@ import "core:time"
 
 JO_DEBUG :: #config(JO_DEBUG, ODIN_DEBUG)
 JO_FULLSCREEN :: #config(JO_FULLSCREEN, !JO_DEBUG)
+JO_TOPMOST :: #config(JO_TOPMOST, JO_FULLSCREEN)
 
 JO_GL :: #config(JO_GL, true)
 JO_D3D11 :: #config(JO_D3D11, true)
@@ -13,7 +14,7 @@ JO_D3D11 :: #config(JO_D3D11, true)
 // TADALA: The whole "get set" thing was some dumb idea you had when you were like 19.
 // You thought that it would be a good idea to let the user of the library directly access
 // variables instead of using get/set procedures. In reality, it is not, because then you
-// have to all of a sudden pass this ctx struct everywhere, which is annoying and unecessary.
+// have to all of a sudden pass this ctx struct everywhere, which is annoying and unnecessary.
 // Therefore, add all the get/set procedures back.
 
 // TADALA: Another dumb idea I had was that you shouldn't handle events by just looping through
@@ -22,6 +23,8 @@ JO_D3D11 :: #config(JO_D3D11, true)
 // and let the user figure out what to do with them.
 
 // TADALA: There was a time where I was trying to add support for webassembly. Now, I still think that eventually adding support for other libraries would be great, but for now, it would be better to focus on Windows only. Therefore, remove any reference to other platforms.
+
+// TADALALALA: Should we even have events? I mean, I don't want this to be only a framework like SDL anymore. Instead, I want it to be a full-blown engine for making 2D games. So, why even have events at the API level then?
 
 Context :: struct {
     initialized: bool,
@@ -46,8 +49,7 @@ Context :: struct {
 }
 ctx: Context
 
-Jo_Update_Proc :: #type proc(dt: f32, user_data: rawptr)
-Jo_Fixed_Update_Proc :: #type proc(dt: f32, user_data: rawptr)
+Update_Proc :: #type proc(dt: f32, user_data: rawptr)
 
 Graphics_Api :: enum {
     Software,
@@ -67,7 +69,7 @@ Input :: distinct bit_set[Input_Kind; u8]
 
 // You must call this before any other procedure.
 // It initializes the library.
-init :: proc(title: string, update_proc: Jo_Update_Proc, fixed_update_proc: Jo_Fixed_Update_Proc, user_data: rawptr) {
+init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, user_data: rawptr) {
     assert(!ctx.initialized, "jo already initialized.")
 
     _init()
