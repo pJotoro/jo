@@ -1,4 +1,4 @@
-package app
+package jo
 
 import "core:sys/wasm/js"
 

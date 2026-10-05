@@ -1,4 +1,4 @@
-package app
+package jo
 
 import "base:runtime"
 import win32 "core:sys/windows"

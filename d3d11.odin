@@ -1,5 +1,5 @@
 #+ build windows
-package app
+package jo
 
 import win32 "core:sys/windows"
 import "vendor:directx/d3d11"

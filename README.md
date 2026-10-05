@@ -1,3 +1,1 @@
-# IMPORTANT:
-
-This is a library I tried to develop in my free time during college, the goal being to replace libraries like SDL. At this point, I've realized SDL is perfectly fine.
+I'm working on this again now. I'll write more here as soon as I have something working.

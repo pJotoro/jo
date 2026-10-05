@@ -1,4 +1,4 @@
-package app
+package jo
 
 import win32 "core:sys/windows"
 import "core:fmt"
