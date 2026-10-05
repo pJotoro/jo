@@ -1,5 +1,17 @@
 package jo
 
+/*
+The thing you need to realize is, this library is not going to be for everyone.
+Most of all, it will be for you.
+So, you don't need to make it maximally flexible.
+You just need to make it have the features that you want.
+If that means not allowing reading arbitrary keybord input, then so be it.
+
+Another thing we could do is, always treat it as if a controller is being used, and then behind the scenes, work out if the player is using keyboard and mouse. Meh. I don't know. Actually sure, why not. Since this game will only be for 2D games, a controller generally makes more sense anyway. So, why not?
+
+In any case, take the rest of the day to figure this out. It seems like for this project, API design is a much bigger problem than the actual implementation.
+*/
+
 // TODO: Add all keyboard keys, or as close to that as possible.
 Key :: enum u16 {
     Cancel,
