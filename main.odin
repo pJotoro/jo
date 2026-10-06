@@ -44,6 +44,10 @@ Tasks (for now):
 - Port over code from Legacy Fantasy (especially Vulkan and LDtk stuff).
 */
 
+/*
+Originally, I was going to make a very sharp distinction between the "game" and the "engine." Now, I've decided against that. It's an endless rabbit hole to go down, deciding which "engine features" to implement instead of actually making a game. So, instead of doing that, I'm going to make a 2D platformer; and unlike Legacy Fantasy, it will actually be a game, and not just a prototype.
+*/
+
 Context :: struct {
     initialized: bool,
 

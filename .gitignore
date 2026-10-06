@@ -1,11 +1,2 @@
-
-main.odin
-shader.frag
-shader.vert
-vert.spv
-frag.spv
-jo.exe
-jo.pdb
-ols.json
-build.bat
-debug.rdbg
+*.sublime-project
+*.sublime-workspace
