@@ -294,7 +294,7 @@ _init :: proc() {
             window_style = win32.WS_CAPTION | win32.WS_SYSMENU
             window_ex_style = 0
 
-            win32_rect := win32.RECT{i32(ctx.monitor.w/4), i32(ctx.monitor.h/4), i32(ctx.monitor.w/2), i32(ctx.monitor.h/2),}
+            win32_rect := win32.RECT{i32(ctx.monitor.w/4), i32(ctx.monitor.h/4), i32(ctx.monitor.w/4*3), i32(ctx.monitor.h/4*3)}
     
             res := win32.AdjustWindowRectExForDpi(&win32_rect, window_style, false, window_ex_style, u32(ctx.dpi))
             ensure(res == true, _win32_last_error_message())
