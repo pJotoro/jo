@@ -11,20 +11,20 @@ JO_TOPMOST :: #config(JO_TOPMOST, JO_FULLSCREEN)
 JO_GL :: #config(JO_GL, true)
 JO_D3D11 :: #config(JO_D3D11, true)
 
-// TADALA: The whole "get set" thing was some dumb idea you had when you were like 19.
-// You thought that it would be a good idea to let the user of the library directly access
-// variables instead of using get/set procedures. In reality, it is not, because then you
-// have to all of a sudden pass this ctx struct everywhere, which is annoying and unnecessary.
-// Therefore, add all the get/set procedures back.
-
-// TADALA: Another dumb idea I had was that you shouldn't handle events by just looping through
-// every event. Instead, you should handle input by just accessing an array and also a text input
-// buffer. This is really dumb. Just put *all* the events in an array, no matter what they are,
-// and let the user figure out what to do with them.
-
-// TADALA: There was a time where I was trying to add support for webassembly. Now, I still think that eventually adding support for other libraries would be great, but for now, it would be better to focus on Windows only. Therefore, remove any reference to other platforms.
-
-// TADALALALA: Should we even have events? I mean, I don't want this to be only a framework like SDL anymore. Instead, I want it to be a full-blown engine for making 2D games. So, why even have events at the API level then?
+/*
+- Input handling
+    - Should we allow keyboard input to be queried directly? Or should we always treat it as if the player is using a controller? What about mouse input?
+    - Should we switch over to Microsoft's new API for gamepad input? Should we use both that and XInput? How much does it change things either way?
+    - Should we allow the user to handle events themselves, or should they always just be handled by the engine?
+    - How should text input be handled? Should we make the engine always be recording a text input buffer for convenience?
+    - When it comes to gamepad input, should we make the user use the gamepad's index directly? Or should we make the user request a gamepad handle, which then gets mapped to an actual gamepad index?
+- Graphics
+    - Should we automatically select the graphics API? If so, how? What are our priorities?
+    - Should we implement different graphics APIs, or just use one? Obviously, I want to just use Vulkan, but maybe not everyone has that.
+    - Should we allow the user to draw sprites themselves directly? Or should it all be done through LDtk?
+- Audio
+    - Should we even bother with this? If so, would it make sense to just use miniaudio?
+*/
 
 Context :: struct {
     initialized: bool,
@@ -82,9 +82,10 @@ Input :: distinct bit_set[Input_Kind; u8]
 
 // You must call this before any other procedure.
 // It initializes the library.
-init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, user_data: rawptr) {
+init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, ldtk_file := "", user_data: rawptr = nil) {
     assert(!ctx.initialized, "jo already initialized.")
 
+    ctx.title = title
     _init()
 
     when JO_FULLSCREEN {
