@@ -35,6 +35,15 @@ JO_D3D11 :: #config(JO_D3D11, true)
         - Let's just use miniaudio.
 */
 
+/*
+Tasks (for now):
+
+- Make keyboard and mouse input work how it used to.
+- Remove text input.
+- Replace XInput with GameInput.
+- Port over code from Legacy Fantasy (especially Vulkan and LDtk stuff).
+*/
+
 Context :: struct {
     initialized: bool,
 
