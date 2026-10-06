@@ -1,6 +1,6 @@
-#+ build windows
 package jo
 
+/*
 import win32 "core:sys/windows"
 import "vendor:directx/d3d11"
 import "vendor:directx/dxgi"
@@ -184,3 +184,4 @@ else {
 D3D11_Context :: struct {}
 
 }
+*/

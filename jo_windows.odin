@@ -20,7 +20,7 @@ OS_Specific :: struct {
     win32_window_ready: int, // 0=no, 1=almost, 2=yes
 
     window_rect: Rect,
-    d3d11_ctx: ^D3D11_Context,
+    // d3d11_ctx: ^D3D11_Context,
 }
 
 L :: intrinsics.constant_utf16_cstring
@@ -29,10 +29,12 @@ _win32_event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_p
     context = runtime.default_context()
 
     ctx := transmute(^Context)win32.GetWindowLongPtrW(window, win32.GWLP_USERDATA)
-    assert(ctx != nil)
+    // assert(ctx != nil)
+    // TODO
 
     result := win32.LRESULT(0)
 
+/*
     get_key :: proc(vk: win32.WPARAM) -> Key {
         switch vk {
             case win32.VK_CANCEL:       return .Cancel
@@ -153,23 +155,13 @@ _win32_event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_p
 
         panic("Win32: unsupported key")
     }
+*/
 
     switch message {
         case win32.WM_CLOSE, win32.WM_DESTROY, win32.WM_QUIT:
             ctx.running = false
 
-        case win32.WM_ACTIVATE:
-            w_param := transmute([4]u16)w_param
-            if w_param[0] == win32.WA_INACTIVE {
-                ctx.open = false
-            } else {
-                ctx.open = true
-
-                if _, ok := ctx.window_mode.(Window_Mode_Fullscreen); ok {
-                    _toggle_cursor(false)
-                }
-            }
-
+/*
         case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
             key := get_key(w_param)
             if !(int(key) > len(ctx.keys)) {
@@ -244,7 +236,8 @@ _win32_event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_p
             if !unicode.is_control(r) {
                 io.write_rune(ctx.text_input, r)
             }
-            
+*/  
+
         case:
             result = win32.DefWindowProcW(window, message, w_param, l_param)
             
@@ -301,7 +294,7 @@ _init :: proc() {
             window_style = win32.WS_CAPTION | win32.WS_SYSMENU
             window_ex_style = 0
 
-            win32_rect := win32.RECT{i32(ctx.monitor.x/4), i32(ctx.monitor.y/4), i32(ctx.monitor.x/2), i32(ctx.monitor.y/2),}
+            win32_rect := win32.RECT{i32(ctx.monitor.w/4), i32(ctx.monitor.h/4), i32(ctx.monitor.w/2), i32(ctx.monitor.h/2),}
     
             res := win32.AdjustWindowRectExForDpi(&win32_rect, window_style, false, window_ex_style, u32(ctx.dpi))
             ensure(res == true, _win32_last_error_message())

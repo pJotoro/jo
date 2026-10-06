@@ -28,8 +28,8 @@ gl_init :: proc(major, minor: int, debug_callback: gl.debug_proc_t = gl_debug_ca
         }
     }
     
-    cr := client_rect()
-    gl.Viewport(0, 0, i32(cr.w), i32(cr.h))
+    // cr := client_rect()
+    // gl.Viewport(0, 0, i32(cr.w), i32(cr.h))
 
     ctx.graphics_api = .OpenGL
     ctx.graphics_api_initialized = true

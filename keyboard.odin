@@ -12,7 +12,7 @@ Another thing we could do is, always treat it as if a controller is being used, 
 In any case, take the rest of the day to figure this out. It seems like for this project, API design is a much bigger problem than the actual implementation.
 */
 
-// TODO: Add all keyboard keys, or as close to that as possible.
+/*
 Key :: enum u16 {
     Cancel,
     Backspace,
@@ -132,3 +132,4 @@ Key :: enum u16 {
     Comma,
     Period,
 }
+*/

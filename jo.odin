@@ -39,7 +39,6 @@ Context :: struct {
     monitor: struct {w, h: int},
 
     running: bool,
-    open: bool,
 
     // gamepads: [4]Gamepad,
 
@@ -69,6 +68,7 @@ Graphics_Api :: enum {
     D3D11,
 }
 
+/*
 Input_Kind :: enum u8 {
     Down,
     Pressed,
@@ -78,6 +78,7 @@ Input_Kind :: enum u8 {
     Exit, // exits the program when pressed
 }
 Input :: distinct bit_set[Input_Kind; u8]
+*/
 
 // You must call this before any other procedure.
 // It initializes the library.
@@ -103,6 +104,7 @@ init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, user_da
     dt: f32
 
     for ctx.running {
+        /*
         INPUT_REMOVE :: Input{.Pressed, .Released, /*.Repeat,*/ .Double_Click}
         for &key in ctx.keys {
             if .Pressed in key && .Exit in key {
@@ -116,6 +118,7 @@ init :: proc(title: string, update_proc, fixed_update_proc: Update_Proc, user_da
         ctx.mouse.right -= INPUT_REMOVE
         ctx.mouse.middle -= INPUT_REMOVE
         ctx.mouse.wheel = 0
+        */
 
         /*
         for g_idx in 0..<len(ctx.gamepads) {
