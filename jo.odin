@@ -14,16 +14,25 @@ JO_D3D11 :: #config(JO_D3D11, true)
 /*
 - Input handling
     - Should we allow keyboard input to be queried directly? Or should we always treat it as if the player is using a controller? What about mouse input?
+        - The user should be able to query keyboard and mouse input directly.
     - Should we switch over to Microsoft's new API for gamepad input? Should we use both that and XInput? How much does it change things either way?
+        We should switch over to using GameInput, and only that, not XInput. They are different enough that supporting both we be beyond the scope of this project.
     - Should we allow the user to handle events themselves, or should they always just be handled by the engine?
+        - They should always just be handled by the engine. Wherever this becomes an issue, we can just solve the problem at that point.
     - How should text input be handled? Should we make the engine always be recording a text input buffer for convenience?
+        - Honestly, I don't think this really matters. Eventually, we could do things like automatically record a text input buffer and feed that to MicroUI, but for now, I could care less.
     - When it comes to gamepad input, should we make the user use the gamepad's index directly? Or should we make the user request a gamepad handle, which then gets mapped to an actual gamepad index?
+        This doesn't apply anymore, because GameInput doesn't require you to query which device is being used.
 - Graphics
     - Should we automatically select the graphics API? If so, how? What are our priorities?
+        - We should just use Vulkan.
     - Should we implement different graphics APIs, or just use one? Obviously, I want to just use Vulkan, but maybe not everyone has that.
+        - We should just use Vulkan. In general, I wouldn't support just ignoring other graphics APIs like that, but for this project, I think it's fine. Maybe we could eventually bring back OpenGL in the future if we have time?
     - Should we allow the user to draw sprites themselves directly? Or should it all be done through LDtk?
+        - We should not let the user draw sprites themselves. I want this to be a tiny, easy to use engine that either does exactly what you want, or it doesn't.
 - Audio
     - Should we even bother with this? If so, would it make sense to just use miniaudio?
+        - Let's just use miniaudio.
 */
 
 Context :: struct {
