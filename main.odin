@@ -5,9 +5,13 @@ import "base:runtime"
 import "core:time"
 import "core:strings"
 import "core:math"
+import "core:bytes"
+import "core:io"
 
 import win32 "core:sys/windows"
 L :: intrinsics.constant_utf16_cstring
+
+import ase "aseprite"
 
 JO_DEBUG :: #config(JO_DEBUG, ODIN_DEBUG)
 JO_FULLSCREEN :: #config(JO_FULLSCREEN, !JO_DEBUG)
@@ -34,12 +38,311 @@ height :: proc "contextless" (ctx: Context) -> int {
 	}
 }
 
+Sprite_Cell :: struct {
+	dst_buf: rawptr, // invalid after VulkanCreateStaticStagingBuffer.
+
+	origin: [2]i32,
+	size: [2]i32,
+	z_idx: i32,
+	layer_idx: u32,
+}
+
+Sprite_Frame :: struct {
+	/**
+	 * Why have multiple cells in each frame? The reason is because that's how Aseprite does 
+	 * things. In Aseprite, a sprite is made up of an array of frames, and each frame is made up 
+	 * of an array of cells. Each cell contains its own compressed image data, which is what 
+	 * SpriteCell::dst_buf stores. When it comes time to actually render the sprite, we render 
+	 * each cell as its own texture. This is actually plenty fast, because we don't store a 
+	 * different texture for each cell; instead, we make each sprite have one texture array, 
+	 * where each cell is one element of the texture array.
+	 * 
+	 * Now, you might ask: but why not merge the image data from each cell into one image before 
+	 * uploading to the GPU? That way, you don't have to render each cell separately, every single 
+	 * time; instead, you just do it all on the CPU beforehand. I'm sure this would be faster, but 
+	 * it would also be more complicated and less flexible. What if I wanted to apply a shader to 
+	 * just one cell? For example, a fire effect to just the player's sword. As it stands, this 
+	 * would be pretty trivial.
+	 */
+	cells: []Sprite_Cell,
+
+	/**
+	 * Not every frame necessarily has a hitbox. If it exists, it is literally drawn inside of
+	 * Aseprite in a layer called "Hitbox". See EntityGetHitbox to find out how a hitbox is
+	 * selected for an entity.
+	 */
+	hitbox: Rect,
+
+	/**
+	 * The duration of the frame. See AnimUpdate to find out how this is used.
+	 */
+	dur: f32,
+}
+
+Sprite_Desc :: struct {
+	origin: [2]i32;
+	size: [2]i32;
+	frames: []Sprite_Frame,
+	
+	vk_image: vk.Image,
+	vk_image_view: vk.ImageView,
+	vk_image_array_layers: uint,
+	vk_descriptor_set: vk.DescriptorSet,
+}
+
+Sprite :: distinct string
+
+Anim :: struct {
+	sprite: Sprite,
+	dt_accumulator: f32,
+	frame_idx: u32,
+	ended: bool,
+}
+
+Entity_Type :: enum {
+	Player,
+	Boar,
+}
+
+Entity_State :: enum {
+	Inactive,
+	Die,
+	Attack,
+	Fall,
+	Jump,
+	Free,
+	Hurt,	
+}
+
+Entity :: struct {
+	anim: Anim,
+
+	pos: [2]i32,
+	start_pos: [2]i32,
+	pos_remainder: [2]f32,
+	vel: [2]f32,
+	dir: i32,
+
+	type: Entity_Type,
+	state: Entity_State,
+}
+
 Context :: struct {
 	running: bool,
 	monitor: struct {
 		w, h: int,
 	},
-	gamepads: [4]Gamepad,
+	gamepad: Gamepad,
+	sprites: map[Sprite]Sprite_Desc,
+}
+
+spr_player_idle: Sprite
+spr_player_run: Sprite
+spr_player_jump_start: Sprite
+spr_player_jump_end: Sprite
+spr_player_attack: Sprite
+spr_player_die: Sprite
+
+spr_boar_idle: Sprite
+spr_boar_walk: Sprite
+spr_boar_run: Sprite
+spr_boar_hit: Sprite
+
+spr_tiles: Sprite
+
+// Sprite should just be the name of the sprite, without the rest of the path (folders, file extension).
+sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
+	buf := #load(path)
+	return _sprite_load(ctx, path, buf)
+
+	_sprite_load :: proc(ctx: ^Context, path: string, buf: []byte) {
+		sprite := sprite_from_path(path) // TODO
+		ctx.sprites[sprite] = {}
+
+		bytes_reader: bytes.Reader
+		rd := bytes.reader_init(&bytes_reader, buf)
+
+		header: Ase_Header
+		io.read_ptr(rd, &header, size_of(header))
+		SDL_ReadStructChecked(fs, &header);
+		SDL_assert(header.magic_number == 0xA5E0);
+
+		SDL_assert(header.color_depth == 32);
+		SDL_assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1));
+		SDL_assert(header.grid_x == 0);
+		SDL_assert(header.grid_y == 0);
+		SDL_assert(header.grid_w == 0 || header.grid_w == 16);
+		SDL_assert(header.grid_h == 0 || header.grid_h == 16);
+
+		sd->size.x = (int32_t)header.w;
+		sd->size.y = (int32_t)header.h;
+
+		sd->num_frames = header.num_frames;
+		sd->frames = ArenaAlloc(&ctx->arena, sd->num_frames, SpriteFrame);
+
+		// The hitbox layer and origin layer are specialized layers whose image data is not to be used for rendering.
+		// We must search for them so that we can extract information out of them.
+		uint16_t hitbox_layer_idx = UINT16_MAX;
+		uint16_t origin_layer_idx = UINT16_MAX;
+
+		for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
+		{
+			ASE_Frame frame;
+			SDL_ReadStructChecked(fs, &frame);
+			SDL_assert(frame.magic_number == 0xF1FA);
+
+			// Would mean this aseprite file is very old.
+			SDL_assert(frame.num_chunks != 0);
+
+			sd->frames[frame_idx].dur = ((float)frame.frame_dur)/(1000.0f/60.0f);
+
+			int64_t fs_pos = SDL_TellIO(fs);
+
+			// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame, but not necessarily before everything else in that frame.
+			// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
+			if (frame_idx == 0) 
+			{
+				for (size_t chunk_idx = 0, layer_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
+				{
+					void* raw_chunk; 
+					size_t raw_chunk_size;
+					ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
+					if (chunk_type == ASE_ChunkType_Layer) 
+					{
+						ASE_LayerChunk* chunk = raw_chunk;
+						SDL_assert(chunk->layer_name.len > 0);
+
+						char* layer_name = StackAlloc(&ctx->stack, chunk->layer_name.len + 1, char);
+						SDL_strlcpy(layer_name, (const char*)(chunk+1), chunk->layer_name.len + 1);
+
+						if (SDL_strcmp(layer_name, "Hitbox") == 0) 
+						{
+							bool hitbox_layer_is_unique = (hitbox_layer_idx == UINT16_MAX);
+							SDL_assert(hitbox_layer_is_unique);
+							hitbox_layer_idx = (uint16_t)layer_idx;
+						} 
+						else if (SDL_strcmp(layer_name, "Origin") == 0) 
+						{
+							bool origin_layer_is_unique = (origin_layer_idx == UINT16_MAX);
+							SDL_assert(origin_layer_is_unique);
+							origin_layer_idx = (uint16_t)layer_idx;					
+						}
+						layer_idx += 1;
+
+						StackFree(&ctx->stack, layer_name);
+					}
+
+					StackFree(&ctx->stack, raw_chunk);
+				}
+
+				SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
+			}
+			
+			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1)
+			{
+				void* raw_chunk;
+				size_t raw_chunk_size;
+				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
+
+				if (chunk_type == ASE_ChunkType_Cell)
+				{
+					ASE_CellChunk* chunk = raw_chunk;
+					if (chunk->layer_idx == hitbox_layer_idx)
+					{
+						sd->frames[frame_idx].hitbox = (Rect)
+						{
+							.min.x = (int32_t)chunk->x,
+							.min.y = (int32_t)chunk->y,
+							.max.x = (int32_t)(chunk->x + chunk->w),
+							.max.y = (int32_t)(chunk->y + chunk->h),
+						};
+					} 
+					else if (chunk->layer_idx == origin_layer_idx) 
+					{
+						if (frame_idx == 0)
+						{
+							sd->origin = (ivec2s){(int32_t)chunk->x, (int32_t)chunk->y};
+						}
+					} 
+					else 
+					{
+						sd->frames[frame_idx].num_cells += 1;
+						SDL_assert(chunk->type == ASE_CellType_CompressedImage);
+					}
+				}
+
+				StackFree(&ctx->stack, raw_chunk);
+			}
+
+			if (sd->frames[frame_idx].num_cells > 0) 
+			{
+				sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
+				size_t cell_idx = 0;
+
+				SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
+
+				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
+				{
+					void* raw_chunk; 
+					size_t raw_chunk_size;
+					ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
+
+					ASE_CellChunk* chunk = raw_chunk;
+					if (chunk_type == ASE_ChunkType_Cell && 
+						chunk->layer_idx != hitbox_layer_idx && 
+						chunk->layer_idx != origin_layer_idx) 
+					{
+
+						SpriteCell cell = 
+						{
+							.origin.x = (int32_t)chunk->x,
+							.origin.y = (int32_t)chunk->y,
+							.z_idx = chunk->z_idx,
+							.layer_idx = (uint32_t)chunk->layer_idx,
+							.size.x = (int32_t)chunk->w,
+							.size.y = (int32_t)chunk->h,
+						};
+
+						SDL_assert(cell.size.x != 0 && cell.size.y != 0);
+						size_t dst_buf_size = cell.size.x*cell.size.y * sizeof(uint32_t);
+						cell.dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(cell.dst_buf);
+
+						// But I thought calling malloc was bad! What gives?
+						// In this case, it's fine, because each destination buffer is getting allocated one after the other, only to later be freed one after the other.
+						// Which is to say, there is no way for heap fragmentation to happen given the way I'm using it.
+
+						// It's the zero-sized array at the end of ASE_CellChunk.
+						size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2;
+						void* src_buf = (void*)((&chunk->h)+1);
+
+						// Decompress the image data.
+						SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
+						size_t res = INFL_ZInflate(cell.dst_buf, dst_buf_size, src_buf, src_buf_size);
+						SPALL_BUFFER_END();
+						SDL_assert(res > 0);
+
+						SDL_assert(cell_idx < sd->frames[frame_idx].num_cells);
+						sd->frames[frame_idx].cells[cell_idx++] = cell;
+					}
+
+					StackFree(&ctx->stack, raw_chunk);
+				}
+
+				// Makes the cells draw in the correct order.
+				SDL_assert(frame_idx < sd->num_frames);
+				SDL_qsort(
+					sd->frames[frame_idx].cells, 
+					sd->frames[frame_idx].num_cells, 
+					sizeof(SpriteCell), 
+					(SDL_CompareCallback)CompareSpriteCells);
+			}
+		}
+
+		SDL_CloseIO(fs);
+		SPALL_BUFFER_END();
+		ctx->num_sprites++;
+		return sprite;
+	}
 }
 
 main :: proc() {
@@ -143,37 +446,30 @@ main :: proc() {
 	   win32.SetCursor(nil)
 	}
 
-	/*
-	for gamepad_index in 0..<len(ctx.gamepads) {
-	   try_connect_gamepad(gamepad_index)
-	}
-	*/
+	try_connect_gamepad(&ctx, 0)
 
+	spr_player_idle = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Idle/Idle.aseprite")
+	spr_player_run = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Run/Run.aseprite")
+	spr_player_jump_start = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Jump-Start/Jump-Start.aseprite")
+	spr_player_jump_end = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Jump-End/Jump-End.aseprite")
+	spr_player_attack = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Attack-01/Attack-01.aseprite")
+	spr_player_die = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Dead/Dead.aseprite")
+
+	spr_boar_idle = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Idle/Idle.aseprite")
+	spr_boar_walk = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Walk/Walk-Base.aseprite")
+	spr_boar_run = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Run/Run.aseprite")
+	spr_boar_hit = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
+
+	spr_tiles = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
 
 	last_tick := time.tick_now()
 	dt: f32
 
 	ctx.running = true
 	for ctx.running {
-		/*
-		INPUT_REMOVE :: Input{.Pressed, .Released, /*.Repeat,*/ .Double_Click}
-		for &key in ctx.keys {
-			if .Pressed in key && .Exit in key {
-			   ctx.running = false
-			   return false
-			}
-
-			key -= INPUT_REMOVE
+		if ctx.gamepad.connected {
+		   try_connect_gamepad(0)
 		}
-		*/
-
-		/*
-		for g_idx in 0..<len(ctx.gamepads) {
-			if ctx.gamepads[g_idx].connected {
-			   try_connect_gamepad(g_idx)
-			}
-		}
-		*/
 
 		@static window_ready := -1
 		if window_ready == -1 {
@@ -356,3 +652,172 @@ gamepad_set_vibration :: proc(ctx: ^Context, g_idx: int, left_motor, right_motor
 	assert(res, "Failed to set vibration.", loc)
 }
 
+sprite_get_origin :: proc "contextless" (sd: Sprite_Desc, dir: i32) -> [2]i32 {
+	origin := sd.origin
+	if (dir == -1) 
+	{
+		origin.x = sd.size.x - origin.x;
+	}
+	return origin;
+}
+
+entity_get_origin :: proc "contextless" (ctx: ^Context, entity: ^Entity) -> [2]i32 {
+	return sprite_get_origin(ctx.sprites[entity.anim.sprite], entity.dir)
+}
+
+get_origin :: proc {
+	sprite_get_origin,
+	entity_get_origin,
+}
+
+anim_set_sprite :: proc(anim: ^Anim, sprite: Sprite) -> bool {
+    sprite_changed := false
+    if (anim.sprite != sprite) 
+    {
+        sprite_changed = true;
+        anim_reset(anim)
+        anim.sprite = sprite
+    }
+    return sprite_changed
+}
+
+anim_update :: proc "contextless" (ctx: ^Context, anim: ^Anim, loop: bool) {
+	sd := ctx.sprites[anim.sprite]
+	dur := sd.frames[anim.frame_idx].dur;
+	num_frames := sd.num_frames;
+
+    if (loop || !anim.ended) 
+    {
+        anim.dt_accumulator += dt
+        if (anim.dt_accumulator >= dur) 
+        {
+            anim.dt_accumulator = 0.0
+            anim.frame_idx += 1
+            if (int(anim.frame_idx) >= num_frames) 
+            {
+                if loop {
+                	anim.frame_idx = 0
+                } else {
+                    anim.frame_idx -= 1
+                    anim.ended = true
+                }
+            }
+        }
+    }
+}
+
+reset_game :: proc(ctx: ^Context) 
+{
+	player := &ctx.level.entities[0]
+	
+	anim_reset(&player.anim)
+	anim_set_sprite(&player.anim, player_idle)
+	player.pos = player.start_pos
+	player.state = .Free
+	player.vel = {}
+	player.dir = 1
+
+	for entity_idx := 1; entity_idx < len(ctx.level.entities); entity_idx += 1 {
+		enemy := &ctx.level.entities[entity_idx]
+
+		anim_reset(&enemy.anim)
+		if (enemy.type == .Boar) {
+			anim_set_sprite(&enemy.anim, boar_idle)
+		} 
+		// else if (entity.type == .Whatever) {}
+		enemy.pos = enemy.start_pos
+		enemy.state = .Free
+		enemy.vel = {}
+		enemy.dir = 1
+	}	
+}
+
+static ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) 
+{
+	SpriteDesc* sd = SpriteGetDesc(ctx, tileset);
+	SDL_assert(sd->num_frames == 1);
+	SDL_assert(sd->frames[0].num_cells == 1);
+	return sd->size;
+}
+
+static bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
+{
+	bool res = false;
+	SpriteDesc* sd = SpriteGetDesc(ctx, sprite); SDL_assert(sd);
+	SDL_assert(frame_idx < sd->num_frames); 
+	SpriteFrame* frame = &sd->frames[frame_idx];
+	SDL_assert(hitbox);
+	*hitbox = frame->hitbox;
+	if (dir == -1) 
+	{
+		hitbox->min.x = -frame->hitbox.max.x + sd->size.x;
+		hitbox->max.x = -frame->hitbox.min.x + sd->size.x;
+	}
+	if (hitbox->max.x > hitbox->min.x && hitbox->max.y > hitbox->min.y) 
+	{
+		res = true;
+	}
+	return res;
+}
+
+static Rect EntityGetHitbox(Context* ctx, Entity* entity) 
+{
+	SPALL_BUFFER_BEGIN();
+	Rect hitbox = {0};
+	SpriteDesc* sd = SpriteGetDesc(ctx, entity->anim.sprite);
+
+	/**
+	 * First, try to find the hitbox at the current frame index or earlier.
+	 * If that doesn't work, try to find the hitbox at the current frame index plus one or later.
+	 * If that doesn't work, trigger an assertion.
+	 */
+	bool res = false;
+	for (
+		ssize_t frame_idx = (ssize_t)entity->anim.frame_idx; 
+		frame_idx >= 0 && !res; 
+		frame_idx -= 1) 
+	{
+		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
+	}
+	if (!res) 
+	{
+		for (
+			size_t frame_idx = entity->anim.frame_idx + 1; 
+			frame_idx < sd->num_frames && !res; 
+			frame_idx += 1) 
+		{
+			res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir, &hitbox);
+		}
+	}
+	SDL_assert(res);
+
+	SPALL_BUFFER_END();
+	return hitbox;
+}
+
+static Rect EntityGetRect(Context* ctx, Entity* entity)
+{
+	Rect res = EntityGetHitbox(ctx, entity);
+	res.min = glms_ivec2_add(res.min, entity->pos); 
+	res.max = glms_ivec2_add(res.max, entity->pos);
+	ivec2s origin = EntityGetOrigin(ctx, entity); 
+	res.min = glms_ivec2_sub(res.min, origin); 
+	res.max = glms_ivec2_sub(res.max, origin); 
+	return res;
+}
+
+static bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
+{
+	SPALL_BUFFER_BEGIN();
+	bool res = false;
+
+    if (a->state != EntityState_Inactive && b->state != EntityState_Inactive)
+    {
+    	Rect ha = EntityGetRect(ctx, a);
+    	Rect hb = EntityGetRect(ctx, b);
+    	res = RectsIntersect(ha, hb);
+    } 
+
+    SPALL_BUFFER_END();
+    return res;
+}
