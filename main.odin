@@ -7,6 +7,8 @@ import "core:strings"
 import "core:math"
 import "core:bytes"
 import "core:io"
+import "core:mem"
+import "core:compress/zlib"
 
 import win32 "core:sys/windows"
 L :: intrinsics.constant_utf16_cstring
@@ -18,8 +20,10 @@ JO_FULLSCREEN :: #config(JO_FULLSCREEN, !JO_DEBUG)
 JO_TOPMOST :: #config(JO_TOPMOST, JO_FULLSCREEN)
 VULKAN_DEBUG :: #config(VULKAN_DEBUG, ODIN_DEBUG)
 
+// Can be transmuted to win32.RECT
 Rect :: struct {
-	x, y, w, h: int,
+	min: [2]i32,
+	max: [2]i32,
 }
 
 width :: proc "contextless" (ctx: Context) -> int {
@@ -39,7 +43,7 @@ height :: proc "contextless" (ctx: Context) -> int {
 }
 
 Sprite_Cell :: struct {
-	dst_buf: rawptr, // invalid after VulkanCreateStaticStagingBuffer.
+	dst_buf: bytes.Buffer, // invalid after VulkanCreateStaticStagingBuffer.
 
 	origin: [2]i32,
 	size: [2]i32,
@@ -76,7 +80,7 @@ Sprite_Frame :: struct {
 	/**
 	 * The duration of the frame. See AnimUpdate to find out how this is used.
 	 */
-	dur: f32,
+	dur: time.Duration,
 }
 
 Sprite_Desc :: struct {
@@ -134,214 +138,175 @@ Context :: struct {
 	},
 	gamepad: Gamepad,
 	sprites: map[Sprite]Sprite_Desc,
+	arena: mem.Allocator, // TODO: Actually make this somewhere.
+	num_sprites: int,
 }
 
-spr_player_idle: Sprite
-spr_player_run: Sprite
-spr_player_jump_start: Sprite
-spr_player_jump_end: Sprite
-spr_player_attack: Sprite
-spr_player_die: Sprite
+sprite_player_idle: Sprite
+sprite_player_run: Sprite
+sprite_player_jump_start: Sprite
+sprite_player_jump_end: Sprite
+sprite_player_attack: Sprite
+sprite_player_die: Sprite
 
-spr_boar_idle: Sprite
-spr_boar_walk: Sprite
-spr_boar_run: Sprite
-spr_boar_hit: Sprite
+sprite_boar_idle: Sprite
+sprite_boar_walk: Sprite
+sprite_boar_run: Sprite
+sprite_boar_hit: Sprite
 
-spr_tiles: Sprite
+sprite_tiles: Sprite
+
+// TODO: Shouldn't we be handling io errors?
 
 // Sprite should just be the name of the sprite, without the rest of the path (folders, file extension).
 sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 	buf := #load(path)
 	return _sprite_load(ctx, path, buf)
 
-	_sprite_load :: proc(ctx: ^Context, path: string, buf: []byte) {
-		sprite := sprite_from_path(path) // TODO
-		ctx.sprites[sprite] = {}
+	_sprite_load :: proc(ctx: ^Context, path: string, buf: []byte) -> Sprite {
+		sd: Sprite_Desc
 
 		bytes_reader: bytes.Reader
 		rd := bytes.reader_init(&bytes_reader, buf)
 
-		header: Ase_Header
+		header: ase.Header
 		io.read_ptr(rd, &header, size_of(header))
-		SDL_ReadStructChecked(fs, &header);
-		SDL_assert(header.magic_number == 0xA5E0);
+		assert(header.magic_number == 0xA5E0)
 
-		SDL_assert(header.color_depth == 32);
-		SDL_assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1));
-		SDL_assert(header.grid_x == 0);
-		SDL_assert(header.grid_y == 0);
-		SDL_assert(header.grid_w == 0 || header.grid_w == 16);
-		SDL_assert(header.grid_h == 0 || header.grid_h == 16);
+		assert(header.color_depth == 32)
+		assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1))
+		assert(header.grid_x == 0)
+		assert(header.grid_y == 0)
+		assert(header.grid_w == 0 || header.grid_w == 16)
+		assert(header.grid_h == 0 || header.grid_h == 16)
 
-		sd->size.x = (int32_t)header.w;
-		sd->size.y = (int32_t)header.h;
+		sd.size.x = i32(header.w)
+		sd.size.y = i32(header.h)
 
-		sd->num_frames = header.num_frames;
-		sd->frames = ArenaAlloc(&ctx->arena, sd->num_frames, SpriteFrame);
+		sd.frames = make([]Sprite_Frame, header.num_frames, ctx.arena)
 
 		// The hitbox layer and origin layer are specialized layers whose image data is not to be used for rendering.
 		// We must search for them so that we can extract information out of them.
-		uint16_t hitbox_layer_idx = UINT16_MAX;
-		uint16_t origin_layer_idx = UINT16_MAX;
+		hitbox_layer_idx := max(u16)
+		origin_layer_idx := max(u16)
 
-		for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
-		{
-			ASE_Frame frame;
-			SDL_ReadStructChecked(fs, &frame);
-			SDL_assert(frame.magic_number == 0xF1FA);
+		for &frame, frame_idx in sd.frames {
+			ase_frame: ase.Frame
+			io.read_ptr(rd, &ase_frame, size_of(ase_frame))
+			assert(ase_frame.magic_number == 0xF1FA)
 
 			// Would mean this aseprite file is very old.
-			SDL_assert(frame.num_chunks != 0);
+			assert(ase_frame.num_chunks != 0)
 
-			sd->frames[frame_idx].dur = ((float)frame.frame_dur)/(1000.0f/60.0f);
+			frame.dur = time.Duration(ase_frame.frame_dur) * time.Millisecond
 
-			int64_t fs_pos = SDL_TellIO(fs);
+			rd_pos := io.seek(rd, 0, .Current)
 
 			// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame, but not necessarily before everything else in that frame.
 			// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
-			if (frame_idx == 0) 
-			{
-				for (size_t chunk_idx = 0, layer_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
-				{
-					void* raw_chunk; 
-					size_t raw_chunk_size;
-					ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
-					if (chunk_type == ASE_ChunkType_Layer) 
+			if frame_idx == 0 {
+				for chunk_idx, layer_idx := u32(0), u16(0); chunk_idx < ase_frame.num_chunks; chunk_idx += 1 {
+					raw_chunk: rawptr 
+					raw_chunk_size: int
+					raw_chunk, chunk_type := ase_read_chunk(rd)
+					defer delete(chunk)
+					if (chunk_type == .Layer) 
 					{
-						ASE_LayerChunk* chunk = raw_chunk;
-						SDL_assert(chunk->layer_name.len > 0);
+						chunk := (^ase.Layer_Chunk)(raw_chunk)
+						assert(chunk.layer_name.len > 0)
 
-						char* layer_name = StackAlloc(&ctx->stack, chunk->layer_name.len + 1, char);
-						SDL_strlcpy(layer_name, (const char*)(chunk+1), chunk->layer_name.len + 1);
+						layer_name := strings.string_from_ptr(rawptr(uintptr(chunk)+1), int(chunk.layer_name.len))
 
-						if (SDL_strcmp(layer_name, "Hitbox") == 0) 
-						{
-							bool hitbox_layer_is_unique = (hitbox_layer_idx == UINT16_MAX);
-							SDL_assert(hitbox_layer_is_unique);
-							hitbox_layer_idx = (uint16_t)layer_idx;
-						} 
-						else if (SDL_strcmp(layer_name, "Origin") == 0) 
-						{
-							bool origin_layer_is_unique = (origin_layer_idx == UINT16_MAX);
-							SDL_assert(origin_layer_is_unique);
-							origin_layer_idx = (uint16_t)layer_idx;					
+						if layer_name == "Hitbox" {
+							hitbox_layer_is_unique := hitbox_layer_idx == max(u16)
+							assert(hitbox_layer_is_unique)
+							hitbox_layer_idx = layer_idx
+						} else if layer_name == "Origin" {
+							origin_layer_is_unique := origin_layer_idx == max(u16)
+							assert(origin_layer_is_unique)
+							origin_layer_idx = layer_idx;					
 						}
 						layer_idx += 1;
-
-						StackFree(&ctx->stack, layer_name);
 					}
-
-					StackFree(&ctx->stack, raw_chunk);
 				}
 
-				SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
+				io.seek(rd, rd_pos, .Start)
 			}
-			
-			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1)
-			{
-				void* raw_chunk;
-				size_t raw_chunk_size;
-				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
 
-				if (chunk_type == ASE_ChunkType_Cell)
-				{
-					ASE_CellChunk* chunk = raw_chunk;
-					if (chunk->layer_idx == hitbox_layer_idx)
-					{
-						sd->frames[frame_idx].hitbox = (Rect)
-						{
-							.min.x = (int32_t)chunk->x,
-							.min.y = (int32_t)chunk->y,
-							.max.x = (int32_t)(chunk->x + chunk->w),
-							.max.y = (int32_t)(chunk->y + chunk->h),
-						};
-					} 
-					else if (chunk->layer_idx == origin_layer_idx) 
-					{
-						if (frame_idx == 0)
-						{
-							sd->origin = (ivec2s){(int32_t)chunk->x, (int32_t)chunk->y};
+			num_cells := 0
+
+			for chunk_idx := u32(0); chunk_idx < ase_frame.num_chunks; chunk_idx += 1 {
+				raw_chunk, chunk_type := ase_read_chunk(rd)
+				defer delete(raw_chunk)
+
+				if chunk_type == .Cell {
+					chunk := (^ase.Cell_Chunk)(raw_chunk)
+					if chunk.layer_idx == hitbox_layer_idx {
+						sd.frames[frame_idx].hitbox = Rect{
+							min = {i32(chunk.x), i32(chunk.y)},
+							max = {i32(chunk.x + chunk.w), i32(chunk.y + chunk.h)},
 						}
-					} 
-					else 
-					{
-						sd->frames[frame_idx].num_cells += 1;
-						SDL_assert(chunk->type == ASE_CellType_CompressedImage);
+					} else if chunk.layer_idx == origin_layer_idx {
+						if frame_idx == 0 {
+							sd.origin = {i32(chunk.x), i32(chunk.y)}
+						}
+					} else {
+						num_cells += 1
+						assert(chunk.type == .CompressedImage)
 					}
 				}
-
-				StackFree(&ctx->stack, raw_chunk);
 			}
 
-			if (sd->frames[frame_idx].num_cells > 0) 
-			{
-				sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
-				size_t cell_idx = 0;
+			if num_cells > 0 {
+				sd.frames[frame_idx].cells = make([]Sprite_Cell, num_cells, ctx.arena)
 
-				SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
+				cell_idx := 0
 
-				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
-				{
-					void* raw_chunk; 
-					size_t raw_chunk_size;
-					ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
+				io.seek(rd, rd_pos, .Current)
 
-					ASE_CellChunk* chunk = raw_chunk;
-					if (chunk_type == ASE_ChunkType_Cell && 
-						chunk->layer_idx != hitbox_layer_idx && 
-						chunk->layer_idx != origin_layer_idx) 
-					{
+				for chunk_idx in 0..<ase_frame.num_chunks {
+					raw_chunk, chunk_type := ase_read_chunk(rd)
 
-						SpriteCell cell = 
-						{
-							.origin.x = (int32_t)chunk->x,
-							.origin.y = (int32_t)chunk->y,
-							.z_idx = chunk->z_idx,
-							.layer_idx = (uint32_t)chunk->layer_idx,
-							.size.x = (int32_t)chunk->w,
-							.size.y = (int32_t)chunk->h,
-						};
+					chunk := (^ase.Cell_Chunk)(raw_chunk)
+					if (chunk_type == .Cell && 
+						chunk.layer_idx != hitbox_layer_idx && 
+						chunk.layer_idx != origin_layer_idx) {
 
-						SDL_assert(cell.size.x != 0 && cell.size.y != 0);
-						size_t dst_buf_size = cell.size.x*cell.size.y * sizeof(uint32_t);
-						cell.dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(cell.dst_buf);
+						cell := ase.Sprite_Cell{
+							origin = {i32(chunk.x), i32(chunk.y)},
+							z_idx = chunk.z_idx,
+							layer_idx = u32(chunk.layer_idx),
+							size = {i32(chunk.w), i32(chunk.h)},
+						}
 
-						// But I thought calling malloc was bad! What gives?
-						// In this case, it's fine, because each destination buffer is getting allocated one after the other, only to later be freed one after the other.
-						// Which is to say, there is no way for heap fragmentation to happen given the way I'm using it.
+						assert(cell.size.x != 0 && cell.size.y != 0)
+						bytes.buffer_init_allocator(&cell.dst_buf, 0, cell.size.x*cell.size.y * size_of(u32))
 
 						// It's the zero-sized array at the end of ASE_CellChunk.
-						size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2;
-						void* src_buf = (void*)((&chunk->h)+1);
+						src_buf_size := raw_chunk_size - size_of(Cell_Chunk) - 2;
+						src_buf_ptr := raw_ptr(uintptr(&chunk.h) + size_of(chunk.h))
+						src_buf := slice.from_ptr(src_buf_ptr, src_buf_size)
 
 						// Decompress the image data.
-						SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
-						size_t res = INFL_ZInflate(cell.dst_buf, dst_buf_size, src_buf, src_buf_size);
-						SPALL_BUFFER_END();
-						SDL_assert(res > 0);
+						res := zlib.inflate_from_byte_array_raw(src_buf, &cell.dst_buf, true, int(cell.size.x*cell.size.y) * size_of(u32))
+						assert(res == .None)
 
-						SDL_assert(cell_idx < sd->frames[frame_idx].num_cells);
-						sd->frames[frame_idx].cells[cell_idx++] = cell;
+						assert(cell_idx < len(sd.frames[frame_idx].cells))
+						sd.frames[frame_idx].cells[cell_idx] = cell
+						cell_idx += 1
 					}
-
-					StackFree(&ctx->stack, raw_chunk);
 				}
 
 				// Makes the cells draw in the correct order.
-				SDL_assert(frame_idx < sd->num_frames);
-				SDL_qsort(
-					sd->frames[frame_idx].cells, 
-					sd->frames[frame_idx].num_cells, 
-					sizeof(SpriteCell), 
-					(SDL_CompareCallback)CompareSpriteCells);
+				slice.sort_by(sd.frames[frame_idx].cells, compare_sprite_cells)
 			}
 		}
 
-		SDL_CloseIO(fs);
-		SPALL_BUFFER_END();
-		ctx->num_sprites++;
-		return sprite;
+		ctx.num_sprites += 1
+
+		sprite := sprite_from_path(path) // TODO
+		ctx.sprites[sprite] = sd
+		return sprite
 	}
 }
 
@@ -396,15 +361,10 @@ main :: proc() {
 		   res := win32.AdjustWindowRectExForDpi(&win32_rect, window_style, false, window_ex_style, u32(dpi))
 		   ensure(res == true, win32_last_error_message())
 
-		   window_rect = Rect {
-			   x = int(win32_rect.left),
-			   y = int(win32_rect.top),
-			   w = int(win32_rect.right - win32_rect.left),
-			   h = int(win32_rect.bottom - win32_rect.top),
-		   }
+		   window_rect = transmute(Rect)win32_rect
 	   } else {
-		   window_rect.w = ctx.monitor.w
-		   window_rect.h = ctx.monitor.h
+		   window_rect.max.x = ctx.monitor.w
+		   window_rect.max.y = ctx.monitor.h
 		   window_style = win32.WS_POPUP
 		   window_ex_style = 0
 	   }
@@ -417,10 +377,10 @@ main :: proc() {
 		   window_class.lpszClassName, 
 		   win32.utf8_to_wstring(title),
 		   window_style, 
-		   i32(window_rect.x), 
-		   i32(window_rect.y), 
-		   i32(window_rect.w), 
-		   i32(window_rect.h), 
+		   window_rect.min.x, 
+		   window_rect.min.y, 
+		   window_rect.max.x - window_rect.min.x, 
+		   window_rect.max.y - window_rect.min.y, 
 		   nil, 
 		   nil,
 		   win32.HANDLE(win32_instance), 
@@ -448,19 +408,19 @@ main :: proc() {
 
 	try_connect_gamepad(&ctx, 0)
 
-	spr_player_idle = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Idle/Idle.aseprite")
-	spr_player_run = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Run/Run.aseprite")
-	spr_player_jump_start = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Jump-Start/Jump-Start.aseprite")
-	spr_player_jump_end = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Jump-End/Jump-End.aseprite")
-	spr_player_attack = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Attack-01/Attack-01.aseprite")
-	spr_player_die = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Dead/Dead.aseprite")
+	sprite_player_idle = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Idle/Idle.aseprite")
+	sprite_player_run = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Run/Run.aseprite")
+	sprite_player_jump_start = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Jump-Start/Jump-Start.aseprite")
+	sprite_player_jump_end = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Jump-End/Jump-End.aseprite")
+	sprite_player_attack = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Attack-01/Attack-01.aseprite")
+	sprite_player_die = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Dead/Dead.aseprite")
 
-	spr_boar_idle = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Idle/Idle.aseprite")
-	spr_boar_walk = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Walk/Walk-Base.aseprite")
-	spr_boar_run = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Run/Run.aseprite")
-	spr_boar_hit = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
+	sprite_boar_idle = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Idle/Idle.aseprite")
+	sprite_boar_walk = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Walk/Walk-Base.aseprite")
+	sprite_boar_run = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Run/Run.aseprite")
+	sprite_boar_hit = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
 
-	spr_tiles = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
+	sprite_tiles = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
 
 	last_tick := time.tick_now()
 	dt: f32
@@ -529,7 +489,7 @@ _win32_event_proc :: proc "system" (window: win32.HWND, message: win32.UINT, w_p
 	return result
 }
 
-win32_last_error_message :: proc() -> (string, runtime.Allocator_Error) #optional_allocator_error {
+win32_last_error_message :: proc() -> (string, mem.Allocator_Error) #optional_allocator_error {
 	error := win32.GetLastError()
 	buf: [512]u16 = ---
 	win32.FormatMessageW(win32.FORMAT_MESSAGE_FROM_SYSTEM, nil, error, 0, raw_data(buf[:]), win32.DWORD(len(buf)), nil)
@@ -537,7 +497,7 @@ win32_last_error_message :: proc() -> (string, runtime.Allocator_Error) #optiona
 	return strings.trim_suffix(res, "\n"), err
 }
 
-win32_hresult_message :: proc(hr: win32.HRESULT) -> (string, runtime.Allocator_Error) #optional_allocator_error {
+win32_hresult_message :: proc(hr: win32.HRESULT) -> (string, mem.Allocator_Error) #optional_allocator_error {
 	buf: [512]u16 = ---
 	win32.FormatMessageW(win32.FORMAT_MESSAGE_FROM_SYSTEM, nil, u32(hr), 0, raw_data(buf[:]), win32.DWORD(len(buf)), nil)
 	res, err := win32.wstring_to_utf8(cstring16(raw_data(buf[:])), -1)
@@ -706,8 +666,7 @@ anim_update :: proc "contextless" (ctx: ^Context, anim: ^Anim, loop: bool) {
     }
 }
 
-reset_game :: proc(ctx: ^Context) 
-{
+reset_game :: proc(ctx: ^Context) {
 	player := &ctx.level.entities[0]
 	
 	anim_reset(&player.anim)
@@ -732,92 +691,25 @@ reset_game :: proc(ctx: ^Context)
 	}	
 }
 
-static ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) 
-{
-	SpriteDesc* sd = SpriteGetDesc(ctx, tileset);
-	SDL_assert(sd->num_frames == 1);
-	SDL_assert(sd->frames[0].num_cells == 1);
-	return sd->size;
+ase_read_chunk :: proc(rd: io.Reader) -> (chunk: []byte, chunk_type: ase.Chunk_Type) {
+	chunk_header: ase.Chunk_Header
+	io.read_ptr(rd, &chunk_header, size_of(chunk_header))
+
+	if chunk_header.size != sizeof(ase.Chunk_Header) {
+		chunk = make_aligned([]byte, chunk_header.size - size_of(ase.Chunk_Header), align_of(int))
+		io.read(rd, chunk)
+	}
+
+	return chunk_header.type;
 }
 
-static bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
-{
-	bool res = false;
-	SpriteDesc* sd = SpriteGetDesc(ctx, sprite); SDL_assert(sd);
-	SDL_assert(frame_idx < sd->num_frames); 
-	SpriteFrame* frame = &sd->frames[frame_idx];
-	SDL_assert(hitbox);
-	*hitbox = frame->hitbox;
-	if (dir == -1) 
-	{
-		hitbox->min.x = -frame->hitbox.max.x + sd->size.x;
-		hitbox->max.x = -frame->hitbox.min.x + sd->size.x;
+compare_sprite_cells :: proc(a, b: Sprite_Cell) -> bool {
+	a_order := i32(a.layer_idx) + a.z_idx
+	b_order := i32(b.layer_idx) + b.z_idx
+	if (a_order < b_order) || ((a_order == b_order) && (a.z_idx < b.z_idx)) {
+	    return true
+	} else if (b_order < a_order) || ((b_order == a_order) && (b.z_idx < a.z_idx)) {
+	    return false
 	}
-	if (hitbox->max.x > hitbox->min.x && hitbox->max.y > hitbox->min.y) 
-	{
-		res = true;
-	}
-	return res;
-}
-
-static Rect EntityGetHitbox(Context* ctx, Entity* entity) 
-{
-	SPALL_BUFFER_BEGIN();
-	Rect hitbox = {0};
-	SpriteDesc* sd = SpriteGetDesc(ctx, entity->anim.sprite);
-
-	/**
-	 * First, try to find the hitbox at the current frame index or earlier.
-	 * If that doesn't work, try to find the hitbox at the current frame index plus one or later.
-	 * If that doesn't work, trigger an assertion.
-	 */
-	bool res = false;
-	for (
-		ssize_t frame_idx = (ssize_t)entity->anim.frame_idx; 
-		frame_idx >= 0 && !res; 
-		frame_idx -= 1) 
-	{
-		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
-	}
-	if (!res) 
-	{
-		for (
-			size_t frame_idx = entity->anim.frame_idx + 1; 
-			frame_idx < sd->num_frames && !res; 
-			frame_idx += 1) 
-		{
-			res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir, &hitbox);
-		}
-	}
-	SDL_assert(res);
-
-	SPALL_BUFFER_END();
-	return hitbox;
-}
-
-static Rect EntityGetRect(Context* ctx, Entity* entity)
-{
-	Rect res = EntityGetHitbox(ctx, entity);
-	res.min = glms_ivec2_add(res.min, entity->pos); 
-	res.max = glms_ivec2_add(res.max, entity->pos);
-	ivec2s origin = EntityGetOrigin(ctx, entity); 
-	res.min = glms_ivec2_sub(res.min, origin); 
-	res.max = glms_ivec2_sub(res.max, origin); 
-	return res;
-}
-
-static bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
-{
-	SPALL_BUFFER_BEGIN();
-	bool res = false;
-
-    if (a->state != EntityState_Inactive && b->state != EntityState_Inactive)
-    {
-    	Rect ha = EntityGetRect(ctx, a);
-    	Rect hb = EntityGetRect(ctx, b);
-    	res = RectsIntersect(ha, hb);
-    } 
-
-    SPALL_BUFFER_END();
-    return res;
+	return true
 }

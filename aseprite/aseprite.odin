@@ -39,11 +39,11 @@ Header :: struct {
 	h: u16,
 	color_depth: u16,
 	flags: Flags,
-	reserved0: u16,
-	reserved1: u32,
-	reserved2: u32,
+	_: u16,
+	_: u32,
+	_: u32,
 	transparent_color_entry: u8,
-	reserved3: [3]u8,
+	_: [3]u8,
 	num_colors: u16,
 	pixel_w: u8,
 	pixel_h: u8,
@@ -51,17 +51,16 @@ Header :: struct {
 	grid_y: i16,
 	grid_w: u16,
 	grid_h: u16,
-	reserved4: [84]u8,
+	_: [84]u8,
 }
 static_assert(sizeof(Header) == 128);
 
-Frame :: struct
-{
+Frame :: struct {
 	num_bytes: u32,
 	magic_number: u16,
-	reserved0: u16,
+	_: u16,
 	frame_dur: u16,
-	reserved1: [2]u8,
+	_: [2]u8,
 	num_chunks: u32,
 }
 static_assert(sizeof(Frame) == 16);
@@ -83,8 +82,7 @@ Chunk_Type :: enum u16 {
 	Tileset = 0x2023,
 }
 
-Chunk_Header :: struct
-{
+Chunk_Header :: struct {
 	size: u32,
 	type: Chunk_Type,
 }
@@ -127,160 +125,138 @@ Blend_Mode :: enum u16 {
 	Divide = 18,
 }
 
-LayerChunk :: struct
-{
-	flags: ASE_LayerChunkFlags,
-	layer_type: ASE_LayerType,
+Layer_Chunk :: struct {
+	flags: Layer_Chunk_Flags,
+	layer_type: Layer_Type,
 	layer_child_level: u16,
-	reserved0: u16,
-	reserved1: u16,
-	blend_mode: ASE_BlendMode,
+	_: u16,
+	_: u16,
+	blend_mode: Blend_Mode,
 	opacity: u8,
-	reserved2: [3]u8,
-	layer_name: ASE_String,
-	#if 0
-	tileset_idx: u32,
-	uuid: [16]u8,
-	#endif
+	_: [3]u8,
+	layer_name: String,
+	// tileset_idx: u32,
+	// uuid: [16]u8,
 }
 
-ASE_CellType :: enum u16 {
-	ASE_CellType_Raw = 0,
-	ASE_CellType_Linked = 1,
-	ASE_CellType_CompressedImage = 2,
-	ASE_CellType_CompressedTilemap = 3,
+Cell_Type :: enum u16 {
+	Raw = 0,
+	Linked = 1,
+	Compressed_Image = 2,
+	Compressed_Tilemap = 3,
 }
 
-CellChunk :: struct
-{
+Cell_Chunk :: struct {
 	layer_idx: u16,
 	x: i16,
 	y: i16,
 	opacity: u8,
-	type: ASE_CellType,
+	type: Cell_Type,
 	z_idx: i16,
-	reserved0: [5]u8,
+	_: [5]u8,
 	w: u16,
 	h: u16,
-#if 0
-	pixels: []ASE_Pixel,
-#endif
+	// pixels: []ASE_Pixel,
 }
 
-ASE_CellExtraChunkFlags :: enum u32 {
-	ASE_CellExtraChunkFlags_PreciseBounds = 1,
+Cell_Extra_Chunk_Flag :: enum {
+	Precise_Bounds,
+}
+Cell_Extra_Chunk_Flags :: distinct bit_set[Cell_Extra_Chunk_Flag; u32]
+
+Cell_Extra_Chunk :: struct {
+	flags: Cell_Extra_Chunk_Flags,
+	x: Fixed,
+	y: Fixed,
+	w: Fixed,
+	h: Fixed,
+	_: [16]u8,
 }
 
-CellExtraChunk :: struct
-{
-	flags: ASE_CellExtraChunkFlags,
-	x: ASE_Fixed,
-	y: ASE_Fixed,
-	w: ASE_Fixed,
-	h: ASE_Fixed,
-	reserved0: [16]u8,
+Color_Profile_Type :: enum u16 {
+	None = 0,
+	SRGB = 1,
+	Embedded_ICC = 2,
 }
 
-ASE_ColorProfileType :: enum u16 {
-	ASE_ColorProfileType_None = 0,
-	ASE_ColorProfileType_SRGB = 1,
-	ASE_ColorProfileType_EmbeddedICC = 2,
+Color_Profile_Flag :: enum {
+	Special_Fixed_Gamma,
 }
+Color_Profile_Flags :: distinct bit_set[Color_Profile_Flag; u16]
 
-ASE_ColorProfileFlags :: enum u16 {
-	ASE_ColorProfileFlags_SpecialFixedGamma = 1,
-}
-
-ColorProfileChunk :: struct
-{
-	type: ASE_ColorProfileType,
-	flags: ASE_ColorProfileFlags,
-	fixed_gamma: ASE_Fixed,
-	reserved0: [8]u8,
+Color_Profile_Chunk :: struct {
+	type: Color_Profile_Type,
+	flags: Color_Profile_Flags,
+	fixed_gamma: Fixed,
+	_: [8]u8,
 	icc_profile_data_len: u32,
-#if 0
-	icc_profile_data[]: u8,
-#endif
+	// icc_profile_data[]: u8,
 }
 
-ASE_ExternalFilesEntryType :: enum u8 {
-	ASE_ExternalFilesEntryType_ExternalPalette = 0,
-	ASE_ExternalFilesEntryType_ExternalTileset = 1,
-	ASE_ExternalFilesEntryType_ExtensionNameForProperties = 2,
-	ASE_ExternalFilesEntryType_ExtensionNameForTileManagement = 3,
+External_Files_Entry_Type :: enum u8 {
+	External_Palette = 0,
+	External_Tileset = 1,
+	Extension_Name_For_Properties = 2,
+	Extension_Name_For_Tile_Management = 3,
 }
 
-ExternalFilesEntry :: struct
-{
+External_Files_Entry :: struct {
 	id: u32,
-	type: ASE_ExternalFilesEntryType,
-	reserved0[7]: u8,
-	union 
-	{
-	external_file_name: 	ASE_String,
-	extension_id: 	ASE_String,
-	}
+	type: External_Files_Entry_Type,
+	_: [7]u8,
+	using _: struct #raw_union {
+		external_file_name: String,
+		extension_id: String,
+	},
 }
 
-ExternalFilesChunk :: struct
-{
+External_Files_Chunk :: struct {
 	num_entries: u32,
-	reserved0: [8]u8,
-#if 0
-	entries: []ASE_ExternalFilesEntry,
-#endif
+	_: [8]u8,
+	// entries: []External_Files_Entry,
 }
 
-ASE_LoopAnimDir :: enum u8 {
-	ASE_LoopAnimDir_Forward = 0,
-	ASE_LoopAnimDir_Reverse = 1,
-	ASE_LoopAnimDir_PingPong = 2,
-	ASE_LoopAnimDir_PingPongReverse = 3,
+Loop_Anim_Dir :: enum u8 {
+	Forward = 0,
+	Reverse = 1,
+	Ping_Pong = 2,
+	Ping_Pong_Reverse = 3,
 }
 
-Tag :: struct
-{
+Tag :: struct {
 	from_frame: u16,
 	to_frame: u16,
-	loop_anim_dir: ASE_LoopAnimDir,
+	loop_anim_dir: Loop_Anim_Dir,
 	repeat: u16,
-	reserved0: [6]u8,
-	reserved1: [3]u8,
-	reserved2: u8,
-	name: ASE_String,
+	_: [6]u8,
+	_: [3]u8,
+	_: u8,
+	name: String,
 }
 
-TagsChunk :: struct
-{
+Tags_Chunk :: struct {
 	num_tags: u16,
-#if 0
-	tags: []ASE_Tag,
-#endif
+	// tags: []ASE_Tag,
 }
 
-ASE_PaletteEntryFlags :: enum u16 {
-	HasName = 1,
+Palette_Entry_Flag :: enum {
+	HasName,
 }
+Palette_Entry_Flags :: distinct bit_set[Palette_Entry_Flag; u16]
 
-PaletteEntry :: struct
-{
-	flags: PaletteEntryFlags,
+Palette_Entry :: struct {
+	flags: Palette_Entry_Flags,
 	r: u8,
 	g: u8,
 	b: u8,
 	a: u8,
-#if 0
-	color_name: String,
-#endif
+	// color_name: String,
 }
 
-PaletteChunk :: struct
-{
+Palette_Chunk :: struct {
 	num_entries: u32,
 	first_color_idx_to_change: u32,
 	last_color_idx_to_change: u32,
-	reserved0: [8]u8,
-#if 0
-	entries[]: PaletteEntry,
-#endif
+	_: [8]u8,
+	// entries[]: PaletteEntry,
 }
