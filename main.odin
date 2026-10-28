@@ -14,7 +14,6 @@ import "core:io"
 import "core:mem"
 import "core:compress/zlib"
 import "core:slice"
-import "core:path/filepath"
 
 import win32 "core:sys/windows"
 L :: intrinsics.constant_utf16_cstring
@@ -330,10 +329,21 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 
 		ctx.num_sprites += 1
 
-		sprite := Sprite(filepath.short_stem(path))
+
+		sprite := sprite_from_path(path)
 		ctx.sprites[sprite] = sd
 		return sprite
 	}
+}
+
+// assets/legacy_fantasy_high_forest/Folder1/Folder2/Folder2.aseprite => Folder1/Folder2
+sprite_from_path :: proc(path: string) -> Sprite {
+	lo := len("assets/legacy_fantasy_high_forest/")
+	hi := len(path) - len(".aseprite")
+	for path[hi] != '/' {
+		hi -= 1
+	}
+	return Sprite(path[lo:hi])
 }
 
 main :: proc() {
