@@ -1,5 +1,9 @@
 package jo
 
+// Unless otherwise noted:
+// - Time is measured in seconds.
+// - Size and distance is measured in meters.
+
 import "base:intrinsics"
 import "base:runtime"
 import "core:time"
@@ -9,11 +13,15 @@ import "core:bytes"
 import "core:io"
 import "core:mem"
 import "core:compress/zlib"
+import "core:slice"
+import "core:path/filepath"
 
 import win32 "core:sys/windows"
 L :: intrinsics.constant_utf16_cstring
 
 import ase "aseprite"
+
+import vk "vendor:vulkan"
 
 JO_DEBUG :: #config(JO_DEBUG, ODIN_DEBUG)
 JO_FULLSCREEN :: #config(JO_FULLSCREEN, !JO_DEBUG)
@@ -80,12 +88,12 @@ Sprite_Frame :: struct {
 	/**
 	 * The duration of the frame. See AnimUpdate to find out how this is used.
 	 */
-	dur: time.Duration,
+	dur: f32,
 }
 
 Sprite_Desc :: struct {
-	origin: [2]i32;
-	size: [2]i32;
+	origin: [2]i32,
+	size: [2]i32,
 	frames: []Sprite_Frame,
 	
 	vk_image: vk.Image,
@@ -131,6 +139,23 @@ Entity :: struct {
 	state: Entity_State,
 }
 
+MAX_ENTITIES :: 128
+MAX_TILE_LAYERS :: 8
+TILE_SIZE :: 32
+
+Tile :: distinct [2]i32
+
+Tile_Layer :: struct {
+	size: [2]i32,
+	tiles: [^]Tile, // [size.x*size.y]Tile
+}
+
+Level :: struct {
+	size: [2]i32,
+	entities: [dynamic; MAX_ENTITIES]Entity,
+	tile_layers: [dynamic; MAX_TILE_LAYERS]Tile_Layer,
+}
+
 Context :: struct {
 	running: bool,
 	monitor: struct {
@@ -140,6 +165,9 @@ Context :: struct {
 	sprites: map[Sprite]Sprite_Desc,
 	arena: mem.Allocator, // TODO: Actually make this somewhere.
 	num_sprites: int,
+	fixed_dt: f32,
+	variable_dt: f32,
+	level: Level, // TODO: We should have multiple levels!
 }
 
 sprite_player_idle: Sprite
@@ -198,24 +226,22 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 			// Would mean this aseprite file is very old.
 			assert(ase_frame.num_chunks != 0)
 
-			frame.dur = time.Duration(ase_frame.frame_dur) * time.Millisecond
+			frame.dur = f32(ase_frame.frame_dur) / f32(time.Millisecond)
 
-			rd_pos := io.seek(rd, 0, .Current)
+			rd_pos, _ := io.seek(rd, 0, .Current)
 
 			// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame, but not necessarily before everything else in that frame.
 			// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
 			if frame_idx == 0 {
 				for chunk_idx, layer_idx := u32(0), u16(0); chunk_idx < ase_frame.num_chunks; chunk_idx += 1 {
-					raw_chunk: rawptr 
-					raw_chunk_size: int
 					raw_chunk, chunk_type := ase_read_chunk(rd)
-					defer delete(chunk)
+					defer delete(raw_chunk)
 					if (chunk_type == .Layer) 
 					{
-						chunk := (^ase.Layer_Chunk)(raw_chunk)
+						chunk := (^ase.Layer_Chunk)(raw_data(raw_chunk))
 						assert(chunk.layer_name.len > 0)
 
-						layer_name := strings.string_from_ptr(rawptr(uintptr(chunk)+1), int(chunk.layer_name.len))
+						layer_name := strings.string_from_ptr((^u8)(rawptr(uintptr(chunk)+1)), int(chunk.layer_name.len))
 
 						if layer_name == "Hitbox" {
 							hitbox_layer_is_unique := hitbox_layer_idx == max(u16)
@@ -240,11 +266,11 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 				defer delete(raw_chunk)
 
 				if chunk_type == .Cell {
-					chunk := (^ase.Cell_Chunk)(raw_chunk)
+					chunk := (^ase.Cell_Chunk)(raw_data(raw_chunk))
 					if chunk.layer_idx == hitbox_layer_idx {
 						sd.frames[frame_idx].hitbox = Rect{
 							min = {i32(chunk.x), i32(chunk.y)},
-							max = {i32(chunk.x + chunk.w), i32(chunk.y + chunk.h)},
+							max = {i32(chunk.x) + i32(chunk.w), i32(chunk.y) + i32(chunk.h)},
 						}
 					} else if chunk.layer_idx == origin_layer_idx {
 						if frame_idx == 0 {
@@ -252,7 +278,7 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 						}
 					} else {
 						num_cells += 1
-						assert(chunk.type == .CompressedImage)
+						assert(chunk.type == .Compressed_Image)
 					}
 				}
 			}
@@ -267,29 +293,29 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 				for chunk_idx in 0..<ase_frame.num_chunks {
 					raw_chunk, chunk_type := ase_read_chunk(rd)
 
-					chunk := (^ase.Cell_Chunk)(raw_chunk)
+					chunk := (^ase.Cell_Chunk)(raw_data(raw_chunk))
 					if (chunk_type == .Cell && 
 						chunk.layer_idx != hitbox_layer_idx && 
 						chunk.layer_idx != origin_layer_idx) {
 
-						cell := ase.Sprite_Cell{
+						cell := Sprite_Cell{
 							origin = {i32(chunk.x), i32(chunk.y)},
-							z_idx = chunk.z_idx,
+							z_idx = i32(chunk.z_idx),
 							layer_idx = u32(chunk.layer_idx),
 							size = {i32(chunk.w), i32(chunk.h)},
 						}
 
 						assert(cell.size.x != 0 && cell.size.y != 0)
-						bytes.buffer_init_allocator(&cell.dst_buf, 0, cell.size.x*cell.size.y * size_of(u32))
+						bytes.buffer_init_allocator(&cell.dst_buf, 0, int(cell.size.x*cell.size.y) * size_of(u32))
 
 						// It's the zero-sized array at the end of ASE_CellChunk.
-						src_buf_size := raw_chunk_size - size_of(Cell_Chunk) - 2;
-						src_buf_ptr := raw_ptr(uintptr(&chunk.h) + size_of(chunk.h))
-						src_buf := slice.from_ptr(src_buf_ptr, src_buf_size)
+						src_buf_size := len(raw_chunk) - size_of(ase.Cell_Chunk) - 2;
+						src_buf_ptr := rawptr(uintptr(&chunk.h) + size_of(chunk.h))
+						src_buf := slice.from_ptr((^u8)(src_buf_ptr), src_buf_size)
 
 						// Decompress the image data.
 						res := zlib.inflate_from_byte_array_raw(src_buf, &cell.dst_buf, true, int(cell.size.x*cell.size.y) * size_of(u32))
-						assert(res == .None)
+						assert(res.(zlib.ZLIB_Error) == .None)
 
 						assert(cell_idx < len(sd.frames[frame_idx].cells))
 						sd.frames[frame_idx].cells[cell_idx] = cell
@@ -304,7 +330,7 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 
 		ctx.num_sprites += 1
 
-		sprite := sprite_from_path(path) // TODO
+		sprite := Sprite(filepath.short_stem(path))
 		ctx.sprites[sprite] = sd
 		return sprite
 	}
@@ -348,7 +374,6 @@ main :: proc() {
 	// window
 	win32_window: win32.HWND
 	title := "jo"
-	refresh_rate: int
 	{
 	   window_style, window_ex_style: u32
 	   window_rect: Rect
@@ -399,36 +424,36 @@ main :: proc() {
 	   dev_mode := win32.DEVMODEW{dmSize = size_of(win32.DEVMODEW)}
 	   res := win32.EnumDisplaySettingsW(nil, win32.ENUM_CURRENT_SETTINGS, &dev_mode)
 	   ensure(res == true, "Failed to enumerate display settings.")
-	   refresh_rate = int(dev_mode.dmDisplayFrequency)
+	   refresh_rate := dev_mode.dmDisplayFrequency
+	   ctx.fixed_dt = 1.0/f32(refresh_rate)
 	}
 
 	when JO_FULLSCREEN {
 	   win32.SetCursor(nil)
 	}
 
-	try_connect_gamepad(&ctx, 0)
+	try_connect_gamepad(&ctx)
 
-	sprite_player_idle = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Idle/Idle.aseprite")
-	sprite_player_run = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Run/Run.aseprite")
-	sprite_player_jump_start = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Jump-Start/Jump-Start.aseprite")
-	sprite_player_jump_end = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Jump-End/Jump-End.aseprite")
-	sprite_player_attack = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Attack-01/Attack-01.aseprite")
-	sprite_player_die = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Character/Dead/Dead.aseprite")
+	sprite_player_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Idle/Idle.aseprite")
+	sprite_player_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Run/Run.aseprite")
+	sprite_player_jump_start = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-Start/Jump-Start.aseprite")
+	sprite_player_jump_end = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-End/Jump-End.aseprite")
+	sprite_player_attack = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Attack-01/Attack-01.aseprite")
+	sprite_player_die = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Dead/Dead.aseprite")
 
-	sprite_boar_idle = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Idle/Idle.aseprite")
-	sprite_boar_walk = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Walk/Walk-Base.aseprite")
-	sprite_boar_run = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Run/Run.aseprite")
-	sprite_boar_hit = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
+	sprite_boar_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Idle/Idle.aseprite")
+	sprite_boar_walk = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Walk/Walk-Base.aseprite")
+	sprite_boar_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Run/Run.aseprite")
+	sprite_boar_hit = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
 
-	sprite_tiles = sprite_load(ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
+	sprite_tiles = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
 
 	last_tick := time.tick_now()
-	dt: f32
 
 	ctx.running = true
 	for ctx.running {
 		if ctx.gamepad.connected {
-		   try_connect_gamepad(0)
+		   try_connect_gamepad(&ctx)
 		}
 
 		@static window_ready := -1
@@ -452,7 +477,7 @@ main :: proc() {
 		tick := time.tick_now()
 		dt_dur := time.tick_diff(last_tick, tick)
 		last_tick = tick
-		dt = f32(dt_dur)/f32(time.Second)
+		ctx.variable_dt = f32(dt_dur)/f32(time.Second)
 
 		// TODO: update
 	}
@@ -538,17 +563,17 @@ Gamepad :: struct {
 	right_stick_deadzone: f32,
 }
 
-try_connect_gamepad :: proc "contextless" (ctx: ^Context, g_idx: int) {
+try_connect_gamepad :: proc "contextless" (ctx: ^Context) {
 	state: win32.XINPUT_STATE = ---
 	
-	result := win32.XInputGetState(win32.XUSER(g_idx), &state)
+	result := win32.XInputGetState(win32.XUSER(0), &state)
 	if result != .SUCCESS {
-		ctx.gamepads[g_idx] = {}
+		ctx.gamepad = {}
 		return
 	}
 	xinput_gamepad := state.Gamepad
 
-	g := &ctx.gamepads[g_idx]
+	g := &ctx.gamepad
 	g.connected = true
 
 	g.buttons = transmute(Gamepad_Buttons)xinput_gamepad.wButtons
@@ -596,18 +621,18 @@ try_connect_gamepad :: proc "contextless" (ctx: ^Context, g_idx: int) {
 	}
 }
 
-gamepad_set_vibration :: proc(ctx: ^Context, g_idx: int, left_motor, right_motor: f32, loc := #caller_location) {
+gamepad_set_vibration :: proc(ctx: ^Context, left_motor, right_motor: f32, loc := #caller_location) {
 	left_motor := left_motor
 	right_motor := right_motor
 	assert(left_motor >= 0 && left_motor <= 1 && right_motor >= 0 && right_motor <= 1, "Motors must be in range [0.0, 1.0].", loc)
-	if !ctx.gamepads[g_idx].connected {
+	if !ctx.gamepad.connected {
 		return
 	}
 
 	xinput_vibration: win32.XINPUT_VIBRATION
 	xinput_vibration.wLeftMotorSpeed = win32.WORD(left_motor * f32(max(u16)))
 	xinput_vibration.wRightMotorSpeed = win32.WORD(right_motor * f32(max(u16)))
-	res := win32.XInputSetState(win32.XUSER(g_idx), &xinput_vibration) == .SUCCESS
+	res := win32.XInputSetState(win32.XUSER(0), &xinput_vibration) == .SUCCESS
 
 	assert(res, "Failed to set vibration.", loc)
 }
@@ -630,6 +655,12 @@ get_origin :: proc {
 	entity_get_origin,
 }
 
+anim_reset :: proc(anim: ^Anim) {
+	anim.frame_idx = 0
+	anim.dt_accumulator = 0.0
+	anim.ended = false
+}
+
 anim_set_sprite :: proc(anim: ^Anim, sprite: Sprite) -> bool {
     sprite_changed := false
     if (anim.sprite != sprite) 
@@ -643,8 +674,9 @@ anim_set_sprite :: proc(anim: ^Anim, sprite: Sprite) -> bool {
 
 anim_update :: proc "contextless" (ctx: ^Context, anim: ^Anim, loop: bool) {
 	sd := ctx.sprites[anim.sprite]
-	dur := sd.frames[anim.frame_idx].dur;
-	num_frames := sd.num_frames;
+	dur := sd.frames[anim.frame_idx].dur
+	dt := ctx.fixed_dt
+	num_frames := len(sd.frames)
 
     if (loop || !anim.ended) 
     {
@@ -670,7 +702,7 @@ reset_game :: proc(ctx: ^Context) {
 	player := &ctx.level.entities[0]
 	
 	anim_reset(&player.anim)
-	anim_set_sprite(&player.anim, player_idle)
+	anim_set_sprite(&player.anim, sprite_player_idle)
 	player.pos = player.start_pos
 	player.state = .Free
 	player.vel = {}
@@ -681,7 +713,7 @@ reset_game :: proc(ctx: ^Context) {
 
 		anim_reset(&enemy.anim)
 		if (enemy.type == .Boar) {
-			anim_set_sprite(&enemy.anim, boar_idle)
+			anim_set_sprite(&enemy.anim, sprite_boar_idle)
 		} 
 		// else if (entity.type == .Whatever) {}
 		enemy.pos = enemy.start_pos
@@ -695,12 +727,14 @@ ase_read_chunk :: proc(rd: io.Reader) -> (chunk: []byte, chunk_type: ase.Chunk_T
 	chunk_header: ase.Chunk_Header
 	io.read_ptr(rd, &chunk_header, size_of(chunk_header))
 
-	if chunk_header.size != sizeof(ase.Chunk_Header) {
+	if chunk_header.size != size_of(ase.Chunk_Header) {
 		chunk = make_aligned([]byte, chunk_header.size - size_of(ase.Chunk_Header), align_of(int))
 		io.read(rd, chunk)
 	}
 
-	return chunk_header.type;
+	chunk_type = chunk_header.type
+
+	return
 }
 
 compare_sprite_cells :: proc(a, b: Sprite_Cell) -> bool {
@@ -713,3 +747,13 @@ compare_sprite_cells :: proc(a, b: Sprite_Cell) -> bool {
 	}
 	return true
 }
+
+
+
+
+
+
+
+
+
+

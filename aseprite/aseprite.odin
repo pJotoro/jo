@@ -1,10 +1,10 @@
 package aseprite
 
-Fixed :: struct {
-	val[2]: u16,
+Fixed :: struct #packed {
+	val: [2]u16,
 }
 
-String :: struct {
+String :: struct #packed {
 	len: u16,
 	// buf: []byte,
 }
@@ -12,8 +12,7 @@ String :: struct {
 Point :: [2]i32
 Size :: [2]i32
 
-Rect :: struct
-{
+Rect :: struct #packed {
 	origin: Point,
 	size: Size,
 }
@@ -31,7 +30,7 @@ Flag :: enum {
 }
 Flags :: distinct bit_set[Flag; u32]
 
-Header :: struct {
+Header :: struct #packed {
 	file_size: u32,
 	magic_number: u16,
 	num_frames: u16,
@@ -53,9 +52,9 @@ Header :: struct {
 	grid_h: u16,
 	_: [84]u8,
 }
-static_assert(sizeof(Header) == 128);
+#assert(size_of(Header) == 128)
 
-Frame :: struct {
+Frame :: struct #packed {
 	num_bytes: u32,
 	magic_number: u16,
 	_: u16,
@@ -63,7 +62,7 @@ Frame :: struct {
 	_: [2]u8,
 	num_chunks: u32,
 }
-static_assert(sizeof(Frame) == 16);
+#assert(size_of(Frame) == 16)
 
 Chunk_Type :: enum u16 {
 	Old_Palette = 0x0004,
@@ -82,7 +81,7 @@ Chunk_Type :: enum u16 {
 	Tileset = 0x2023,
 }
 
-Chunk_Header :: struct {
+Chunk_Header :: struct #packed {
 	size: u32,
 	type: Chunk_Type,
 }
@@ -125,7 +124,7 @@ Blend_Mode :: enum u16 {
 	Divide = 18,
 }
 
-Layer_Chunk :: struct {
+Layer_Chunk :: struct #packed {
 	flags: Layer_Chunk_Flags,
 	layer_type: Layer_Type,
 	layer_child_level: u16,
@@ -146,7 +145,7 @@ Cell_Type :: enum u16 {
 	Compressed_Tilemap = 3,
 }
 
-Cell_Chunk :: struct {
+Cell_Chunk :: struct #packed {
 	layer_idx: u16,
 	x: i16,
 	y: i16,
@@ -164,7 +163,7 @@ Cell_Extra_Chunk_Flag :: enum {
 }
 Cell_Extra_Chunk_Flags :: distinct bit_set[Cell_Extra_Chunk_Flag; u32]
 
-Cell_Extra_Chunk :: struct {
+Cell_Extra_Chunk :: struct #packed {
 	flags: Cell_Extra_Chunk_Flags,
 	x: Fixed,
 	y: Fixed,
@@ -184,7 +183,7 @@ Color_Profile_Flag :: enum {
 }
 Color_Profile_Flags :: distinct bit_set[Color_Profile_Flag; u16]
 
-Color_Profile_Chunk :: struct {
+Color_Profile_Chunk :: struct #packed {
 	type: Color_Profile_Type,
 	flags: Color_Profile_Flags,
 	fixed_gamma: Fixed,
@@ -200,7 +199,7 @@ External_Files_Entry_Type :: enum u8 {
 	Extension_Name_For_Tile_Management = 3,
 }
 
-External_Files_Entry :: struct {
+External_Files_Entry :: struct #packed {
 	id: u32,
 	type: External_Files_Entry_Type,
 	_: [7]u8,
@@ -210,7 +209,7 @@ External_Files_Entry :: struct {
 	},
 }
 
-External_Files_Chunk :: struct {
+External_Files_Chunk :: struct #packed {
 	num_entries: u32,
 	_: [8]u8,
 	// entries: []External_Files_Entry,
@@ -234,7 +233,7 @@ Tag :: struct {
 	name: String,
 }
 
-Tags_Chunk :: struct {
+Tags_Chunk :: struct #packed {
 	num_tags: u16,
 	// tags: []ASE_Tag,
 }
@@ -244,7 +243,7 @@ Palette_Entry_Flag :: enum {
 }
 Palette_Entry_Flags :: distinct bit_set[Palette_Entry_Flag; u16]
 
-Palette_Entry :: struct {
+Palette_Entry :: struct #packed {
 	flags: Palette_Entry_Flags,
 	r: u8,
 	g: u8,
@@ -253,7 +252,7 @@ Palette_Entry :: struct {
 	// color_name: String,
 }
 
-Palette_Chunk :: struct {
+Palette_Chunk :: struct #packed {
 	num_entries: u32,
 	first_color_idx_to_change: u32,
 	last_color_idx_to_change: u32,
