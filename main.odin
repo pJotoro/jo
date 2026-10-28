@@ -14,6 +14,7 @@ import "core:io"
 import "core:mem"
 import "core:compress/zlib"
 import "core:slice"
+import "core:dynlib"
 
 import win32 "core:sys/windows"
 L :: intrinsics.constant_utf16_cstring
@@ -25,7 +26,83 @@ import vk "vendor:vulkan"
 JO_DEBUG :: #config(JO_DEBUG, ODIN_DEBUG)
 JO_FULLSCREEN :: #config(JO_FULLSCREEN, !JO_DEBUG)
 JO_TOPMOST :: #config(JO_TOPMOST, JO_FULLSCREEN)
-VULKAN_DEBUG :: #config(VULKAN_DEBUG, ODIN_DEBUG)
+
+VK_DEBUG :: #config(VK_DEBUG, ODIN_DEBUG)
+VK_DISABLE_PIPELINE_OPTIMIZATION :: #config(VK_DISABLE_PIPELINE_OPTIMIZATION, VK_DEBUG)
+
+VK_CHECK :: #force_inline proc(res: vk.Result, loc := #caller_location) {
+    assert(res == .SUCCESS, loc=loc)
+}
+
+vk_create_shader_stage :: proc(device: vk.Device, $path: string, stage: vk.ShaderStageFlag) -> (shader_stage: vk.PipelineShaderStageCreateInfo) {
+    shader_stage.sType = .PIPELINE_SHADER_STAGE_CREATE_INFO
+    shader_stage.stage = {stage}
+    shader_stage.pName = "main"
+
+    file_data := #load(path, []u32)
+
+    info := vk.ShaderModuleCreateInfo { 
+        sType = .SHADER_MODULE_CREATE_INFO,
+        codeSize = len(file_data)*size_of(u32),
+        pCode = raw_data(file_data),
+    }
+    CHECK(vk.CreateShaderModule(device, &info, nil, &shader_stage.module))
+
+    return
+}
+
+vk_destroy_shader_stage :: proc(device: vk.Device, shader_stage: vk.PipelineShaderStageCreateInfo) {
+    vk.DestroyShaderModule(device, shader_stage.module, nil)
+}
+
+Vk_Frame :: struct {
+    cb: vk.CommandBuffer,
+    sem_image_available: vk.Semaphore,
+    sem_render_finished: vk.Semaphore,
+    fence_in_flight: vk.Fence,
+}
+
+Vk_Context :: struct {
+    lib: dynlib.Library,
+
+    instance: vk.Instance,
+    instance_layer_properties: []vk.LayerProperties,
+    instance_extensions: [dynamic]cstring,
+
+    physical_device: vk.PhysicalDevice,
+    physical_device_properties: vk.PhysicalDeviceProperties,
+    physical_device_features: vk.PhysicalDeviceFeatures,
+    physical_device_memory_properties: vk.PhysicalDeviceMemoryProperties,
+
+    surface: vk.SurfaceKHR,
+    surface_capabilities: vk.SurfaceCapabilitiesKHR,
+    surface_formats: []vk.SurfaceFormatKHR,
+
+    device: vk.Device,
+    device_extensions: [dynamic]cstring,
+    
+    queue_family_properties: []vk.QueueFamilyProperties,
+    queues: []vk.Queue,
+    graphics_queue: vk.Queue,
+    present_queue: vk.Queue,
+
+    swapchain: vk.SwapchainKHR,
+    swapchain_images: []vk.Image,
+    swapchain_image_views: []vk.ImageView,
+    swapchain_format: vk.SurfaceFormatKHR,
+    swapchain_extent: vk.Extent2D,
+    swapchain_framebuffers: []vk.Framebuffer,
+    image_idx: u32,
+
+    render_pass: vk.RenderPass,
+
+    command_pool: vk.CommandPool,
+
+    frames: []Vk_Frame,
+    frame_idx: int,
+
+    pipeline_cache: vk.PipelineCache,
+}
 
 // Can be transmuted to win32.RECT
 Rect :: struct {
@@ -167,6 +244,8 @@ Context :: struct {
 	fixed_dt: f32,
 	variable_dt: f32,
 	level: Level, // TODO: We should have multiple levels!
+	win32_window: win32.HWND,
+	win32_instance: win32.HINSTANCE,
 }
 
 sprite_player_idle: Sprite
@@ -358,13 +437,13 @@ main :: proc() {
 	}
 	dpi := win32.GetDpiForSystem()
 
-	win32_instance := win32.HINSTANCE(win32.GetModuleHandleW(nil))
-	ensure(win32_instance != nil, win32_last_error_message())
+	ctx.win32_instance = win32.HINSTANCE(win32.GetModuleHandleW(nil))
+	ensure(ctx.win32_instance != nil, win32_last_error_message())
 
 	window_class := win32.WNDCLASSEXW{
 	   cbSize = size_of(win32.WNDCLASSEXW),
 	   lpfnWndProc = _win32_event_proc,
-	   hInstance = win32.HANDLE(win32_instance),
+	   hInstance = win32.HANDLE(ctx.win32_instance),
 	   lpszClassName = L("jo_class"),
 	}
 	{
@@ -383,7 +462,6 @@ main :: proc() {
 	}
 
 	// window
-	win32_window: win32.HWND
 	title := "jo"
 	{
 	   window_style, window_ex_style: u32
@@ -408,7 +486,7 @@ main :: proc() {
 		   window_ex_style |= win32.WS_EX_TOPMOST
 	   }
 
-	   win32_window = win32.CreateWindowExW(
+	   ctx.win32_window = win32.CreateWindowExW(
 		   window_ex_style, 
 		   window_class.lpszClassName, 
 		   win32.utf8_to_wstring(title),
@@ -419,15 +497,15 @@ main :: proc() {
 		   window_rect.max.y - window_rect.min.y, 
 		   nil, 
 		   nil,
-		   win32.HANDLE(win32_instance), 
+		   win32.HANDLE(ctx.win32_instance), 
 		   nil)
-	   ensure(win32_window != nil, win32_last_error_message())
+	   ensure(ctx.win32_window != nil, win32_last_error_message())
 	}
 
 	// set event callback user data
 	{
 		win32.SetLastError(0)
-		win32.SetWindowLongPtrW(win32_window, win32.GWLP_USERDATA, transmute(win32.LONG_PTR)&ctx)
+		win32.SetWindowLongPtrW(ctx.win32_window, win32.GWLP_USERDATA, transmute(win32.LONG_PTR)&ctx)
 		ensure(win32.GetLastError() == 0, win32_last_error_message())
 	}
 
@@ -445,23 +523,22 @@ main :: proc() {
 
 	try_connect_gamepad(&ctx)
 
-	sprite_player_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Idle/Idle.aseprite")
-	sprite_player_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Run/Run.aseprite")
-	sprite_player_jump_start = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-Start/Jump-Start.aseprite")
-	sprite_player_jump_end = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-End/Jump-End.aseprite")
-	sprite_player_attack = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Attack-01/Attack-01.aseprite")
-	sprite_player_die = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Dead/Dead.aseprite")
+	// sprite_player_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Idle/Idle.aseprite")
+	// sprite_player_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Run/Run.aseprite")
+	// sprite_player_jump_start = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-Start/Jump-Start.aseprite")
+	// sprite_player_jump_end = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-End/Jump-End.aseprite")
+	// sprite_player_attack = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Attack-01/Attack-01.aseprite")
+	// sprite_player_die = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Dead/Dead.aseprite")
 
-	sprite_boar_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Idle/Idle.aseprite")
-	sprite_boar_walk = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Walk/Walk-Base.aseprite")
-	sprite_boar_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Run/Run.aseprite")
-	sprite_boar_hit = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
+	// sprite_boar_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Idle/Idle.aseprite")
+	// sprite_boar_walk = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Walk/Walk-Base.aseprite")
+	// sprite_boar_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Run/Run.aseprite")
+	// sprite_boar_hit = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
 
-	sprite_tiles = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
+	// sprite_tiles = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
 
-	sd_player_idle := ctx.sprites[sprite_player_idle]
-	sd_player_run := ctx.sprites[sprite_player_run]
-	sd_player_jump_start := ctx.sprites[sprite_player_jump_start]
+	vk_ctx: Vk_Context
+	vk_init(&ctx, &vk_ctx)
 
 	last_tick := time.tick_now()
 
@@ -476,12 +553,12 @@ main :: proc() {
 			window_ready += 1
 		} else if window_ready == 0 {
 			window_ready += 1
-			win32.ShowWindow(win32_window, win32.SW_SHOW)
+			win32.ShowWindow(ctx.win32_window, win32.SW_SHOW)
 		}
 
 		for {
 			message: win32.MSG
-			if win32.PeekMessageW(&message, win32_window, 0, 0, win32.PM_REMOVE) {
+			if win32.PeekMessageW(&message, ctx.win32_window, 0, 0, win32.PM_REMOVE) {
 			   win32.TranslateMessage(&message)
 			   win32.DispatchMessageW(&message)
 			   continue
@@ -494,7 +571,55 @@ main :: proc() {
 		last_tick = tick
 		ctx.variable_dt = f32(dt_dur)/f32(time.Second)
 
-		// TODO: update
+		cb := vk_ctx.frames[vk_ctx.frame_idx].cb
+		VK_CHECK(vk.BeginCommandBuffer(cb, &{
+		    sType = .COMMAND_BUFFER_BEGIN_INFO,
+		    flags = {.ONE_TIME_SUBMIT},
+		}))
+
+		vk.CmdBeginRenderPass(cb, &{
+		    sType = .RENDER_PASS_BEGIN_INFO,
+		    renderPass = vk_ctx.render_pass,
+		    framebuffer = vk_ctx.swapchain_framebuffers[int(vk_ctx.image_idx)],
+		    renderArea = { extent = vk_ctx.swapchain_extent },
+		    clearValueCount = 1,
+		    pClearValues = &vk.ClearValue {
+		        color = {
+		            float32 = {0.0, 0.0, 0.0, 0.0},
+		        },
+		    },
+		}, .INLINE)
+
+		vk.CmdEndRenderPass(cb)
+
+		VK_CHECK(vk.EndCommandBuffer(cb))
+
+		wait_stage := vk.PipelineStageFlags{.COLOR_ATTACHMENT_OUTPUT}
+		submit_info := vk.SubmitInfo {
+		    sType = .SUBMIT_INFO,
+		    waitSemaphoreCount = 1,
+		    pWaitSemaphores = &vk_ctx.frames[vk_ctx.frame_idx].sem_image_available,
+		    pWaitDstStageMask = &wait_stage,
+		    commandBufferCount = 1,
+		    pCommandBuffers = &cb,
+		    signalSemaphoreCount = 1,
+		    pSignalSemaphores = &vk_ctx.frames[vk_ctx.frame_idx].sem_render_finished,
+		}
+		VK_CHECK(vk.QueueSubmit(vk_ctx.graphics_queue, 1, &submit_info, vk_ctx.frames[vk_ctx.frame_idx].fence_in_flight))
+
+		present_info := vk.PresentInfoKHR {
+		    sType = .PRESENT_INFO_KHR,
+		    waitSemaphoreCount = 1,
+		    pWaitSemaphores = &vk_ctx.frames[vk_ctx.frame_idx].sem_render_finished,
+		    swapchainCount = 1,
+		    pSwapchains = &vk_ctx.swapchain,
+		    pImageIndices = &vk_ctx.image_idx,
+		}
+		VK_CHECK(vk.QueuePresentKHR(vk_ctx.graphics_queue, &present_info))
+
+		vk_ctx.frame_idx = (vk_ctx.frame_idx + 1) % len(vk_ctx.frames)
+
+		free_all(context.temp_allocator)
 	}
 
 }
@@ -768,4 +893,380 @@ ase_string :: proc(s: ^ase.String) -> string {
 	p += size_of(ase.String)
 	l := int(s.len)
 	return string(slice.bytes_from_ptr(rawptr(p), l))
+}
+
+vk_init :: proc(ctx: ^Context, vk_ctx: ^Vk_Context) {
+	// vk_load_library
+	{
+	    did_load: bool
+	    vk_ctx.lib, did_load = dynlib.load_library("Vulkan-1.dll")
+	    ensure(did_load, "Your system does not support Vulkan.")
+	}
+
+	// vk_load_proc_addresses_global
+    {
+        vkGetInstanceProcAddr := dynlib.symbol_address(vk_ctx.lib, "vkGetInstanceProcAddr")
+        vk.load_proc_addresses_global(vkGetInstanceProcAddr)
+    }
+
+    instance_extensions := [?]cstring{
+    	"VK_KHR_surface",
+    	"VK_KHR_win32_surface",
+    }
+
+    // vk_create_instance
+    {
+        app_info := vk.ApplicationInfo {
+            sType = .APPLICATION_INFO,
+            pApplicationName = "jo",
+            applicationVersion = vk.API_VERSION_1_0,
+            pEngineName = "jo",
+            engineVersion = vk.API_VERSION_1_0,
+            apiVersion = vk.API_VERSION_1_0,
+        }
+
+        create_info := vk.InstanceCreateInfo {
+            sType = .INSTANCE_CREATE_INFO,
+            pApplicationInfo = &app_info,
+            enabledExtensionCount = u32(len(instance_extensions)),
+            ppEnabledExtensionNames = raw_data(instance_extensions[:])
+        }
+
+        ensure(vk.CreateInstance(&create_info, nil, &vk_ctx.instance) == .SUCCESS, "Your system does not support Vulkan.")
+        vk.load_proc_addresses_instance(vk_ctx.instance)
+    }
+
+    // vk_get_physical_device
+    {
+    	count: u32 = ---
+    	VK_CHECK(vk.EnumeratePhysicalDevices(vk_ctx.instance, &count, nil))
+    	physical_devices: [16]vk.PhysicalDevice
+    	VK_CHECK(vk.EnumeratePhysicalDevices(vk_ctx.instance, &count, raw_data(physical_devices[:])))
+
+    	for p in physical_devices {
+    		vk.GetPhysicalDeviceProperties(p, &vk_ctx.physical_device_properties)
+    		if vk_ctx.physical_device_properties.deviceType == .DISCRETE_GPU {
+    			vk_ctx.physical_device = p
+    			break
+    		}
+    	}
+
+    	if vk_ctx.physical_device == nil {
+    		vk_ctx.physical_device = physical_devices[int(count)-1]
+    	}
+
+    	vk.GetPhysicalDeviceFeatures(vk_ctx.physical_device, &vk_ctx.physical_device_features)
+    	{
+    		// TODO: Device which features to use.
+
+	    	vk_ctx.physical_device_features.robustBufferAccess = false
+			vk_ctx.physical_device_features.fullDrawIndexUint32 = false
+			vk_ctx.physical_device_features.imageCubeArray = false
+			vk_ctx.physical_device_features.independentBlend = false
+			vk_ctx.physical_device_features.geometryShader = false
+			vk_ctx.physical_device_features.tessellationShader = false
+			vk_ctx.physical_device_features.sampleRateShading = false
+			vk_ctx.physical_device_features.dualSrcBlend = false
+			vk_ctx.physical_device_features.logicOp = false
+			vk_ctx.physical_device_features.multiDrawIndirect = false
+			vk_ctx.physical_device_features.drawIndirectFirstInstance = false
+			vk_ctx.physical_device_features.depthClamp = false
+			vk_ctx.physical_device_features.depthBiasClamp = false
+			vk_ctx.physical_device_features.fillModeNonSolid = false
+			vk_ctx.physical_device_features.depthBounds = false
+			vk_ctx.physical_device_features.wideLines = false
+			vk_ctx.physical_device_features.largePoints = false
+			vk_ctx.physical_device_features.alphaToOne = false
+			vk_ctx.physical_device_features.multiViewport = false
+			vk_ctx.physical_device_features.samplerAnisotropy = false
+			vk_ctx.physical_device_features.textureCompressionETC2 = false
+			vk_ctx.physical_device_features.textureCompressionASTC_LDR = false
+			vk_ctx.physical_device_features.textureCompressionBC = false
+			vk_ctx.physical_device_features.occlusionQueryPrecise = false
+			vk_ctx.physical_device_features.pipelineStatisticsQuery = false
+			vk_ctx.physical_device_features.vertexPipelineStoresAndAtomics = false
+			vk_ctx.physical_device_features.fragmentStoresAndAtomics = false
+			vk_ctx.physical_device_features.shaderTessellationAndGeometryPointSize = false
+			vk_ctx.physical_device_features.shaderImageGatherExtended = false
+			vk_ctx.physical_device_features.shaderStorageImageExtendedFormats = false
+			vk_ctx.physical_device_features.shaderStorageImageMultisample = false
+			vk_ctx.physical_device_features.shaderStorageImageReadWithoutFormat = false
+			vk_ctx.physical_device_features.shaderStorageImageWriteWithoutFormat = false
+			vk_ctx.physical_device_features.shaderUniformBufferArrayDynamicIndexing = false
+			vk_ctx.physical_device_features.shaderSampledImageArrayDynamicIndexing = false
+			vk_ctx.physical_device_features.shaderStorageBufferArrayDynamicIndexing = false
+			vk_ctx.physical_device_features.shaderStorageImageArrayDynamicIndexing = false
+			vk_ctx.physical_device_features.shaderClipDistance = false
+			vk_ctx.physical_device_features.shaderCullDistance = false
+			vk_ctx.physical_device_features.shaderFloat64 = false
+			vk_ctx.physical_device_features.shaderInt64 = false
+			vk_ctx.physical_device_features.shaderInt16 = false
+			vk_ctx.physical_device_features.shaderResourceResidency = false
+			vk_ctx.physical_device_features.shaderResourceMinLod = false
+			vk_ctx.physical_device_features.sparseBinding = false
+			vk_ctx.physical_device_features.sparseResidencyBuffer = false
+			vk_ctx.physical_device_features.sparseResidencyImage2D = false
+			vk_ctx.physical_device_features.sparseResidencyImage3D = false
+			vk_ctx.physical_device_features.sparseResidency2Samples = false
+			vk_ctx.physical_device_features.sparseResidency4Samples = false
+			vk_ctx.physical_device_features.sparseResidency8Samples = false
+			vk_ctx.physical_device_features.sparseResidency16Samples = false
+			vk_ctx.physical_device_features.sparseResidencyAliased = false
+			vk_ctx.physical_device_features.variableMultisampleRate = false
+			vk_ctx.physical_device_features.inheritedQueries = false
+    	}
+
+    	vk.GetPhysicalDeviceMemoryProperties(vk_ctx.physical_device, &vk_ctx.physical_device_memory_properties)
+    }
+
+	VK_CHECK(vk.CreateWin32SurfaceKHR(
+        vk_ctx.instance,
+        &vk.Win32SurfaceCreateInfoKHR{
+            sType = .WIN32_SURFACE_CREATE_INFO_KHR,
+            hinstance = ctx.win32_instance,
+            hwnd = ctx.win32_window,
+        }, 
+        nil,
+        &vk_ctx.surface))
+
+	{
+	    count: u32
+	    VK_CHECK(vk.GetPhysicalDeviceSurfaceFormatsKHR(vk_ctx.physical_device, vk_ctx.surface, &count, nil))
+	    vk_ctx.surface_formats = make([]vk.SurfaceFormatKHR, count, ctx.arena)
+	    VK_CHECK(vk.GetPhysicalDeviceSurfaceFormatsKHR(vk_ctx.physical_device, vk_ctx.surface, &count, raw_data(vk_ctx.surface_formats)))
+	}
+
+	{
+	    count: u32
+	    vk.GetPhysicalDeviceQueueFamilyProperties(vk_ctx.physical_device, &count, nil)
+	    vk_ctx.queue_family_properties = make([]vk.QueueFamilyProperties, count, ctx.arena)
+	    vk.GetPhysicalDeviceQueueFamilyProperties(vk_ctx.physical_device, &count, raw_data(vk_ctx.queue_family_properties))
+	}
+
+	// TODO: Find out if there have been any papers written about queue family properties.
+	queue_priorities := [128]f32 {
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	}
+
+	queue_infos := make([dynamic]vk.DeviceQueueCreateInfo, 0, len(vk_ctx.queue_family_properties))
+	defer delete(queue_infos)
+	queue_count := 0
+	for props, queue_family_idx in vk_ctx.queue_family_properties {
+	    if props.queueCount > 0 {
+	        append(&queue_infos, vk.DeviceQueueCreateInfo{
+	            sType = .DEVICE_QUEUE_CREATE_INFO,
+	            queueFamilyIndex = u32(queue_family_idx),
+	            queueCount = props.queueCount,
+	            pQueuePriorities = raw_data(queue_priorities[:]),
+	        })
+	        queue_count += int(props.queueCount)
+	    }
+	}
+
+	device_extensions := [?]cstring{
+		"VK_KHR_swapchain",
+	}
+
+	// vk_create_device
+	VK_CHECK(vk.CreateDevice(vk_ctx.physical_device, &{
+	    sType = .DEVICE_CREATE_INFO,
+	    pNext = &vk_ctx.physical_device_features,
+	    queueCreateInfoCount = u32(len(queue_infos)),
+	    pQueueCreateInfos = raw_data(queue_infos),
+	    enabledExtensionCount = u32(len(vk_ctx.device_extensions)),
+	    ppEnabledExtensionNames = raw_data(vk_ctx.device_extensions[:]),
+	}, nil, &vk_ctx.device))
+	vk.load_proc_addresses_device(vk_ctx.device)
+
+	vk_ctx.queues = make([]vk.Queue, queue_count, ctx.arena)
+    queue_array_idx := 0
+    for props, queue_family_idx in vk_ctx.queue_family_properties {
+        for queue_idx in 0..<int(props.queueCount) {
+            vk.GetDeviceQueue(vk_ctx.device, u32(queue_family_idx), u32(queue_idx), &vk_ctx.queues[queue_array_idx])
+            queue_array_idx += 1
+        }
+    }
+
+    vk_ctx.graphics_queue = vk_ctx.queues[0] // TODO
+    vk_ctx.present_queue = vk_ctx.queues[0] // TODO
+
+    vk_ctx.swapchain_format = vk_ctx.surface_formats[0] // TODO
+    vk_ctx.swapchain_extent = vk_ctx.surface_capabilities.currentExtent
+
+    // vk_create_swapchain
+    {
+        info := vk.SwapchainCreateInfoKHR {
+            sType = .SWAPCHAIN_CREATE_INFO_KHR,
+            surface = vk_ctx.surface,
+            minImageCount = vk_ctx.surface_capabilities.minImageCount, // TODO
+            imageFormat = vk_ctx.swapchain_format.format,
+            imageColorSpace = vk_ctx.swapchain_format.colorSpace,
+            imageExtent = vk_ctx.swapchain_extent,
+            imageArrayLayers = 1,
+            imageUsage = {.COLOR_ATTACHMENT},
+            preTransform = vk_ctx.surface_capabilities.currentTransform,
+            compositeAlpha = {.OPAQUE},
+            presentMode = .FIFO,
+            clipped = true,
+        }
+
+        VK_CHECK(vk.CreateSwapchainKHR(vk_ctx.device, &info, nil, &vk_ctx.swapchain))
+    }
+
+    // vk_get_swapchain_images
+    {
+        count: u32
+        VK_CHECK(vk.GetSwapchainImagesKHR(vk_ctx.device, vk_ctx.swapchain, &count, nil))
+        vk_ctx.swapchain_images = make([]vk.Image, count, ctx.arena)
+        VK_CHECK(vk.GetSwapchainImagesKHR(vk_ctx.device, vk_ctx.swapchain, &count, raw_data(vk_ctx.swapchain_images)))
+
+        vk_ctx.frames = make([]Vk_Frame, len(vk_ctx.swapchain_images), ctx.arena)
+    }
+
+    // vk_get_swapchain_image_views
+    {
+    	vk_ctx.swapchain_image_views = make([]vk.ImageView, len(vk_ctx.swapchain_images), ctx.arena)
+    	for &swapchain_image_view, idx in vk_ctx.swapchain_image_views {
+    	    VK_CHECK(vk.CreateImageView(vk_ctx.device, &{
+    	        sType = .IMAGE_VIEW_CREATE_INFO,
+    	        image = vk_ctx.swapchain_images[idx],
+    	        viewType = .D2,
+    	        format = vk_ctx.swapchain_format.format,
+    	        subresourceRange = {
+    	            aspectMask = {.COLOR}, 
+    	            levelCount = 1, 
+    	            layerCount = 1
+    	        },
+    	    }, nil, &swapchain_image_view))
+    	}
+    }
+
+    // vk_create_render_pass
+    {
+        color_attachment := vk.AttachmentDescription {
+            format = vk_ctx.swapchain_format.format,
+            samples = {._1},
+            loadOp = .CLEAR,
+            storeOp = .STORE,
+            stencilLoadOp = .DONT_CARE,
+            stencilStoreOp = .DONT_CARE,
+            initialLayout = .UNDEFINED,
+            finalLayout = .PRESENT_SRC_KHR,
+        }
+
+        color_attachment_ref := vk.AttachmentReference {
+            attachment = 0,
+            layout = .COLOR_ATTACHMENT_OPTIMAL,
+        }
+
+        subpass := vk.SubpassDescription {
+            pipelineBindPoint = .GRAPHICS,
+            colorAttachmentCount = 1,
+            pColorAttachments = &color_attachment_ref,
+        }
+
+        subpass_dependency := vk.SubpassDependency {
+            srcSubpass = vk.SUBPASS_EXTERNAL,
+            dstSubpass = 0,
+            srcStageMask = {.COLOR_ATTACHMENT_OUTPUT},
+            dstStageMask = {.COLOR_ATTACHMENT_OUTPUT},
+            srcAccessMask = {},
+            dstAccessMask = {.COLOR_ATTACHMENT_WRITE},
+        }
+
+        attachments := [?]vk.AttachmentDescription { 
+            color_attachment,
+        }
+
+        info := vk.RenderPassCreateInfo {
+            sType = .RENDER_PASS_CREATE_INFO,
+            attachmentCount = u32(len(attachments)),
+            pAttachments = raw_data(attachments[:]),
+            subpassCount = 1,
+            pSubpasses = &subpass,
+            dependencyCount = 1,
+            pDependencies = &subpass_dependency,
+        }
+
+        VK_CHECK(vk.CreateRenderPass(vk_ctx.device, &info, nil, &vk_ctx.render_pass))
+    }
+
+    // vk_create_command_pool
+    {
+    	VK_CHECK(vk.CreateCommandPool(vk_ctx.device, &{
+    	    sType = .COMMAND_POOL_CREATE_INFO,
+    	    flags = {.TRANSIENT, .RESET_COMMAND_BUFFER},
+
+    	    // TODO:
+    	    // queueFamilyIndex = 0,
+    	}, nil, &vk_ctx.command_pool))
+    }
+
+    // vk_create_command_buffers
+    {
+    	command_buffers: [16]vk.CommandBuffer
+    	VK_CHECK(vk.AllocateCommandBuffers(
+    	    vk_ctx.device, 
+    	    &{ sType = .COMMAND_BUFFER_ALLOCATE_INFO, commandPool = vk_ctx.command_pool, commandBufferCount = u32(len(vk_ctx.frames))}, 
+    	    raw_data(command_buffers[:])))
+    	for &frame, idx in vk_ctx.frames {
+    	    frame.cb = command_buffers[idx]
+    	}
+    }
+
+    // vk_create_fences
+    {
+    	for &frame in vk_ctx.frames {
+    	    VK_CHECK(vk.CreateFence(vk_ctx.device, &{sType = .FENCE_CREATE_INFO, flags = {.SIGNALED} }, nil, &frame.fence_in_flight))
+    	}
+    }
+
+    // vk_create_semaphores
+    {
+    	for &frame in vk_ctx.frames {
+    	    VK_CHECK(vk.CreateSemaphore(vk_ctx.device, &{sType = .SEMAPHORE_CREATE_INFO}, nil, &frame.sem_image_available))
+    	    VK_CHECK(vk.CreateSemaphore(vk_ctx.device, &{sType = .SEMAPHORE_CREATE_INFO}, nil, &frame.sem_render_finished))
+    	}
+    }
+
+    // vk_create_swapchain_framebuffers
+    {
+    	vk_ctx.swapchain_framebuffers = make([]vk.Framebuffer, len(vk_ctx.swapchain_images), ctx.arena)
+    	for idx in 0..<len(vk_ctx.swapchain_images) {
+    	    attachments := [?]vk.ImageView {
+    	        vk_ctx.swapchain_image_views[idx],
+    	    }
+
+    	    info := vk.FramebufferCreateInfo {
+    	        sType = .FRAMEBUFFER_CREATE_INFO,
+    	        renderPass = vk_ctx.render_pass,
+    	        attachmentCount = u32(len(attachments)),
+    	        pAttachments = raw_data(attachments[:]),
+    	        width = vk_ctx.swapchain_extent.width,
+    	        height = vk_ctx.swapchain_extent.height,
+    	        layers = 1,
+    	    }
+    	    VK_CHECK(vk.CreateFramebuffer(vk_ctx.device, &info, nil, &vk_ctx.swapchain_framebuffers[idx]))
+    	}
+    }
+
+    // vk_create_pipeline_cache
+    {
+    	VK_CHECK(vk.CreatePipelineCache(vk_ctx.device, &{sType = .PIPELINE_CACHE_CREATE_INFO}, nil, &vk_ctx.pipeline_cache))
+    }
 }
