@@ -4,3 +4,4 @@ build/*
 release/*
 assets/*
 *.txt
+jo.radproj

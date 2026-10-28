@@ -240,8 +240,7 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 						chunk := (^ase.Layer_Chunk)(raw_data(raw_chunk))
 						assert(chunk.layer_name.len > 0)
 
-						layer_name := strings.string_from_ptr((^u8)(rawptr(uintptr(chunk)+1)), int(chunk.layer_name.len))
-
+						layer_name := ase_string(&chunk.layer_name)
 						if layer_name == "Hitbox" {
 							hitbox_layer_is_unique := hitbox_layer_idx == max(u16)
 							assert(hitbox_layer_is_unique)
@@ -348,6 +347,8 @@ sprite_from_path :: proc(path: string) -> Sprite {
 
 main :: proc() {
 	ctx: Context
+	arena := mem.Arena{data = make([]u8, mem.Gigabyte)}
+	ctx.arena = mem.arena_allocator(&arena)
 
 	win32_cursor := win32.GetCursor()
 
@@ -457,6 +458,10 @@ main :: proc() {
 	sprite_boar_hit = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
 
 	sprite_tiles = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
+
+	sd_player_idle := ctx.sprites[sprite_player_idle]
+	sd_player_run := ctx.sprites[sprite_player_run]
+	sd_player_jump_start := ctx.sprites[sprite_player_jump_start]
 
 	last_tick := time.tick_now()
 
@@ -758,12 +763,9 @@ compare_sprite_cells :: proc(a, b: Sprite_Cell) -> bool {
 	return true
 }
 
-
-
-
-
-
-
-
-
-
+ase_string :: proc(s: ^ase.String) -> string {
+	p := uintptr(s)
+	p += size_of(ase.String)
+	l := int(s.len)
+	return string(slice.bytes_from_ptr(rawptr(p), l))
+}
