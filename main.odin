@@ -15,6 +15,7 @@ import "core:mem"
 import "core:compress/zlib"
 import "core:slice"
 import "core:dynlib"
+import "core:encoding/json"
 
 import win32 "core:sys/windows"
 L :: intrinsics.constant_utf16_cstring
@@ -216,17 +217,18 @@ MAX_ENTITIES :: 128
 MAX_TILE_LAYERS :: 8
 TILE_SIZE :: 32
 
+// This stores the location of the tile in the texture atlas, NOT in the level.
+// The position of the tile in the level is inferred by where it is in the tile array.
 Tile :: distinct [2]i32
 
 Tile_Layer :: struct {
-	size: [2]i32,
-	tiles: [^]Tile, // [size.x*size.y]Tile
+	tiles: [^]Tile, // [level.size.x*level.size.y]Tile
 }
 
 Level :: struct {
 	size: [2]i32,
 	entities: [dynamic; MAX_ENTITIES]Entity,
-	tile_layers: [dynamic; MAX_TILE_LAYERS]Tile_Layer,
+	tile_layers: [4]Tile_Layer,
 }
 
 Context :: struct {
@@ -1291,189 +1293,99 @@ vk_init :: proc(ctx: ^Context, vk_ctx: ^Vk_Context) {
     }
 }
 
-/*
-load_level :: proc() {
-	cJSON* head;
+load_level :: proc(ctx: ^Context) {
+	json_data: json.Value
 	{
-		size_t file_len;
-
-		void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); 
-		SDL_CHECK(file_data);
-
-		SPALL_BUFFER_BEGIN_NAME("cJSON_ParseWithLength");
-		head = cJSON_ParseWithLength((const char*)file_data, file_len);
-		SPALL_BUFFER_END();
-
-		SDL_free(file_data);
+		file_data := #load("assets/levels/test.ldtk")
+		err: json.Error
+		json_data, err = json.parse(file_data)
+		assert(err == .None)
 	}
-	SDL_assert(HAS_FLAG(head->type, cJSON_Object));
+	defer json.destroy_value(json_data)
 
-	cJSON* level_nodes = cJSON_GetObjectItem(head, "levels");
-	cJSON* level_node = level_nodes->child;
+	root := json_data.(json.Object)
 
-	cJSON* w = cJSON_GetObjectItem(level_node, "pxWid");
-	ctx->level.size.x = ((int32_t)cJSON_GetNumberValue(w))/TILE_SIZE;
+	json_levels := root["levels"].(json.Array)
+	json_level := json_levels[0].(json.Object)
 
-	cJSON* h = cJSON_GetObjectItem(level_node, "pxHei");
-	ctx->level.size.y = ((int32_t)cJSON_GetNumberValue(h))/TILE_SIZE;
-
-	size_t num_tiles = (size_t)(ctx->level.size.x*ctx->level.size.y);
-	ctx->level.tiles = ArenaAlloc(&ctx->arena, num_tiles, bool);
-
-	ctx->level.num_tile_layers = 3;
-	ctx->level.tile_layers = ArenaAlloc(&ctx->arena, ctx->level.num_tile_layers, TileLayer);
-
-	const char* layer_tiles = "Tiles";
-	const char* layer_props = "Props";
-	const char* layer_grass = "Grass";
-
-	ctx->level.num_entities = 1; // the player
-
-	const char* layer_player = "Player";
-	const char* layer_enemies = "Enemies";
-
-	cJSON* layer_instances = cJSON_GetObjectItem(level_node, "layerInstances");
-	cJSON* layer_instance; 
-	cJSON_ArrayForEach(layer_instance, layer_instances) 
+	// get_level_dimensions
 	{
-		cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
-		char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
-		cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
-		char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
-
-		if (SDL_strcmp(type, "Tiles") == 0) 
-		{
-			TileLayer* tile_layer = NULL;
-				if (SDL_strcmp(ident, layer_tiles) == 0) 
-				{
-				tile_layer = &ctx->level.tile_layers[0];
-			} 
-			else if (SDL_strcmp(ident, layer_props) == 0) 
-			{
-				tile_layer = &ctx->level.tile_layers[1];
-			} 
-			else if (SDL_strcmp(ident, layer_grass) == 0) 
-			{
-				tile_layer = &ctx->level.tile_layers[2];
-			} 
-			else 
-			{
-				SDL_assert(!"Invalid layer!");
-			}
-
-			cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
-			cJSON* grid_tile; 
-			cJSON_ArrayForEach(grid_tile, grid_tiles) 
-			{
-				tile_layer->num_tiles += 1;
-			}
-			tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
-			SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
-		}
-		else if (SDL_strcmp(ident, layer_enemies) == 0) 
-		{
-			cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
-			cJSON* entity_instance; 
-			cJSON_ArrayForEach(entity_instance, entity_instances) 
-			{
-				ctx->level.num_entities += 1;
-			}
-		}
-		else if (SDL_strcmp(ident, "IntGrid") == 0)
-		{
-			cJSON* tile_collisions = cJSON_GetObjectItem(layer_instance, "intGridCsv"); SDL_assert(tile_collisions);
-			cJSON* tile_collision;
-			size_t tile_collision_idx = 0;
-			cJSON_ArrayForEach(tile_collision, tile_collisions) 
-			{
-				bool val = (bool)cJSON_GetNumberValue(tile_collision);
-				ctx->level.tiles[tile_collision_idx++] = val;
-			}
-		}
+		w := json_level["pxWid"].(json.Integer)
+		h := json_level["pxHei"].(json.Integer)
+		ctx.level.size.x = i32(w)/TILE_SIZE
+		ctx.level.size.y = i32(h)/TILE_SIZE
 	}
 
-	ctx->level.entities = ArenaAlloc(&ctx->arena, ctx->level.num_entities, Entity);
-	Entity* enemy = &ctx->level.entities[1];
+	for &tile_layer in ctx.level.tile_layers {
+		tile_layer.tiles = make([^]Tile, ctx.level.size.x*ctx.level.size.y, ctx.arena)
+	}
 
-	cJSON_ArrayForEach(layer_instance, layer_instances) 
-	{
-		cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
-		char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
-		cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
-		char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
-		if (SDL_strcmp(type, "Tiles") == 0) 
-		{
-			cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
+	// Names of the layers in LDtk.
+	// That way, I can easily change them later.
+	LAYER_COLLISIONS :: "IntGrid"
+	LAYER_TILES :: "Tiles"
+	LAYER_PROPS :: "Props"
+	LAYER_GRASS :: "Grass"
+	LAYER_PLAYER :: "Player"
+	LAYER_ENEMIES :: "Enemies"
 
-			TileLayer* tile_layer = NULL;
-				if (SDL_strcmp(ident, layer_tiles) == 0) 
-				{
-				tile_layer = &ctx->level.tile_layers[0];
-			} 
-			else if (SDL_strcmp(ident, layer_props) == 0) 
-			{
-				tile_layer = &ctx->level.tile_layers[1];
-			} 
-			else if (SDL_strcmp(ident, layer_grass) == 0) 
-			{
-				tile_layer = &ctx->level.tile_layers[2];
-			} 
-			else 
-			{
-				SDL_assert(!"Invalid layer!");
+	append_nothing(&ctx.level.entities) // the player
+
+	layer_instances := root["layerInstances"].(json.Array)
+	for layer_instance in layer_instances {
+		layer_instance := layer_instance.(json.Object)
+		type := layer_instance["__type"].(json.String)
+		ident := layer_instance["__identifier"].(json.String)
+
+		if type == "Tiles" {
+			tile_layer: ^Tile_Layer
+			if ident == LAYER_TILES {
+				tile_layer = &ctx.level.tile_layers[0]
+			} else if ident == LAYER_PROPS {
+				tile_layer = &ctx.level.tile_layers[1]
+			} else if ident == LAYER_GRASS {
+				tile_layer = &ctx.level.tile_layers[2]
 			}
 
-			size_t i = 0;
-			cJSON* grid_tile; 
-			cJSON_ArrayForEach(grid_tile, grid_tiles) 
-			{
-				cJSON* src_node = cJSON_GetObjectItem(grid_tile, "src");
-				ivec2s src = 
-				{
-					(int32_t)cJSON_GetNumberValue(src_node->child),
-					(int32_t)cJSON_GetNumberValue(src_node->child->next),
-				};
+			grid_tiles := layer_instance["gridTiles"].(json.Array)
+			for grid_tile in grid_tiles {
+				grid_tile := grid_tile.(json.Object)
 
-				cJSON* dst_node = cJSON_GetObjectItem(grid_tile, "px");
-				ivec2s dst = 
-				{
-					(int32_t)cJSON_GetNumberValue(dst_node->child),
-					(int32_t)cJSON_GetNumberValue(dst_node->child->next),
-				};
+				src := grid_tile["src"].(json.Array)
+				src_x := src[0].(json.Integer)
+				src_y := src[1].(json.Integer)
 
-				SDL_assert(i < tile_layer->num_tiles);
-				tile_layer->tiles[i++] = (Tile){src, dst};
+				dst := grid_tile["px"].(json.Array)
+				dst_x := dst[0].(json.Integer)
+				dst_y := dst[1].(json.Integer)
+				
+				i := int(dst_y*i64(ctx.level.size.x) + dst_x)
+				runtime.bounds_check_error_loc(index = i, count = int(ctx.level.size.x*ctx.level.size.y))
+				tile_layer.tiles[i] = {i32(src[0].(json.Integer)), i32(src[1].(json.Integer))}
 			}
-		}
-		else if (SDL_strcmp(type, "Entities") == 0) 
-		{
-			cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
-
-			if (SDL_strcmp(ident, layer_player) == 0) 
-			{
-				cJSON* entity_instance = entity_instances->child;
-				cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
-				cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
-				ctx->level.entities[0].start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
-			} 
-			else if (SDL_strcmp(ident, layer_enemies) == 0) 
-			{
-				cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
-				{
-					cJSON* identifier_node = cJSON_GetObjectItem(entity_instance, "__identifier");
-					char* identifier = cJSON_GetStringValue(identifier_node);
-					cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
-					cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
-					enemy->start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
-					if (SDL_strcmp(identifier, "Boar") == 0) 
-					{
-						enemy->type = EntityType_Boar;
-					} // else if (SDL_strcmp(identifier, "") == 0) {}
-					enemy += 1;
+		} else if type == "Entities" {
+			entity_instances := layer_instance["entityInstances"].(json.Array)
+			if ident == LAYER_PLAYER {
+				entity_instance := entity_instances[0].(json.Object)
+				world_x := entity_instance["__worldX"].(json.Integer)
+				world_y := entity_instance["__worldY"].(json.Integer)
+				ctx.level.entities[0].start_pos = {i32(world_x), i32(world_y)}
+			} else if ident == LAYER_ENEMIES {
+				for entity_instance in entity_instances {
+					entity_instance := entity_instance.(json.Object)
+					ident := entity_instance["__identifier"].(json.
+						String)
+					world_x := entity_instance["__worldX"].(json.Integer)
+					world_y := entity_instance["__worldY"].(json.Integer)
+					enemy := Entity{
+						start_pos = {i32(world_x), i32(world_y)}
+					}
+					if ident == "Boar" {
+						enemy.type = .Boar
+					}
+					append(&ctx.level.entities, enemy)
 				}
 			}
-		}	
+		}
 	}
-
-	cJSON_Delete(head);
-}*/
+}
