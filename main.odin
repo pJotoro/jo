@@ -259,7 +259,9 @@ sprite_boar_hit: Sprite
 
 sprite_tiles: Sprite
 
-// TODO: Shouldn't we be handling io errors?
+IO_CHECK :: #force_inline proc(n: int, err: io.Error, loc := #caller_location) {
+	assert(err == .None, loc=loc)
+}
 
 // Sprite should just be the name of the sprite, without the rest of the path (folders, file extension).
 sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
@@ -273,7 +275,7 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 		rd := bytes.reader_init(&bytes_reader, buf)
 
 		header: ase.Header
-		io.read_ptr(rd, &header, size_of(header))
+		IO_CHECK(io.read_ptr(rd, &header, size_of(header)))
 		assert(header.magic_number == 0xA5E0)
 
 		assert(header.color_depth == 32)
@@ -295,7 +297,7 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 
 		for &frame, frame_idx in sd.frames {
 			ase_frame: ase.Frame
-			io.read_ptr(rd, &ase_frame, size_of(ase_frame))
+			IO_CHECK(io.read_ptr(rd, &ase_frame, size_of(ase_frame)))
 			assert(ase_frame.magic_number == 0xF1FA)
 
 			// Would mean this aseprite file is very old.
@@ -303,7 +305,8 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 
 			frame.dur = f32(ase_frame.frame_dur) / f32(time.Millisecond)
 
-			rd_pos, _ := io.seek(rd, 0, .Current)
+			rd_pos, err := io.seek(rd, 0, .Current)
+			assert(err == .None)
 
 			// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame, but not necessarily before everything else in that frame.
 			// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
@@ -330,7 +333,7 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 					}
 				}
 
-				io.seek(rd, rd_pos, .Start)
+				IO_CHECK(io.seek(rd, rd_pos, .Start))
 			}
 
 			num_cells := 0
@@ -362,7 +365,7 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 
 				cell_idx := 0
 
-				io.seek(rd, rd_pos, .Current)
+				IO_CHECK(io.seek(rd, rd_pos, .Current))
 
 				for chunk_idx in 0..<ase_frame.num_chunks {
 					raw_chunk, chunk_type := ase_read_chunk(rd)
@@ -867,11 +870,11 @@ reset_game :: proc(ctx: ^Context) {
 
 ase_read_chunk :: proc(rd: io.Reader) -> (chunk: []byte, chunk_type: ase.Chunk_Type) {
 	chunk_header: ase.Chunk_Header
-	io.read_ptr(rd, &chunk_header, size_of(chunk_header))
+	IO_CHECK(io.read_ptr(rd, &chunk_header, size_of(chunk_header)))
 
 	if chunk_header.size != size_of(ase.Chunk_Header) {
 		chunk = make_aligned([]byte, chunk_header.size - size_of(ase.Chunk_Header), align_of(int))
-		io.read(rd, chunk)
+		IO_CHECK(io.read(rd, chunk))
 	}
 
 	chunk_type = chunk_header.type
@@ -1287,3 +1290,190 @@ vk_init :: proc(ctx: ^Context, vk_ctx: ^Vk_Context) {
     	VK_CHECK(vk.CreatePipelineCache(vk_ctx.device, &{sType = .PIPELINE_CACHE_CREATE_INFO}, nil, &vk_ctx.pipeline_cache))
     }
 }
+
+/*
+load_level :: proc() {
+	cJSON* head;
+	{
+		size_t file_len;
+
+		void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); 
+		SDL_CHECK(file_data);
+
+		SPALL_BUFFER_BEGIN_NAME("cJSON_ParseWithLength");
+		head = cJSON_ParseWithLength((const char*)file_data, file_len);
+		SPALL_BUFFER_END();
+
+		SDL_free(file_data);
+	}
+	SDL_assert(HAS_FLAG(head->type, cJSON_Object));
+
+	cJSON* level_nodes = cJSON_GetObjectItem(head, "levels");
+	cJSON* level_node = level_nodes->child;
+
+	cJSON* w = cJSON_GetObjectItem(level_node, "pxWid");
+	ctx->level.size.x = ((int32_t)cJSON_GetNumberValue(w))/TILE_SIZE;
+
+	cJSON* h = cJSON_GetObjectItem(level_node, "pxHei");
+	ctx->level.size.y = ((int32_t)cJSON_GetNumberValue(h))/TILE_SIZE;
+
+	size_t num_tiles = (size_t)(ctx->level.size.x*ctx->level.size.y);
+	ctx->level.tiles = ArenaAlloc(&ctx->arena, num_tiles, bool);
+
+	ctx->level.num_tile_layers = 3;
+	ctx->level.tile_layers = ArenaAlloc(&ctx->arena, ctx->level.num_tile_layers, TileLayer);
+
+	const char* layer_tiles = "Tiles";
+	const char* layer_props = "Props";
+	const char* layer_grass = "Grass";
+
+	ctx->level.num_entities = 1; // the player
+
+	const char* layer_player = "Player";
+	const char* layer_enemies = "Enemies";
+
+	cJSON* layer_instances = cJSON_GetObjectItem(level_node, "layerInstances");
+	cJSON* layer_instance; 
+	cJSON_ArrayForEach(layer_instance, layer_instances) 
+	{
+		cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
+		char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
+		cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
+		char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
+
+		if (SDL_strcmp(type, "Tiles") == 0) 
+		{
+			TileLayer* tile_layer = NULL;
+				if (SDL_strcmp(ident, layer_tiles) == 0) 
+				{
+				tile_layer = &ctx->level.tile_layers[0];
+			} 
+			else if (SDL_strcmp(ident, layer_props) == 0) 
+			{
+				tile_layer = &ctx->level.tile_layers[1];
+			} 
+			else if (SDL_strcmp(ident, layer_grass) == 0) 
+			{
+				tile_layer = &ctx->level.tile_layers[2];
+			} 
+			else 
+			{
+				SDL_assert(!"Invalid layer!");
+			}
+
+			cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
+			cJSON* grid_tile; 
+			cJSON_ArrayForEach(grid_tile, grid_tiles) 
+			{
+				tile_layer->num_tiles += 1;
+			}
+			tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
+			SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
+		}
+		else if (SDL_strcmp(ident, layer_enemies) == 0) 
+		{
+			cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
+			cJSON* entity_instance; 
+			cJSON_ArrayForEach(entity_instance, entity_instances) 
+			{
+				ctx->level.num_entities += 1;
+			}
+		}
+		else if (SDL_strcmp(ident, "IntGrid") == 0)
+		{
+			cJSON* tile_collisions = cJSON_GetObjectItem(layer_instance, "intGridCsv"); SDL_assert(tile_collisions);
+			cJSON* tile_collision;
+			size_t tile_collision_idx = 0;
+			cJSON_ArrayForEach(tile_collision, tile_collisions) 
+			{
+				bool val = (bool)cJSON_GetNumberValue(tile_collision);
+				ctx->level.tiles[tile_collision_idx++] = val;
+			}
+		}
+	}
+
+	ctx->level.entities = ArenaAlloc(&ctx->arena, ctx->level.num_entities, Entity);
+	Entity* enemy = &ctx->level.entities[1];
+
+	cJSON_ArrayForEach(layer_instance, layer_instances) 
+	{
+		cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
+		char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
+		cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
+		char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
+		if (SDL_strcmp(type, "Tiles") == 0) 
+		{
+			cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
+
+			TileLayer* tile_layer = NULL;
+				if (SDL_strcmp(ident, layer_tiles) == 0) 
+				{
+				tile_layer = &ctx->level.tile_layers[0];
+			} 
+			else if (SDL_strcmp(ident, layer_props) == 0) 
+			{
+				tile_layer = &ctx->level.tile_layers[1];
+			} 
+			else if (SDL_strcmp(ident, layer_grass) == 0) 
+			{
+				tile_layer = &ctx->level.tile_layers[2];
+			} 
+			else 
+			{
+				SDL_assert(!"Invalid layer!");
+			}
+
+			size_t i = 0;
+			cJSON* grid_tile; 
+			cJSON_ArrayForEach(grid_tile, grid_tiles) 
+			{
+				cJSON* src_node = cJSON_GetObjectItem(grid_tile, "src");
+				ivec2s src = 
+				{
+					(int32_t)cJSON_GetNumberValue(src_node->child),
+					(int32_t)cJSON_GetNumberValue(src_node->child->next),
+				};
+
+				cJSON* dst_node = cJSON_GetObjectItem(grid_tile, "px");
+				ivec2s dst = 
+				{
+					(int32_t)cJSON_GetNumberValue(dst_node->child),
+					(int32_t)cJSON_GetNumberValue(dst_node->child->next),
+				};
+
+				SDL_assert(i < tile_layer->num_tiles);
+				tile_layer->tiles[i++] = (Tile){src, dst};
+			}
+		}
+		else if (SDL_strcmp(type, "Entities") == 0) 
+		{
+			cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
+
+			if (SDL_strcmp(ident, layer_player) == 0) 
+			{
+				cJSON* entity_instance = entity_instances->child;
+				cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
+				cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
+				ctx->level.entities[0].start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
+			} 
+			else if (SDL_strcmp(ident, layer_enemies) == 0) 
+			{
+				cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
+				{
+					cJSON* identifier_node = cJSON_GetObjectItem(entity_instance, "__identifier");
+					char* identifier = cJSON_GetStringValue(identifier_node);
+					cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
+					cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
+					enemy->start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
+					if (SDL_strcmp(identifier, "Boar") == 0) 
+					{
+						enemy->type = EntityType_Boar;
+					} // else if (SDL_strcmp(identifier, "") == 0) {}
+					enemy += 1;
+				}
+			}
+		}	
+	}
+
+	cJSON_Delete(head);
+}*/
