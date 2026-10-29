@@ -66,8 +66,6 @@ Vk_Context :: struct {
     lib: dynlib.Library,
 
     instance: vk.Instance,
-    instance_layer_properties: []vk.LayerProperties,
-    instance_extensions: [dynamic]cstring,
 
     physical_device: vk.PhysicalDevice,
     physical_device_properties: vk.PhysicalDeviceProperties,
@@ -79,7 +77,6 @@ Vk_Context :: struct {
     surface_formats: []vk.SurfaceFormatKHR,
 
     device: vk.Device,
-    device_extensions: [dynamic]cstring,
     
     queue_family_properties: []vk.QueueFamilyProperties,
     queues: []vk.Queue,
@@ -571,6 +568,11 @@ main :: proc() {
 		last_tick = tick
 		ctx.variable_dt = f32(dt_dur)/f32(time.Second)
 
+		VK_CHECK(vk.WaitForFences(vk_ctx.device, 1, &vk_ctx.frames[vk_ctx.frame_idx].fence_in_flight, true, max(u64)))
+		VK_CHECK(vk.ResetFences(vk_ctx.device, 1, &vk_ctx.frames[vk_ctx.frame_idx].fence_in_flight))
+
+		VK_CHECK(vk.AcquireNextImageKHR(vk_ctx.device, vk_ctx.swapchain, max(u64), vk_ctx.frames[vk_ctx.frame_idx].sem_image_available, vk.Fence{}, &vk_ctx.image_idx))
+
 		cb := vk_ctx.frames[vk_ctx.frame_idx].cb
 		VK_CHECK(vk.BeginCommandBuffer(cb, &{
 		    sType = .COMMAND_BUFFER_BEGIN_INFO,
@@ -925,6 +927,11 @@ vk_init :: proc(ctx: ^Context, vk_ctx: ^Vk_Context) {
             apiVersion = vk.API_VERSION_1_0,
         }
 
+        when VK_DEBUG {
+        	// GPU Shader Instrumentation requires Vulkan 1.1 or later.
+        	app_info.apiVersion = vk.API_VERSION_1_1
+        }
+
         create_info := vk.InstanceCreateInfo {
             sType = .INSTANCE_CREATE_INFO,
             pApplicationInfo = &app_info,
@@ -957,7 +964,7 @@ vk_init :: proc(ctx: ^Context, vk_ctx: ^Vk_Context) {
 
     	vk.GetPhysicalDeviceFeatures(vk_ctx.physical_device, &vk_ctx.physical_device_features)
     	{
-    		// TODO: Device which features to use.
+    		// TODO: Decide which features to use.
 
 	    	vk_ctx.physical_device_features.robustBufferAccess = false
 			vk_ctx.physical_device_features.fullDrawIndexUint32 = false
@@ -1019,22 +1026,25 @@ vk_init :: proc(ctx: ^Context, vk_ctx: ^Vk_Context) {
     	vk.GetPhysicalDeviceMemoryProperties(vk_ctx.physical_device, &vk_ctx.physical_device_memory_properties)
     }
 
-	VK_CHECK(vk.CreateWin32SurfaceKHR(
-        vk_ctx.instance,
-        &vk.Win32SurfaceCreateInfoKHR{
-            sType = .WIN32_SURFACE_CREATE_INFO_KHR,
-            hinstance = ctx.win32_instance,
-            hwnd = ctx.win32_window,
-        }, 
-        nil,
-        &vk_ctx.surface))
+    // vk_create_surface
+    {
+		VK_CHECK(vk.CreateWin32SurfaceKHR(
+	        vk_ctx.instance,
+	        &vk.Win32SurfaceCreateInfoKHR{
+	            sType = .WIN32_SURFACE_CREATE_INFO_KHR,
+	            hinstance = ctx.win32_instance,
+	            hwnd = ctx.win32_window,
+	        }, 
+	        nil,
+	        &vk_ctx.surface))
 
-	{
+		VK_CHECK(vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(vk_ctx.physical_device, vk_ctx.surface, &vk_ctx.surface_capabilities))
+
 	    count: u32
 	    VK_CHECK(vk.GetPhysicalDeviceSurfaceFormatsKHR(vk_ctx.physical_device, vk_ctx.surface, &count, nil))
 	    vk_ctx.surface_formats = make([]vk.SurfaceFormatKHR, count, ctx.arena)
 	    VK_CHECK(vk.GetPhysicalDeviceSurfaceFormatsKHR(vk_ctx.physical_device, vk_ctx.surface, &count, raw_data(vk_ctx.surface_formats)))
-	}
+    }
 
 	{
 	    count: u32
@@ -1083,15 +1093,18 @@ vk_init :: proc(ctx: ^Context, vk_ctx: ^Vk_Context) {
 	}
 
 	// vk_create_device
-	VK_CHECK(vk.CreateDevice(vk_ctx.physical_device, &{
-	    sType = .DEVICE_CREATE_INFO,
-	    pNext = &vk_ctx.physical_device_features,
-	    queueCreateInfoCount = u32(len(queue_infos)),
-	    pQueueCreateInfos = raw_data(queue_infos),
-	    enabledExtensionCount = u32(len(vk_ctx.device_extensions)),
-	    ppEnabledExtensionNames = raw_data(vk_ctx.device_extensions[:]),
-	}, nil, &vk_ctx.device))
-	vk.load_proc_addresses_device(vk_ctx.device)
+	{
+		info := vk.DeviceCreateInfo{
+		    sType = .DEVICE_CREATE_INFO,
+		    queueCreateInfoCount = u32(len(queue_infos)),
+		    pQueueCreateInfos = raw_data(queue_infos),
+		    enabledExtensionCount = u32(len(device_extensions)),
+		    ppEnabledExtensionNames = raw_data(device_extensions[:]),
+		    pEnabledFeatures = &vk_ctx.physical_device_features,
+		}
+		VK_CHECK(vk.CreateDevice(vk_ctx.physical_device, &info, nil, &vk_ctx.device))
+		vk.load_proc_addresses_device(vk_ctx.device)
+	}
 
 	vk_ctx.queues = make([]vk.Queue, queue_count, ctx.arena)
     queue_array_idx := 0
@@ -1107,6 +1120,10 @@ vk_init :: proc(ctx: ^Context, vk_ctx: ^Vk_Context) {
 
     vk_ctx.swapchain_format = vk_ctx.surface_formats[0] // TODO
     vk_ctx.swapchain_extent = vk_ctx.surface_capabilities.currentExtent
+
+    // TODO: Figure out how to select surface based on whether it supports presentation.
+    // supported: b32
+    // res := vk.GetPhysicalDeviceSurfaceSupportKHR(vk_ctx.physical_device, 0, vk_ctx.surface, &supported)
 
     // vk_create_swapchain
     {
