@@ -12,6 +12,7 @@ import "core:math"
 import "core:bytes"
 import "core:io"
 import "core:mem"
+import "core:compress"
 import "core:compress/zlib"
 import "core:slice"
 import "core:dynlib"
@@ -150,7 +151,7 @@ Sprite_Frame :: struct {
 	 * just one cell? For example, a fire effect to just the player's sword. As it stands, this 
 	 * would be pretty trivial.
 	 */
-	cells: []Sprite_Cell,
+	cells: [dynamic]Sprite_Cell,
 
 	/**
 	 * Not every frame necessarily has a hitbox. If it exists, it is literally drawn inside of
@@ -261,7 +262,7 @@ sprite_boar_hit: Sprite
 
 sprite_tiles: Sprite
 
-IO_CHECK :: #force_inline proc(n: int, err: io.Error, loc := #caller_location) {
+IO_CHECK :: #force_inline proc(#any_int n: int, err: io.Error, loc := #caller_location) {
 	assert(err == .None, loc=loc)
 }
 
@@ -355,27 +356,8 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 						if frame_idx == 0 {
 							sd.origin = {i32(chunk.x), i32(chunk.y)}
 						}
-					} else {
-						num_cells += 1
+					} else if chunk_type == .Cell {
 						assert(chunk.type == .Compressed_Image)
-					}
-				}
-			}
-
-			if num_cells > 0 {
-				sd.frames[frame_idx].cells = make([]Sprite_Cell, num_cells, ctx.arena)
-
-				cell_idx := 0
-
-				IO_CHECK(io.seek(rd, rd_pos, .Current))
-
-				for chunk_idx in 0..<ase_frame.num_chunks {
-					raw_chunk, chunk_type := ase_read_chunk(rd)
-
-					chunk := (^ase.Cell_Chunk)(raw_data(raw_chunk))
-					if (chunk_type == .Cell && 
-						chunk.layer_idx != hitbox_layer_idx && 
-						chunk.layer_idx != origin_layer_idx) {
 
 						cell := Sprite_Cell{
 							origin = {i32(chunk.x), i32(chunk.y)},
@@ -394,16 +376,25 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 
 						// Decompress the image data.
 						res := zlib.inflate_from_byte_array_raw(src_buf, &cell.dst_buf, true, int(cell.size.x*cell.size.y) * size_of(u32))
-						assert(res.(zlib.ZLIB_Error) == .None)
+						if res != nil {
+							switch res in res {
+								case compress.General_Error:	assert(res == .None)
+								case compress.Deflate_Error:	assert(res == .None)
+								case compress.ZLIB_Error:		assert(res == .None)
+								case compress.GZIP_Error:		assert(res == .None)
+								case compress.ZIP_Error:		assert(res == .None)
+								case runtime.Allocator_Error:	assert(res == .None)
+							}
+						}
 
-						assert(cell_idx < len(sd.frames[frame_idx].cells))
-						sd.frames[frame_idx].cells[cell_idx] = cell
-						cell_idx += 1
+						append(&sd.frames[frame_idx].cells, cell)
 					}
 				}
+			}
 
+			if len(sd.frames[frame_idx].cells) > 0 {
 				// Makes the cells draw in the correct order.
-				slice.sort_by(sd.frames[frame_idx].cells, compare_sprite_cells)
+				slice.sort_by(sd.frames[frame_idx].cells[:], compare_sprite_cells)
 			}
 		}
 
@@ -525,19 +516,19 @@ main :: proc() {
 
 	try_connect_gamepad(&ctx)
 
-	// sprite_player_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Idle/Idle.aseprite")
-	// sprite_player_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Run/Run.aseprite")
-	// sprite_player_jump_start = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-Start/Jump-Start.aseprite")
-	// sprite_player_jump_end = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-End/Jump-End.aseprite")
-	// sprite_player_attack = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Attack-01/Attack-01.aseprite")
-	// sprite_player_die = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Dead/Dead.aseprite")
+	sprite_player_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Idle/Idle.aseprite")
+	sprite_player_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Run/Run.aseprite")
+	sprite_player_jump_start = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-Start/Jump-Start.aseprite")
+	sprite_player_jump_end = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Jump-End/Jump-End.aseprite")
+	sprite_player_attack = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Attack-01/Attack-01.aseprite")
+	sprite_player_die = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Character/Dead/Dead.aseprite")
 
-	// sprite_boar_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Idle/Idle.aseprite")
-	// sprite_boar_walk = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Walk/Walk-Base.aseprite")
-	// sprite_boar_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Run/Run.aseprite")
-	// sprite_boar_hit = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
+	sprite_boar_idle = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Idle/Idle.aseprite")
+	sprite_boar_walk = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Walk/Walk-Base.aseprite")
+	sprite_boar_run = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Run/Run.aseprite")
+	sprite_boar_hit = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Mob/Boar/Hit-Vanish/Hit.aseprite")
 
-	// sprite_tiles = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
+	sprite_tiles = sprite_load(&ctx, "assets/legacy_fantasy_high_forest/Assets/Tiles.aseprite")
 
 	vk_ctx: Vk_Context
 	vk_init(&ctx, &vk_ctx)
@@ -872,6 +863,8 @@ reset_game :: proc(ctx: ^Context) {
 	}	
 }
 
+blah := 0
+
 ase_read_chunk :: proc(rd: io.Reader) -> (chunk: []byte, chunk_type: ase.Chunk_Type) {
 	chunk_header: ase.Chunk_Header
 	IO_CHECK(io.read_ptr(rd, &chunk_header, size_of(chunk_header)))
@@ -879,6 +872,7 @@ ase_read_chunk :: proc(rd: io.Reader) -> (chunk: []byte, chunk_type: ase.Chunk_T
 	if chunk_header.size != size_of(ase.Chunk_Header) {
 		chunk = make_aligned([]byte, chunk_header.size - size_of(ase.Chunk_Header), align_of(int))
 		IO_CHECK(io.read(rd, chunk))
+		blah += 1
 	}
 
 	chunk_type = chunk_header.type
