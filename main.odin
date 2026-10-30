@@ -542,6 +542,8 @@ main :: proc() {
 	vk_ctx: Vk_Context
 	vk_init(&ctx, &vk_ctx)
 
+	load_level(&ctx)
+
 	last_tick := time.tick_now()
 
 	ctx.running = true
@@ -1305,13 +1307,13 @@ load_level :: proc(ctx: ^Context) {
 
 	root := json_data.(json.Object)
 
-	json_levels := root["levels"].(json.Array)
-	json_level := json_levels[0].(json.Object)
+	levels := root["levels"].(json.Array)
+	level := levels[0].(json.Object)
 
 	// get_level_dimensions
 	{
-		w := json_level["pxWid"].(json.Integer)
-		h := json_level["pxHei"].(json.Integer)
+		w := level["pxWid"].(f64)
+		h := level["pxHei"].(f64)
 		ctx.level.size.x = i32(w)/TILE_SIZE
 		ctx.level.size.y = i32(h)/TILE_SIZE
 	}
@@ -1331,11 +1333,11 @@ load_level :: proc(ctx: ^Context) {
 
 	append_nothing(&ctx.level.entities) // the player
 
-	layer_instances := root["layerInstances"].(json.Array)
+	layer_instances := level["layerInstances"].(json.Array)
 	for layer_instance in layer_instances {
 		layer_instance := layer_instance.(json.Object)
-		type := layer_instance["__type"].(json.String)
-		ident := layer_instance["__identifier"].(json.String)
+		type := layer_instance["__type"].(string)
+		ident := layer_instance["__identifier"].(string)
 
 		if type == "Tiles" {
 			tile_layer: ^Tile_Layer
@@ -1352,31 +1354,31 @@ load_level :: proc(ctx: ^Context) {
 				grid_tile := grid_tile.(json.Object)
 
 				src := grid_tile["src"].(json.Array)
-				src_x := src[0].(json.Integer)
-				src_y := src[1].(json.Integer)
+				src_x := src[0].(i64)
+				src_y := src[1].(i64)
 
 				dst := grid_tile["px"].(json.Array)
-				dst_x := dst[0].(json.Integer)
-				dst_y := dst[1].(json.Integer)
+				dst_x := dst[0].(i64)
+				dst_y := dst[1].(i64)
 				
 				i := int(dst_y*i64(ctx.level.size.x) + dst_x)
 				runtime.bounds_check_error_loc(index = i, count = int(ctx.level.size.x*ctx.level.size.y))
-				tile_layer.tiles[i] = {i32(src[0].(json.Integer)), i32(src[1].(json.Integer))}
+				tile_layer.tiles[i] = {i32(src[0].(i64)), i32(src[1].(i64))}
 			}
 		} else if type == "Entities" {
 			entity_instances := layer_instance["entityInstances"].(json.Array)
 			if ident == LAYER_PLAYER {
 				entity_instance := entity_instances[0].(json.Object)
-				world_x := entity_instance["__worldX"].(json.Integer)
-				world_y := entity_instance["__worldY"].(json.Integer)
+				world_x := entity_instance["__worldX"].(i64)
+				world_y := entity_instance["__worldY"].(i64)
 				ctx.level.entities[0].start_pos = {i32(world_x), i32(world_y)}
 			} else if ident == LAYER_ENEMIES {
 				for entity_instance in entity_instances {
 					entity_instance := entity_instance.(json.Object)
 					ident := entity_instance["__identifier"].(json.
 						String)
-					world_x := entity_instance["__worldX"].(json.Integer)
-					world_y := entity_instance["__worldY"].(json.Integer)
+					world_x := entity_instance["__worldX"].(i64)
+					world_y := entity_instance["__worldY"].(i64)
 					enemy := Entity{
 						start_pos = {i32(world_x), i32(world_y)}
 					}
