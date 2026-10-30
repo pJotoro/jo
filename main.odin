@@ -370,20 +370,25 @@ sprite_load :: proc(ctx: ^Context, $path: string) -> Sprite {
 						bytes.buffer_init_allocator(&cell.dst_buf, 0, int(cell.size.x*cell.size.y) * size_of(u32))
 
 						// It's the zero-sized array at the end of ASE_CellChunk.
-						src_buf_size := len(raw_chunk) - size_of(ase.Cell_Chunk) - 2;
+						src_buf_size := len(raw_chunk) - size_of(ase.Cell_Chunk)
 						src_buf_ptr := rawptr(uintptr(&chunk.h) + size_of(chunk.h))
 						src_buf := slice.from_ptr((^u8)(src_buf_ptr), src_buf_size)
 
 						// Decompress the image data.
-						res := zlib.inflate_from_byte_array_raw(src_buf, &cell.dst_buf, true, int(cell.size.x*cell.size.y) * size_of(u32))
+						/*
+						Why is it returning such a bizarre value?
+						I think we need to figure out which one of these procedures we're actually supposed to call.
+						Unfortunately, this library doesn't seem to have any documentation, so doing that will take some work.
+						*/
+						res := zlib.inflate_from_byte_array(src_buf, &cell.dst_buf, false, int(cell.size.x*cell.size.y) * size_of(u32))
 						if res != nil {
-							switch res in res {
-								case compress.General_Error:	assert(res == .None)
-								case compress.Deflate_Error:	assert(res == .None)
-								case compress.ZLIB_Error:		assert(res == .None)
-								case compress.GZIP_Error:		assert(res == .None)
-								case compress.ZIP_Error:		assert(res == .None)
-								case runtime.Allocator_Error:	assert(res == .None)
+							switch res2 in res {
+								case compress.General_Error:	assert(res2 == .None)
+								case compress.Deflate_Error:	assert(res2 == .None)
+								case compress.ZLIB_Error:		assert(res2 == .None)
+								case compress.GZIP_Error:		assert(res2 == .None)
+								case compress.ZIP_Error:		assert(res2 == .None)
+								case runtime.Allocator_Error:	assert(res2 == .None)
 							}
 						}
 
