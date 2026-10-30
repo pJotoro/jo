@@ -1339,6 +1339,8 @@ load_level :: proc(ctx: ^Context) {
 		type := layer_instance["__type"].(string)
 		ident := layer_instance["__identifier"].(string)
 
+		// TODO: Should we be using math.floor before casting from f64 to i32?
+
 		if type == "Tiles" {
 			tile_layer: ^Tile_Layer
 			if ident == LAYER_TILES {
@@ -1354,33 +1356,33 @@ load_level :: proc(ctx: ^Context) {
 				grid_tile := grid_tile.(json.Object)
 
 				src := grid_tile["src"].(json.Array)
-				src_x := src[0].(i64)
-				src_y := src[1].(i64)
+				src_x := i32(src[0].(f64)/TILE_SIZE)
+				src_y := i32(src[1].(f64)/TILE_SIZE)
 
 				dst := grid_tile["px"].(json.Array)
-				dst_x := dst[0].(i64)
-				dst_y := dst[1].(i64)
+				dst_x := i32(dst[0].(f64)/TILE_SIZE)
+				dst_y := i32(dst[1].(f64)/TILE_SIZE)
 				
-				i := int(dst_y*i64(ctx.level.size.x) + dst_x)
+				i := int(dst_y*ctx.level.size.x + dst_x)
 				runtime.bounds_check_error_loc(index = i, count = int(ctx.level.size.x*ctx.level.size.y))
-				tile_layer.tiles[i] = {i32(src[0].(i64)), i32(src[1].(i64))}
+				tile_layer.tiles[i] = {src_x, src_y}
 			}
 		} else if type == "Entities" {
 			entity_instances := layer_instance["entityInstances"].(json.Array)
 			if ident == LAYER_PLAYER {
 				entity_instance := entity_instances[0].(json.Object)
-				world_x := entity_instance["__worldX"].(i64)
-				world_y := entity_instance["__worldY"].(i64)
-				ctx.level.entities[0].start_pos = {i32(world_x), i32(world_y)}
+				world_x := i32(entity_instance["__worldX"].(f64))
+				world_y := i32(entity_instance["__worldY"].(f64))
+				ctx.level.entities[0].start_pos = {world_x, world_y}
 			} else if ident == LAYER_ENEMIES {
 				for entity_instance in entity_instances {
 					entity_instance := entity_instance.(json.Object)
 					ident := entity_instance["__identifier"].(json.
 						String)
-					world_x := entity_instance["__worldX"].(i64)
-					world_y := entity_instance["__worldY"].(i64)
+					world_x := i32(entity_instance["__worldX"].(f64))
+					world_y := i32(entity_instance["__worldY"].(f64))
 					enemy := Entity{
-						start_pos = {i32(world_x), i32(world_y)}
+						start_pos = {world_x, world_y}
 					}
 					if ident == "Boar" {
 						enemy.type = .Boar
